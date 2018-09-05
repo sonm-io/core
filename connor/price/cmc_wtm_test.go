@@ -10,8 +10,6 @@ import (
 )
 
 func TestCalculateEthPrice(t *testing.T) {
-	prov := &ethPriceProvider{cfg: &ProviderConfig{Margin: 1}}
-
 	tests := []struct {
 		price      *big.Float
 		reward     *big.Float
@@ -49,7 +47,7 @@ func TestCalculateEthPrice(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		res := prov.calculate(tt.price, tt.reward, tt.difficulty)
+		res := calculateEthPrice(tt.price, tt.reward, tt.difficulty, 1)
 		assert.True(t, tt.expected.Cmp(res) == 0, fmt.Sprintf("%v == %v", tt.expected.String(), res.String()))
 	}
 }
@@ -90,15 +88,12 @@ func TestPriceCalculationWithMargin(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		prov := &ethPriceProvider{cfg: &ProviderConfig{Margin: tt.margin}}
-		res := prov.calculate(price, reward, difficulty)
+		res := calculateEthPrice(price, reward, difficulty, tt.margin)
 		assert.True(t, tt.expected.Cmp(res) == 0, fmt.Sprintf("%v == %v", tt.expected.String(), res.String()))
 	}
 }
 
 func TestCalculateXmrPrice(t *testing.T) {
-	prov := &xmrPriceProvider{cfg: &ProviderConfig{Margin: 1}}
-
 	tests := []struct {
 		price      *big.Float
 		reward     *big.Float
@@ -120,7 +115,7 @@ func TestCalculateXmrPrice(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		res := prov.calculate(tt.price, tt.reward, tt.difficulty)
+		res := calculateXmrPrice(tt.price, tt.reward, tt.difficulty, 1)
 		assert.True(t, tt.expected.Cmp(res) == 0, fmt.Sprintf("%v == %v", tt.expected.String(), res.String()))
 	}
 }

@@ -2,8 +2,11 @@ node:
   endpoint: "0x8125721c2413d99a33e351e1f6bb4e56b6b633fd@127.0.0.1:15030"
 
 market:
-  from_hashrate: 15000000
-  to_hashrate: 300000000
+  # primary benchmark that used for order placement
+  # and price calculation.
+  benchmark: "gpu-eth-hashrate"
+  from: 15000000
+  to: 300000000
   step: 500000
 
   price_control:
@@ -24,7 +27,7 @@ market:
     cpu-sysbench-multi: 100
     cpu-sysbench-single: 100
     cpu-cores: 1
-    ram-size: 256000000
+    ram-size: 512000000
     storage-size: 0
     net-download: 1000000
     net-upload: 1000000
@@ -34,14 +37,53 @@ market:
     gpu-cash-hashrate: 0
     gpu-redshift: 0
 
-mining:
-  token: "ETH"
-  image: "sonm/eth-claymore@sha256:27cbef25286cedbdeabeaca1dba0e59ceb50d44b3c8c84dbd92093fc9a129f0a"
-  wallet: "0x8125721c2413d99a33e351e1f6bb4e56b6b633fd"
-  pool_report: "http://eth-eu.dwarfpool.com:80"
-  token_price:
-    price_url: "https://api.coinmarketcap.com/v1/ticker/ethereum/"
-    update_interval: 10m
+# container section describes parameters related
+# to tasks which will be started by Connor on purchased resources.
+container:
+  # Docker image name, can be in the following formats:
+  # `registry.io/user/image:tag`
+  # `user/image:tag`
+  # `user/image@sha256`
+  # `sha256`
+  # Required.
+  image: "sshaman1101/null-miner@sha256:3c339a95746496a03fd3949c74dd92563d89062f1f81c26ba453ba6ea236cbae"
+  # Tag will be attached to the started task, it allows Connor to pick out containers started by himself
+  tag: connor_eth
+  # Container's environment parameters. Can be any key-value strings.
+  # To support dynamically params building immediately before container's starting
+  # you can use "template" variables that will be transformed into real values.
+  # Currently supported only `{DEAL_ID}` variable, see examples below.
+  # Optional.
+  env:
+    WALLET: "0x8125721c2413d99a33e351e1f6bb4e56b6b633fd/c{DEAL_ID}"
+    POOL: "http://eth-eu.dwarfpool.com:80/0x8125721c2413d99a33e351e1f6bb4e56b6b633fd/c{DEAL_ID}"
+
+# price source describes a way to obtain actual price for
+# desired benchmarks.
+price_source:
+  # source type: can be `cmc` for CoinMarkerCap or
+  # `static` for statically defined value.
+  # Required.
+  type: cmc
+  # CoinMarketCap's API URL to load required token price
+  # Required.
+  url: "https://api.coinmarketcap.com/v1/ticker/ethereum/"
+  # Token ID from whattomine.com, can be obtained via API call
+  # or can be found in the URL: https://whattomine.com/coins/151-eth-ethash
+  #                                              like this  ^^^
+  # Currently implemented only Ethereum and Monero price calculation, thus
+  # supported values is 151 for Eth and 101 for Monero.
+  # Required.
+  what_to_mine_id: 151
+  # Interval between price update requests.
+  # Default: 10m
+  # Required.
+  update_interval: 10m
+
+#  type: static
+#  take into consideration that `market.price_control.marginality`
+#  value DOES NOT affects static provider's behaviour.
+#  price: 9200
 
 antifraud:
   task_quality: 0.75
@@ -79,10 +121,6 @@ engine:
   # interval between tasks restoration retries
   # default: 10s
   task_restore_interval: 10s
-
-  # extra parameters for container with miner
-  #container_env:
-  #  my_parameter: "some_string_value"
 
 benchmarks:
   url: "https://raw.githubusercontent.com/sonm-io/benchmarks-list/master/list.json"

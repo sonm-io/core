@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	ethBenchmarkIndex  = 9
+	zecBenchmarkIndex  = 10
+	nullBenchmarkIndex = 11
+)
+
 func newBenchmarksWithGPUMem(mem uint64) Benchmarks {
 	b := Benchmarks{Values: make([]uint64, sonm.MinNumBenchmarks)}
 	b.Values[8] = mem

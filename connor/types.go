@@ -1,9 +1,7 @@
 package connor
 
 import (
-	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -23,16 +21,16 @@ type CorderFactory interface {
 	FromSlice(orders []*sonm.Order) []*Corder
 }
 
-func NewCorderFactory(token string, benchmarkIndex int) CorderFactory {
+func NewCorderFactory(tag string, benchmarkIndex int) CorderFactory {
 	return &anyCorderFactory{
-		tokenName:      token,
+		orderTag:       tag,
 		benchmarkIndex: benchmarkIndex,
 	}
 }
 
 type anyCorderFactory struct {
 	benchmarkIndex int
-	tokenName      string
+	orderTag       string
 }
 
 func (a *anyCorderFactory) FromOrder(order *sonm.Order) *Corder {
@@ -47,7 +45,7 @@ func (a *anyCorderFactory) FromParams(price *big.Int, hashrate uint64, bench Ben
 		Price:         sonm.NewBigInt(price),
 		Netflags:      &sonm.NetFlags{Flags: sonm.NetworkOutbound},
 		IdentityLevel: sonm.IdentityLevel_ANONYMOUS,
-		Tag:           []byte(fmt.Sprintf("connor_%s", strings.ToLower(a.tokenName))),
+		Tag:           []byte(a.orderTag),
 		Benchmarks:    bench.unwrap(),
 	}
 
@@ -167,7 +165,7 @@ type taskStatus struct {
 	id string
 }
 
-type tokenParameters struct {
+type backends struct {
 	corderFactory    CorderFactory
 	dealFactory      DealFactory
 	priceProvider    price.Provider
