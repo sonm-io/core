@@ -350,6 +350,9 @@ func (m *meetingHandler) Relay(ctx context.Context, server, client net.Conn) err
 }
 
 func (m *meetingHandler) transmitTCP(from, to net.Conn, metrics *atomic.Uint64, log *zap.SugaredLogger) error {
+	defer from.(*net.TCPConn).CloseRead()
+	defer to.(*net.TCPConn).CloseWrite()
+
 	buf := make([]byte, m.bufferSize)
 
 	for {
