@@ -1478,7 +1478,7 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 
 	for id, c := range m.containers {
 		// task is ours
-		if c.DealID == dealID {
+		if c.DealID.Cmp(dealID) == 0 {
 			task := c.IntoProto(m.ctx)
 
 			// task is running or preparing to start
