@@ -134,6 +134,7 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 		supplier := dealMeta.deal.GetSupplierID().Unwrap()
 		logQualityMetrics := []zapcore.Field{
 			zap.String("supplier_id", supplier.Hex()),
+			zap.String("deal_id", dealMeta.deal.GetId().Unwrap().String()),
 			zap.Float64("by_logs", qualityByLogs),
 			zap.Float64("by_pool", qualityByPool),
 			zap.Float64("required", m.cfg.TaskQuality),
