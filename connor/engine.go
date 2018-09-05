@@ -718,8 +718,10 @@ func (e *engine) start(ctx context.Context) error {
 }
 
 func (e *engine) loadInitialData(ctx context.Context) error {
-	if err := e.priceProvider.Update(ctx); err != nil {
-		return fmt.Errorf("cannot update price: %v", err)
+	if p, ok := e.priceProvider.(price.Updateable); ok {
+		if err := p.Update(ctx); err != nil {
+			return fmt.Errorf("cannot update price: %v", err)
+		}
 	}
 
 	return nil
@@ -728,13 +730,13 @@ func (e *engine) loadInitialData(ctx context.Context) error {
 func (e *engine) startPriceTracking(ctx context.Context) error {
 	log := e.log.Named("token-price")
 
-	cfg, ok := e.cfg.PriceSource.Config().(price.Updateable)
+	provider, ok := e.priceProvider.(price.Updateable)
 	if !ok {
 		log.Info("price source shouldn't be updated")
 		return nil
 	}
 
-	t := time.NewTicker(cfg.UpdateInterval())
+	t := time.NewTicker(provider.Interval())
 	defer t.Stop()
 
 	for {
@@ -744,7 +746,7 @@ func (e *engine) startPriceTracking(ctx context.Context) error {
 			return ctx.Err()
 
 		case <-t.C:
-			if err := e.priceProvider.Update(ctx); err != nil {
+			if err := provider.Update(ctx); err != nil {
 				log.Warn("cannot update token price", zap.Error(err))
 			} else {
 				log.Debug("received new token price",

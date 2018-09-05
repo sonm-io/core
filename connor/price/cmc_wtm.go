@@ -2,11 +2,46 @@ package price
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/params"
 )
+
+type CoinMarketCapConfig struct {
+	WhatToMineID int           `yaml:"what_to_mine_id" required:"true"`
+	URL          string        `yaml:"url" required:"true"`
+	Interval     time.Duration `yaml:"update_interval" default:"10m"`
+}
+
+type CoinMarketCapFactory struct {
+	CoinMarketCapConfig
+}
+
+func (m *CoinMarketCapFactory) Config() interface{} {
+	return &m.CoinMarketCapConfig
+}
+
+func (m *CoinMarketCapFactory) ValidateConfig() error {
+	if m.Interval < time.Second {
+		return fmt.Errorf("update interval cannot be less that one second")
+	}
+
+	supported := []int{ethWtmID, moneroEtmID}
+	for _, id := range supported {
+		if id == m.CoinMarketCapConfig.WhatToMineID {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unsupported whattomine id: %d", m.CoinMarketCapConfig.WhatToMineID)
+}
+
+func (m *CoinMarketCapFactory) Init(margin float64) Provider {
+	return NewCMCProvider(&m.CoinMarketCapConfig, margin)
+}
 
 type cmcPriceProvider struct {
 	mu     sync.Mutex
@@ -29,6 +64,8 @@ func NewCMCProvider(cfg *CoinMarketCapConfig, margin float64) Provider {
 
 	return prov
 }
+
+func (p *cmcPriceProvider) Interval() time.Duration { return p.cfg.Interval }
 
 func (p *cmcPriceProvider) Update(ctx context.Context) error {
 	// 1. load price for 1 token in USD
