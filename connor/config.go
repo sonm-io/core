@@ -84,6 +84,10 @@ func (c *Config) validate() error {
 		antifraud.ProcessorFormatDisabled: true,
 	}
 
+	if c.PriceSource.Factory == nil {
+		return fmt.Errorf("empty price_source section")
+	}
+
 	if _, ok := availableLogs[c.AntiFraud.LogProcessorConfig.Format]; !ok {
 		return fmt.Errorf("unsupported log processor \"%s\"", c.AntiFraud.LogProcessorConfig.Format)
 	}
