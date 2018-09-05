@@ -6,6 +6,7 @@ import "dwh.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
 import "worker.proto";
+import "github.com/prometheus/client_model/metrics.proto";
 
 package sonm;
 
@@ -165,4 +166,21 @@ service Profiles {
 message TokenTransferRequest {
     EthAddress to = 1;
     BigInt amount = 2;
+}
+
+service Monitoring {
+    rpc MetricsNPP(Empty) returns (NPPMetricsReply) {}
+}
+
+message NPPMetricsReply {
+    map<string, NamedMetrics> metrics = 1;
+}
+
+message NamedMetrics {
+    repeated NamedMetric metrics = 1;
+}
+
+message NamedMetric {
+    string name = 1;
+    io.prometheus.client.Metric metric = 2;
 }

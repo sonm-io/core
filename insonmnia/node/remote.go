@@ -34,6 +34,7 @@ type remoteOptions struct {
 
 	eth           blockchain.API
 	dwh           sonm.DWHClient
+	nppDialer     *npp.Dialer
 	workerCreator workerClientCreator
 
 	benchList    benchmarks.BenchList
@@ -159,6 +160,7 @@ func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, c
 		key:           key,
 		eth:           eth,
 		dwh:           dwh,
+		nppDialer:     nppDialer,
 		workerCreator: workerFactory,
 		benchList:     benchList,
 		orderMatcher:  orderMatcher,
