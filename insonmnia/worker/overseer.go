@@ -13,6 +13,9 @@ import (
 
 	"io/ioutil"
 
+	"os"
+	"path"
+
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -21,6 +24,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
@@ -199,6 +203,9 @@ type Overseer interface {
 
 	// Save saves an image from the Docker into the returned reader.
 	Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error)
+
+	// Save saves image's outer layer from the Docker into the returned reader.
+	SaveDiff(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error)
 
 	// Spool prepares an application for its further start.
 	//
@@ -467,6 +474,50 @@ func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect
 	}
 
 	return imageInspect, rd, nil
+}
+
+func (o *overseer) SaveDiff(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error) {
+	rd1, err := o.client.ImageSave(ctx, []string{imageID})
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+	defer rd1.Close()
+
+	me := newMetaExtractor(rd1)
+	meta, err := me.Process()
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+
+	rd2, err := o.client.ImageSave(ctx, []string{imageID})
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+	defer rd2.Close()
+
+	dExtractor := newDiffExtractor(rd2, meta)
+	tempPath := path.Join(os.TempDir(), uuid.New())
+	wFile, err := os.OpenFile(tempPath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+	defer wFile.Close()
+
+	if err := dExtractor.WriteDiff(wFile); err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+
+	rFile, err := os.OpenFile(tempPath, os.O_RDONLY, 0666)
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+
+	stat, err := rFile.Stat()
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+
+	return types.ImageInspect{Size: stat.Size()}, &imageDiff{ReadCloser: rFile, tempPath: tempPath}, nil
 }
 
 func (o *overseer) Spool(ctx context.Context, d Description) error {
@@ -759,7 +810,8 @@ func (m *prunedImage) pruneManifest(hdr *tar.Header) error {
 
 type metaExtractor struct {
 	image *tar.Reader
-	meta  *outerLayerMeta
+	meta  *diffMeta
+	size  int64
 }
 
 func newMetaExtractor(image io.Reader) *metaExtractor {
@@ -768,51 +820,51 @@ func newMetaExtractor(image io.Reader) *metaExtractor {
 	}
 }
 
-func (m *metaExtractor) Process() (err error) {
+func (m *metaExtractor) Process() (*diffMeta, error) {
 	for {
 		hdr, err := m.image.Next()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if hdr.Name != "manifest.json" {
 			if _, err := io.Copy(ioutil.Discard, m.image); err != nil {
-				return err
+				return nil, err
 			}
 
 			continue
 		}
 		if hdr.Size > units.MB*100 {
-			return errors.New("manifest.json larger than 100MB, aborting")
+			return nil, errors.New("manifest.json larger than 100MB, aborting")
 		}
 		var manifest = bytes.NewBuffer(nil)
 		if _, err := io.Copy(manifest, m.image); err != nil {
-			return err
+			return nil, err
 		}
-		var layerMeta outerLayerMeta
+		var layerMeta diffMeta
 		if err := json.Unmarshal(manifest.Bytes(), &layerMeta); err != nil {
-			return fmt.Errorf("failed to unmarshal manifest.json: %v", err)
+			return nil, fmt.Errorf("failed to unmarshal manifest.json: %v", err)
 		}
 		if len(layerMeta.Config) == 0 || len(layerMeta.Layers) == 0 {
-			return errors.New("manifest.json is malformed")
+			return nil, errors.New("manifest.json is malformed")
 		}
 		m.meta = &layerMeta
 
-		return nil
+		return m.meta, nil
 	}
 
-	return errors.New("failed to find manifest.json")
+	return nil, errors.New("failed to find manifest.json")
 }
 
-type outerLayerMeta struct {
+type diffMeta struct {
 	Config string   `json:"Config"`
 	Layers []string `json:"Layers"`
 }
 
-func (m *outerLayerMeta) IsOuterLayer(layerID string) bool {
+func (m *diffMeta) IsOuterLayer(layerID string) bool {
 	return m.Layers[len(m.Layers)-1] == layerID
 }
 
-func (m *outerLayerMeta) IsLayer(layerID string) bool {
+func (m *diffMeta) IsLayer(layerID string) bool {
 	for _, ownLayer := range m.Layers[:len(m.Layers)-1] {
 		if layerID == ownLayer {
 			return true
@@ -822,62 +874,55 @@ func (m *outerLayerMeta) IsLayer(layerID string) bool {
 	return false
 }
 
-type outerLayerExtractor struct {
-	meta           *outerLayerMeta
+type diffExtractor struct {
+	meta           *diffMeta
 	image          *tar.Reader
 	writer         *tar.Writer
 	insideLayerDir bool
 	finished       bool
 }
 
-func newOuterLayerExtractor(image io.Reader, meta *outerLayerMeta) *outerLayerExtractor {
-	return &outerLayerExtractor{
+func newDiffExtractor(image io.Reader, meta *diffMeta) *diffExtractor {
+	return &diffExtractor{
 		image: tar.NewReader(image),
 		meta:  meta,
 	}
 }
 
-func (m *outerLayerExtractor) Extract(writer io.Writer) error {
+func (m *diffExtractor) WriteDiff(writer io.Writer) error {
 	m.writer = tar.NewWriter(writer)
 	for {
 		hdr, err := m.image.Next()
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return err
 		}
 
-		switch hdr.Name {
-		case "manifest.json":
-			if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
-				return err
+		if !(hdr.Name == "manifest.json" || hdr.Name == m.meta.Config || m.insideLayerDir) {
+			if _, err := io.Copy(ioutil.Discard, m.image); err != nil {
+				return fmt.Errorf("failed to discard %s: %v", hdr.Name, err)
 			}
-		case m.meta.Config:
-			if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
-				return err
-			}
-		}
-		if m.meta.IsOuterLayer(hdr.Name) {
-			m.insideLayerDir = true
-		}
-		if m.meta.IsOuterLayer(hdr.Name) {
-			if m.insideLayerDir {
-				m.finished = true
-			}
-			m.insideLayerDir = false
-		}
-
-		if m.finished {
 			return nil
 		}
 
-		if m.insideLayerDir {
-			if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
-				return err
-			}
+		if m.meta.IsOuterLayer(hdr.Name) {
+			m.insideLayerDir = true
+		}
+		if m.meta.IsLayer(hdr.Name) {
+			m.insideLayerDir = false
+		}
+
+		if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
+			return err
 		}
 	}
+
+	return m.writer.Close()
 }
 
-func (m *outerLayerExtractor) writeHeaderAndFile(hdr *tar.Header, image *tar.Reader) error {
+func (m *diffExtractor) writeHeaderAndFile(hdr *tar.Header, image *tar.Reader) error {
 	if err := m.writer.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("failed to write %s header: %v", hdr.Name, err)
 	}
@@ -885,4 +930,19 @@ func (m *outerLayerExtractor) writeHeaderAndFile(hdr *tar.Header, image *tar.Rea
 		return fmt.Errorf("failed to write %s contents: %v", hdr.Name, err)
 	}
 	return nil
+}
+
+type imageDiff struct {
+	io.ReadCloser
+	ctx      context.Context
+	tempPath string
+}
+
+func (m *imageDiff) Close() error {
+	if err := os.Remove(m.tempPath); err != nil {
+		log.G(m.ctx).Warn("failed to remove image diff file",
+			zap.Error(err), zap.String("diff_path", m.tempPath))
+	}
+
+	return m.ReadCloser.Close()
 }

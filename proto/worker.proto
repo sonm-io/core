@@ -127,6 +127,7 @@ message DevicesReply {
 message PullTaskRequest {
     string dealId = 1;
     string taskId = 2;
+    bool onlyDiff = 3;
 }
 
 message DealInfoReply {
