@@ -9,6 +9,10 @@ market:
   to: 300000000
   step: 500000
 
+  # set counterparty address if you want to place orders
+  # only for specified supplier.
+  # counterparty: 0xD0E743fFDBaEdAa3cf4E3232f3C1aB18ee9ca4aB
+
   price_control:
     # what part of the real market price will be used to
     # create orders on the market

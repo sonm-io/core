@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/connor/antifraud"
@@ -29,6 +30,7 @@ type marketConfig struct {
 	From         uint64             `yaml:"from" required:"true"`
 	To           uint64             `yaml:"to" required:"true"`
 	Step         uint64             `yaml:"step" required:"true"`
+	Counterparty common.Address     `yaml:"counterparty"`
 	PriceControl priceControlConfig `yaml:"price_control"`
 	Benchmarks   map[string]uint64  `yaml:"benchmarks" required:"true"`
 
@@ -152,7 +154,7 @@ func (c *Config) getBaseBenchmarks() Benchmarks {
 func (c *Config) backends() *backends {
 	return &backends{
 		processorFactory: antifraud.NewProcessorFactory(&c.AntiFraud),
-		corderFactory:    NewCorderFactory(c.Container.Tag, c.Market.benchmarkID),
+		corderFactory:    NewCorderFactory(c.Container.Tag, c.Market.benchmarkID, c.Market.Counterparty),
 		dealFactory:      NewDealFactory(c.Market.benchmarkID),
 		priceProvider:    c.PriceSource.Init(c.Market.PriceControl.Marginality),
 	}
