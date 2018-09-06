@@ -600,9 +600,9 @@ func (m *Worker) PullTask(request *sonm.PullTaskRequest, stream sonm.Worker_Pull
 		info, rd, err = m.ovs.SaveDiff(stream.Context(), imageID)
 	} else {
 		info, rd, err = m.ovs.Save(stream.Context(), imageID)
-		if err != nil {
-			return err
-		}
+	}
+	if err != nil {
+		return fmt.Errorf("failed to save image: %v", err)
 	}
 	defer rd.Close()
 

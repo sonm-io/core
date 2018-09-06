@@ -33,6 +33,7 @@ func init() {
 	taskLogsCmd.Flags().BoolVar(&prependStream, prependStreamFlag, false, "Show stream (stderr or stdout) for each line of logs")
 
 	taskPullCmd.Flags().StringVar(&taskPullOutput, "output", "", "file to output")
+	taskPullCmd.Flags().BoolVar(&taskPullOnlyDiff, "only-diff", false, "pull only task diff (less network load, same effect)")
 
 	taskRootCmd.AddCommand(
 		taskListCmd,
@@ -46,7 +47,10 @@ func init() {
 	)
 }
 
-var taskPullOutput string
+var (
+	taskPullOutput   string
+	taskPullOnlyDiff bool
+)
 
 var taskRootCmd = &cobra.Command{
 	Use:               "task",
@@ -401,8 +405,9 @@ var taskPullCmd = &cobra.Command{
 		}
 
 		req := &sonm.PullTaskRequest{
-			DealId: dealID,
-			TaskId: taskID,
+			DealId:   dealID,
+			TaskId:   taskID,
+			OnlyDiff: taskPullOnlyDiff,
 		}
 
 		client, err := node.PullTask(ctx, req)
