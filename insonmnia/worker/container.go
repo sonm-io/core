@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
@@ -277,7 +278,7 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 		}
 		defer reader.Close()
 		buf := bytes.NewBuffer(nil)
-		if _, err := io.Copy(buf, reader); err != nil {
+		if _, err := io.CopyN(buf, reader, units.MB); err != nil && err != io.EOF {
 			return fmt.Errorf("pushing image: failed to read Docker's response: %v", err)
 		}
 		c.log.Infof("pushed image: %s", buf.String())
