@@ -157,6 +157,8 @@ func (m *Dialer) dialNPP(ctx context.Context, addr common.Address) *nppConn {
 	nppChannel := make(chan connTuple)
 
 	go func() {
+		defer close(nppChannel)
+
 		puncher, err := m.puncherNew(ctx)
 		if err != nil {
 			nppChannel <- newConnTuple(nil, err)
@@ -176,6 +178,7 @@ func (m *Dialer) dialNPP(ctx context.Context, addr common.Address) *nppConn {
 
 		log.Warn("failed to connect using NPP", zap.Error(err))
 	case <-ctx.Done():
+		go drainConnChannel(nppChannel)
 		log.Warn("failed to connect using NPP", zap.Error(ctx.Err()))
 	}
 
@@ -194,6 +197,8 @@ func (m *Dialer) dialRelayed(ctx context.Context, addr common.Address) (*nppConn
 
 	channel := make(chan connTuple)
 	go func() {
+		defer close(channel)
+
 		channel <- newConnTuple(m.relayDialer.Dial(addr))
 	}()
 
@@ -207,6 +212,7 @@ func (m *Dialer) dialRelayed(ctx context.Context, addr common.Address) (*nppConn
 		return newRelayedNPPConn(conn.conn, time.Since(now)), nil
 	case <-ctx.Done():
 		log.Warn("failed to connect using Relay", zap.Error(ctx.Err()))
+		go drainConnChannel(channel)
 		return nil, ctx.Err()
 	}
 }
@@ -293,5 +299,11 @@ func newRelayedNPPConn(conn net.Conn, duration time.Duration) *nppConn {
 		Conn:     conn,
 		Source:   sourceRelayedConnection,
 		Duration: duration,
+	}
+}
+
+func drainConnChannel(channel <-chan connTuple) {
+	for conn := range channel {
+		conn.Close()
 	}
 }
