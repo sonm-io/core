@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -263,28 +264,24 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 		return err
 	}
 
-	options := types.ImagePushOptions{
-		RegistryAuth: c.description.Auth,
-	}
+	if c.description.PushOnStop {
+		options := types.ImagePushOptions{
+			RegistryAuth: c.description.Auth,
+		}
 
-	c.log.Infof("pushing image %s", newImg)
-	reader, err := c.client.ImagePush(ctx, newImg.String(), options)
-	if err != nil {
-		c.log.Errorf("failed to push image: %s", err)
-		return err
-	}
-	defer reader.Close()
-	buffer := make([]byte, 100*1024)
-	for {
-		readCnt, err := reader.Read(buffer)
-		if readCnt != 0 {
-			c.log.Info(string(buffer[:readCnt]))
-		}
-		if err == io.EOF {
-			return nil
-		}
+		c.log.Infof("pushing image %s", newImg)
+		reader, err := c.client.ImagePush(ctx, newImg.String(), options)
 		if err != nil {
+			c.log.Errorf("failed to push image: %s", err)
 			return err
 		}
+		defer reader.Close()
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.Copy(buf, reader); err != nil {
+			return fmt.Errorf("pushing image: failed to read Docker's response: %v", err)
+		}
+		c.log.Infof("pushed image: %s", buf.String())
 	}
+
+	return nil
 }
