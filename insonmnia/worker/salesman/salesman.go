@@ -483,17 +483,16 @@ func (m *Salesman) loadCheckDeal(ctx context.Context, plan *sonm.AskPlan) error 
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan, deal *sonm.Deal) error {
 	m.log.Debugf("checking deal %s for ask plan %s", deal.GetId().Unwrap().String(), plan.GetID())
 
+	multi := multierror.NewMultiError()
 	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
 		if err := m.unregisterOrder(plan.ID); err != nil {
-			return fmt.Errorf("failed to unregister order from ask plan %s: %s", plan.GetID(), err)
+			multi = multierror.Append(multi, fmt.Errorf("failed to unregister order from ask plan %s: %s", plan.GetID(), err))
 		}
 		if err := m.unregisterDeal(plan.GetID(), deal); err != nil {
-			return fmt.Errorf("failed to cleanup deal from ask plan %s: %s", plan.GetID(), err)
+			multi = multierror.Append(multi, fmt.Errorf("failed to cleanup deal from ask plan %s: %s", plan.GetID(), err))
 		}
-		m.log.Debugf("succesefully removed closed deal %s from ask plan %s", deal.GetId().Unwrap().String(), plan.GetID())
-		return nil
+		return multi.ErrorOrNil()
 	} else {
-		multi := multierror.NewMultiError()
 		if err := m.registerDeal(plan.GetID(), deal); err != nil {
 			multi = multierror.Append(multi, err)
 		}
@@ -730,7 +729,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 	if err := m.registerOrder(plan.ID, order); err != nil {
 		return nil, err
 	}
-	m.log.Infof("placed order %s on blockchain", plan.OrderID.Unwrap().String())
+	m.log.Infof("placed order %s on blockchain", order.GetId().Unwrap().String())
 	return order, nil
 }
 
