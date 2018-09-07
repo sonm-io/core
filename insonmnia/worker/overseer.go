@@ -596,6 +596,13 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 }
 
 func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
+	var isRunning bool
+	if info, err := o.client.ContainerInspect(ctx, containerID); err != nil {
+		return fmt.Errorf("failed to inspect container %s: %v", containerID, err)
+	} else {
+		isRunning = info.State.Status == "running"
+	}
+
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	descriptor, ok := o.containers[containerID]
@@ -610,8 +617,10 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 		return fmt.Errorf("unknown container %s", containerID)
 	}
 	result := multierror.NewMultiError()
-	if err := descriptor.Kill(ctx); err != nil {
-		result = multierror.Append(result, err)
+	if isRunning {
+		if err := descriptor.Kill(ctx); err != nil {
+			result = multierror.Append(result, err)
+		}
 	}
 	//This is needed in case container is uploaded into external registry
 	if descriptor.description.CommitOnStop {
