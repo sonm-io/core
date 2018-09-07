@@ -13,6 +13,9 @@ import (
 )
 
 const (
+	retryCount   = 3
+	retryTimeout = 1 * time.Second
+
 	whatToMineURL = "https://whattomine.com/coins.json"
 	zcashWtmID    = 166
 	ethWtmID      = 151

@@ -123,7 +123,7 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 	if opts.allowGRPC {
 		options := append([]xgrpc.ServerOption{
 			xgrpc.DefaultTraceInterceptor(),
-			xgrpc.RequestLogInterceptor(m.log.Desugar()),
+			xgrpc.RequestLogInterceptor(m.log.Desugar(), []string{"PushTask", "PullTask"}),
 			xgrpc.VerifyInterceptor(),
 			xgrpc.UnaryServerInterceptor(services.Interceptor()),
 		}, opts.optionsGRPC...)
@@ -222,6 +222,13 @@ func (m *Server) serveHTTP(ctx context.Context, listeners ...net.Listener) error
 	}
 
 	defer m.log.Infof("stopped REST server on %s", formatListeners(listeners))
+
+	go func() {
+		<-ctx.Done()
+		for _, listener := range listeners {
+			listener.Close()
+		}
+	}()
 
 	return m.serverREST.Serve(listeners...)
 }

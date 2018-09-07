@@ -38,16 +38,23 @@ type PublicKey struct {
 }
 
 func (m *PublicKey) UnmarshalText(data []byte) error {
-	pkey, _, _, _, err := ssh.ParseAuthorizedKey(data)
-	if err != nil {
-		return err
+	if len(data) > 0 {
+		pkey, _, _, _, err := ssh.ParseAuthorizedKey(data)
+		if err != nil {
+			return err
+		}
+		m.PublicKey = pkey
 	}
-	m.PublicKey = pkey
+
 	return nil
 }
 
 func (m PublicKey) MarshalText() ([]byte, error) {
-	return ssh.MarshalAuthorizedKey(m), nil
+	if m.PublicKey != nil {
+		return ssh.MarshalAuthorizedKey(m), nil
+	}
+
+	return []byte{}, nil
 }
 
 type SSH interface {
@@ -235,19 +242,6 @@ func (m *sshServer) Close() error {
 	m.log.Info("closing ssh server")
 
 	return m.server.Close()
-}
-
-func parsePublicKey(key string) (ssh.PublicKey, error) {
-	var publicKey ssh.PublicKey
-	if len(key) != 0 {
-		k, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
-		if err != nil {
-			return nil, err
-		}
-		publicKey = k
-	}
-
-	return publicKey, nil
 }
 
 func capitalize(s string) string {

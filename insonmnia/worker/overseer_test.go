@@ -280,6 +280,7 @@ func TestMarshalContainerInfo(t *testing.T) {
 
 	c := ContainerInfo{
 		PublicKey: pkey,
+		DealID:    sonm.NewBigIntFromInt(1234),
 	}
 
 	data, err := json.Marshal(c)
@@ -290,4 +291,5 @@ func TestMarshalContainerInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, ssh.KeysEqual(c.PublicKey, n.PublicKey))
+	assert.Equal(t, n.DealID, sonm.NewBigIntFromInt(1234))
 }

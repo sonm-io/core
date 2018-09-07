@@ -123,6 +123,9 @@ It has these top-level messages:
 	WorkerListReply
 	BalanceReply
 	TokenTransferRequest
+	NPPMetricsReply
+	NamedMetrics
+	NamedMetric
 	HandshakeRequest
 	DiscoverResponse
 	HandshakeResponse

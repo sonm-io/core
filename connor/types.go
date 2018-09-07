@@ -3,9 +3,9 @@ package connor
 import (
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
+	"github.com/cnf/structhash"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/connor/antifraud"
 	"github.com/sonm-io/core/connor/price"
@@ -17,22 +17,24 @@ const (
 	orderCancelMaxDelay  = 5 * time.Minute
 )
 
-type CorderFactoriy interface {
+type CorderFactory interface {
 	FromOrder(order *sonm.Order) *Corder
 	FromParams(price *big.Int, hashrate uint64, bench Benchmarks) *Corder
 	FromSlice(orders []*sonm.Order) []*Corder
 }
 
-func NewCorderFactory(token string, benchmarkIndex int) CorderFactoriy {
+func NewCorderFactory(tag string, benchmarkIndex int, counterparty common.Address) CorderFactory {
 	return &anyCorderFactory{
-		tokenName:      token,
+		orderTag:       tag,
 		benchmarkIndex: benchmarkIndex,
+		counterparty:   counterparty,
 	}
 }
 
 type anyCorderFactory struct {
 	benchmarkIndex int
-	tokenName      string
+	orderTag       string
+	counterparty   common.Address
 }
 
 func (a *anyCorderFactory) FromOrder(order *sonm.Order) *Corder {
@@ -43,12 +45,13 @@ func (a *anyCorderFactory) FromParams(price *big.Int, hashrate uint64, bench Ben
 	bench.Values[a.benchmarkIndex] = hashrate
 
 	ord := &sonm.Order{
-		OrderType:     sonm.OrderType_BID,
-		Price:         sonm.NewBigInt(price),
-		Netflags:      &sonm.NetFlags{Flags: sonm.NetworkOutbound},
-		IdentityLevel: sonm.IdentityLevel_ANONYMOUS,
-		Tag:           []byte(fmt.Sprintf("connor_%s", strings.ToLower(a.tokenName))),
-		Benchmarks:    bench.unwrap(),
+		OrderType:      sonm.OrderType_BID,
+		Price:          sonm.NewBigInt(price),
+		Netflags:       &sonm.NetFlags{Flags: sonm.NetworkOutbound},
+		IdentityLevel:  sonm.IdentityLevel_ANONYMOUS,
+		Tag:            []byte(a.orderTag),
+		Benchmarks:     bench.unwrap(),
+		CounterpartyID: sonm.NewEthAddress(a.counterparty),
 	}
 
 	return &Corder{Order: ord, benchmarkIndex: a.benchmarkIndex}
@@ -74,10 +77,11 @@ func (co *Corder) GetHashrate() uint64 {
 
 func (co *Corder) AsBID() *sonm.BidOrder {
 	return &sonm.BidOrder{
-		Price:     &sonm.Price{PerSecond: co.Order.GetPrice()},
-		Blacklist: sonm.NewEthAddress(common.StringToAddress(co.Order.GetBlacklist())),
-		Identity:  co.Order.IdentityLevel,
-		Tag:       string(co.Tag),
+		Price:        &sonm.Price{PerSecond: co.Order.GetPrice()},
+		Blacklist:    sonm.NewEthAddress(common.StringToAddress(co.Order.GetBlacklist())),
+		Identity:     co.Order.IdentityLevel,
+		Tag:          string(co.Tag),
+		Counterparty: co.CounterpartyID,
 		Resources: &sonm.BidResources{
 			Network: &sonm.BidNetwork{
 				Overlay:  co.Order.GetNetflags().GetOverlay(),
@@ -111,6 +115,20 @@ func (co *Corder) isReplaceable(newPrice *big.Int, delta float64) bool {
 	newFloatPrice := big.NewFloat(0).SetInt(newPrice)
 
 	return isOrderReplaceable(currentPrice, newFloatPrice, delta)
+}
+
+func (co *Corder) hash() string {
+	s := struct {
+		Benchmarks   []uint64
+		Counterparty common.Address
+		Netflags     uint64
+	}{
+		Benchmarks:   co.Benchmarks.Values,
+		Counterparty: co.GetCounterpartyID().Unwrap(),
+		Netflags:     co.GetNetflags().GetFlags(),
+	}
+
+	return fmt.Sprintf("%x", structhash.Sha1(s, 1))
 }
 
 type Benchmarks sonm.Benchmarks
@@ -167,8 +185,8 @@ type taskStatus struct {
 	id string
 }
 
-type tokenParameters struct {
-	corderFactory    CorderFactoriy
+type backends struct {
+	corderFactory    CorderFactory
 	dealFactory      DealFactory
 	priceProvider    price.Provider
 	processorFactory antifraud.ProcessorFactory
@@ -199,7 +217,12 @@ func divideOrdersSets(existingCorders, targetCorders []*Corder) *ordersSets {
 
 	for _, ord := range targetCorders {
 		if ex, ok := existingByBenchmark[ord.GetHashrate()]; ok {
-			set.toRestore = append(set.toRestore, ex)
+			if ex.hash() == ord.hash() {
+				set.toRestore = append(set.toRestore, ex)
+			} else {
+				set.toCancel = append(set.toCancel, ex)
+				set.toCreate = append(set.toCreate, ord)
+			}
 		} else {
 			set.toCreate = append(set.toCreate, ord)
 		}

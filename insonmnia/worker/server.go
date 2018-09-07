@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"reflect"
 	"strconv"
 	"sync"
@@ -27,25 +28,24 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/cgroups"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
+	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
+	"github.com/sonm-io/core/insonmnia/worker/volume"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
-	"golang.org/x/sync/errgroup"
-	// todo: drop alias
-	bm "github.com/sonm-io/core/insonmnia/benchmarks"
-	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/resource"
-	"github.com/sonm-io/core/insonmnia/structs"
-	"github.com/sonm-io/core/insonmnia/worker/volume"
-	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -388,12 +388,11 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 }
 
 func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
-	dealID := deal.GetId().Unwrap().String()
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
 	for key, container := range m.containers {
-		if container.DealID == dealID {
+		if container.DealID.Cmp(deal.GetId()) == 0 {
 			toDelete = append(toDelete, container)
 			delete(m.containers, key)
 		}
@@ -406,6 +405,9 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 			result = multierror.Append(result, err)
 		}
 		if err := m.resources.OnDealFinish(container.TaskId); err != nil {
+			result = multierror.Append(result, err)
+		}
+		if _, err := m.storage.Remove(container.ID); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
@@ -465,20 +467,21 @@ func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, erro
 	return reply, nil
 }
 
-// FreeDevice provides information about unallocated resources
+// FreeDevices provides information about unallocated resources
 // that can be turned into ask-plans.
-// TODO: Looks like DevicesReply is not really suitable here
+// Deprecated: no longer usable
 func (m *Worker) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
 	resources, err := m.resources.GetFree()
 	if err != nil {
 		return nil, err
 	}
-	hardware, err := m.hardware.LimitTo(resources)
+
+	freeHardware, err := m.hardware.LimitTo(resources)
 	if err != nil {
 		return nil, err
 	}
 
-	return hardware.IntoProto(), nil
+	return freeHardware.IntoProto(), nil
 }
 
 func (m *Worker) setStatus(status *pb.TaskStatusReply, id string) {
@@ -524,8 +527,8 @@ func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
 		return err
 	}
 
-	log.G(m.ctx).Info("image loaded, set trailer", zap.String("trailer", result.Id))
-	stream.SetTrailer(metadata.Pairs("id", result.Id))
+	log.G(m.ctx).Info("image loaded, set trailer", zap.String("trailer", result.String()))
+	stream.SetTrailer(metadata.Pairs("id", result.String()))
 	return nil
 }
 
@@ -586,7 +589,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 
 func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
 	spec := request.GetSpec()
-	reference, err := reference.ParseAnyReference(spec.GetContainer().GetImage())
+	ref, err := reference.ParseAnyReference(spec.GetContainer().GetImage())
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
 	}
@@ -600,10 +603,10 @@ func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) 
 		return false, nil, err
 	}
 	if level <= pb.IdentityLevel_REGISTERED {
-		return m.whitelist.Allowed(ctx, reference, spec.GetRegistry().Auth())
+		return m.whitelist.Allowed(ctx, ref, spec.GetRegistry().Auth())
 	}
 
-	return true, reference, nil
+	return true, ref, nil
 }
 
 func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
@@ -664,9 +667,6 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	if err := m.resources.ConsumeTask(ask.ID, taskID, spec.Resources); err != nil {
 		return nil, fmt.Errorf("could not start task: %s", err)
 	}
-
-	// This can be canceled by using "resourceHandle.commit()".
-	//defer resourceHandle.release()
 
 	mounts := make([]volume.Mount, 0)
 	for _, spec := range spec.Container.Mounts {
@@ -734,7 +734,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
 	containerInfo.ImageName = ref.String()
-	containerInfo.DealID = dealID.Unwrap().String()
+	containerInfo.DealID = dealID
 	containerInfo.Tag = request.GetSpec().GetTag()
 	containerInfo.TaskId = taskID
 	containerInfo.AskID = ask.ID
@@ -783,7 +783,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	return &reply, nil
 }
 
-// Stop request forces to kill container
+// StopTask request forces to kill container
 func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	m.mu.Lock()
 	containerInfo, ok := m.containers[request.Id]
@@ -896,6 +896,7 @@ func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 	}
 
 	var metric ContainerMetrics
+	var resources *pb.AskPlanResources
 	// If a container has been stoped, ovs.Info has no metrics for such container
 	if info.status == pb.TaskStatusReply_RUNNING {
 		metrics, err := m.ovs.Info(ctx)
@@ -905,13 +906,18 @@ func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 
 		metric, ok = metrics[info.ID]
 		if !ok {
-			return nil, status.Errorf(codes.NotFound, "Cannot get metrics for container %s", req.GetId())
+			return nil, status.Errorf(codes.NotFound, "cannot get metrics for container %s", req.GetId())
+		}
+
+		resources, err = m.resources.ResourceByTask(req.GetId())
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "cannot get resources for container %s", req.GetId())
 		}
 	}
 
 	reply := info.IntoProto(m.ctx)
 	reply.Usage = metric.Marshal()
-	// todo: fill `reply.AllocatedResources` field.
+	reply.AllocatedResources = resources
 
 	return reply, nil
 }
@@ -942,7 +948,7 @@ func (m *Worker) setupResources() error {
 }
 
 func (m *Worker) setupSalesman() error {
-	salesman, err := salesman.NewSalesman(
+	s, err := salesman.NewSalesman(
 		salesman.WithLogger(log.S(m.ctx).With("source", "salesman")),
 		salesman.WithStorage(m.storage),
 		salesman.WithResources(m.resources),
@@ -956,7 +962,7 @@ func (m *Worker) setupSalesman() error {
 	if err != nil {
 		return err
 	}
-	m.salesman = salesman
+	m.salesman = s
 
 	ch := m.salesman.Run(m.ctx)
 	go m.listenDeals(ch)
@@ -972,7 +978,11 @@ func (m *Worker) setupRunningContainers() error {
 	defer dockerClient.Close()
 
 	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{})
+	if err != nil {
+		return err
+	}
 
+	var closedDeals = map[string]*pb.Deal{}
 	for _, container := range containers {
 		var info runningContainerInfo
 
@@ -992,6 +1002,22 @@ func (m *Worker) setupRunningContainers() error {
 			if err != nil {
 				log.S(m.ctx).Error("failed to inspect container", zap.String("id", container.ID), zap.Error(err))
 				return err
+			}
+
+			bigDealID, ok := big.NewInt(0).SetString(info.Description.DealId, 10)
+			if !ok {
+				return fmt.Errorf("failed to parse container's DealID (%s)", info.Description.DealId)
+			}
+
+			deal, err := m.eth.Market().GetDealInfo(m.ctx, bigDealID)
+			if err != nil {
+				return fmt.Errorf("failed to get deal %v status: %v", info.Description.DealId, err)
+			}
+
+			if deal.Status == pb.DealStatus_DEAL_CLOSED {
+				log.G(m.ctx).Info("found task assigned to closed deal, going to cancel it",
+					zap.String("deal_id", info.Description.DealId), zap.String("task_id", info.Cinfo.TaskId))
+				closedDeals[deal.Id.Unwrap().String()] = deal
 			}
 
 			// TODO: Match our proto status constants with docker's statuses
@@ -1024,6 +1050,12 @@ func (m *Worker) setupRunningContainers() error {
 		}
 	}
 
+	for _, deal := range closedDeals {
+		if err := m.cancelDealTasks(deal); err != nil {
+			return fmt.Errorf("failed to cancel tasks for deal %s: %v", deal.Id.Unwrap().String(), err)
+		}
+	}
+
 	return nil
 }
 
@@ -1031,7 +1063,7 @@ func (m *Worker) setupServer() error {
 	logger := log.GetLogger(m.ctx)
 	grpcServer := xgrpc.NewServer(logger,
 		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.RequestLogInterceptor(logger),
+		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
 		xgrpc.Credentials(m.creds),
 		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
 		xgrpc.VerifyInterceptor(),
@@ -1050,7 +1082,7 @@ func (m *Worker) setupServer() error {
 }
 
 type BenchmarkHasher interface {
-	// Hash of the hardware, empty string means that we need to rebenchmark everytime
+	// HardwareHash returns hash of the hardware, empty string means that we need to rebenchmark everytime
 	HardwareHash() string
 }
 
@@ -1138,21 +1170,21 @@ func (m *Worker) dropCachedValue(benchID uint64) error {
 }
 
 func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64, error) {
-	if bench.GetID() == bm.CPUCores {
+	if bench.GetID() == benchmarks.CPUCores {
 		return uint64(m.hardware.CPU.Device.Cores), nil
 	}
-	if bench.GetID() == bm.RamSize {
+	if bench.GetID() == benchmarks.RamSize {
 		return m.hardware.RAM.Device.Total, nil
 	}
-	if bench.GetID() == bm.StorageSize {
+	if bench.GetID() == benchmarks.StorageSize {
 		return disk.FreeDiskSpace(m.ctx)
 	}
-	if bench.GetID() == bm.GPUCount {
+	if bench.GetID() == benchmarks.GPUCount {
 		//GPU count is always 1 for each GPU device.
 		return uint64(1), nil
 	}
 	gpuDevice, isGpu := device.(*pb.GPUDevice)
-	if bench.GetID() == bm.GPUMem {
+	if bench.GetID() == benchmarks.GPUMem {
 		if !isGpu {
 			return uint64(0), fmt.Errorf("invalid device for GPUMem benchmark")
 		}
@@ -1172,10 +1204,10 @@ func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64,
 		if err != nil {
 			return uint64(0), fmt.Errorf("could not create description for benchmark: %s", err)
 		}
-		d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
+		d.Env[benchmarks.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
 
 		if isGpu {
-			d.Env[bm.GPUVendorParam] = gpuDevice.VendorType().String()
+			d.Env[benchmarks.GPUVendorParam] = gpuDevice.VendorType().String()
 			d.GPUDevices = []gpu.GPUID{gpu.GPUID(gpuDevice.GetID())}
 		}
 		res, err := m.execBenchmarkContainer(bench, d)
@@ -1198,9 +1230,10 @@ func (m *Worker) setBenchmark(bench *pb.Benchmark, device interface{}, benchMap 
 	if err != nil {
 		return err
 	}
-	copy := proto.Clone(bench).(*pb.Benchmark)
-	copy.Result = value
-	benchMap[bench.GetID()] = copy
+
+	clone := proto.Clone(bench).(*pb.Benchmark)
+	clone.Result = value
+	benchMap[bench.GetID()] = clone
 	return nil
 }
 
@@ -1220,8 +1253,8 @@ func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
 	case pb.DeviceType_DEV_GPU:
 		//TODO: use context to prevent useless benchmarking in case of error
 		group := errgroup.Group{}
-		for _, gpu := range m.hardware.GPU {
-			g := gpu
+		for _, dev := range m.hardware.GPU {
+			g := dev
 			group.Go(func() error {
 				return m.setBenchmark(bench, g.Device, g.Benchmarks)
 			})
@@ -1237,7 +1270,7 @@ func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
 
 // execBenchmarkContainerWithResults executes benchmark as docker image,
 // returns JSON output with measured values.
-func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*bm.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*benchmarks.ResultJSON, error) {
 	logTime := time.Now().Add(-time.Minute)
 	err := m.ovs.Spool(m.ctx, d)
 	if err != nil {
@@ -1289,7 +1322,7 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 	}
 }
 
-func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*benchmarks.ResultJSON, error) {
 	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("benchmark", ben))
 	res, err := m.execBenchmarkContainerWithResults(des)
 	if err != nil {
@@ -1308,8 +1341,8 @@ func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm
 	return v, nil
 }
 
-func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
-	v := &bm.ContainerBenchmarkResultsJSON{}
+func parseBenchmarkResult(data []byte) (map[string]*benchmarks.ResultJSON, error) {
+	v := &benchmarks.ContainerBenchmarkResultsJSON{}
 	err := json.Unmarshal(data, &v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse `%s` to json: %s", string(data), err)
@@ -1330,7 +1363,7 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
 	return Description{
 		Reference: reference.AsField(ref),
 		Container: pb.Container{Env: map[string]string{
-			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
+			benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		}},
 	}, nil
 }
@@ -1416,8 +1449,8 @@ func (m *Worker) RemoveBenchmark(ctx context.Context, id *pb.NumericID) (*pb.Emp
 
 func (m *Worker) PurgeBenchmarks(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	multi := multierror.NewMultiError()
-	benchmarks := m.benchmarks.ByID()
-	for id := range benchmarks {
+	list := m.benchmarks.ByID()
+	for id := range list {
 		if err := m.dropCachedValue(uint64(id)); err != nil {
 			multi = multierror.Append(multi, err)
 		}
@@ -1445,7 +1478,7 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 
 	for id, c := range m.containers {
 		// task is ours
-		if c.DealID == dealID.Unwrap().String() {
+		if c.DealID.Cmp(dealID) == 0 {
 			task := c.IntoProto(m.ctx)
 
 			// task is running or preparing to start
@@ -1479,9 +1512,6 @@ func (m *Worker) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
 	}
 	return m.salesman.AskPlan(planID)
 }
-
-// todo: make the `worker.Init() error` method to kickstart all initial jobs for the Worker instance.
-// (state loading, benchmarking, market sync).
 
 // Close disposes all resources related to the Worker
 func (m *Worker) Close() {

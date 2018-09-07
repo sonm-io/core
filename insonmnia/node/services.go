@@ -19,6 +19,7 @@ type services struct {
 	token          sonm.TokenManagementServer
 	blacklist      sonm.BlacklistServer
 	profile        sonm.ProfilesServer
+	monitoring     sonm.MonitoringServer
 	orderPredictor *optimus.PredictorService
 }
 
@@ -32,6 +33,7 @@ func newServices(options *remoteOptions) *services {
 		token:          newTokenManagementAPI(options),
 		blacklist:      newBlacklistAPI(options),
 		profile:        newProfileAPI(options),
+		monitoring:     newMonitoringAPI(options),
 		orderPredictor: optimus.NewPredictorService(options.cfg.Predictor, options.benchList, options.log),
 	}
 }
@@ -49,6 +51,7 @@ func (m *services) RegisterGRPC(server *grpc.Server) error {
 	sonm.RegisterTokenManagementServer(server, m.token)
 	sonm.RegisterBlacklistServer(server, m.blacklist)
 	sonm.RegisterProfilesServer(server, m.profile)
+	sonm.RegisterMonitoringServer(server, m.monitoring)
 	if m.orderPredictor != nil {
 		sonm.RegisterOrderPredictorServer(server, m.orderPredictor)
 	}
@@ -83,6 +86,9 @@ func (m *services) RegisterREST(server *rest.Server) error {
 		return err
 	}
 	if err := server.RegisterService((*sonm.ProfilesServer)(nil), m.profile); err != nil {
+		return err
+	}
+	if err := server.RegisterService((*sonm.MonitoringServer)(nil), m.monitoring); err != nil {
 		return err
 	}
 	if m.orderPredictor != nil {

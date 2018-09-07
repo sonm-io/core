@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -571,7 +572,8 @@ func txRetryWrapper(fn func() (*types.Transaction, error)) (*types.Transaction, 
 			break
 		} else {
 			if err.Error() != "replacement transaction underpriced" &&
-				err.Error() != "nonce too low" {
+				err.Error() != "nonce too low" &&
+				!strings.Contains(err.Error(), "known transaction:") {
 				break
 			} else {
 				time.Sleep(txRetryDelayTime)

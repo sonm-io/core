@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,23 +11,24 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sonm-io/core/insonmnia/structs"
-	"github.com/sonm-io/core/insonmnia/worker/network"
-	"github.com/sonm-io/core/insonmnia/worker/plugin"
-	"github.com/sonm-io/core/insonmnia/worker/volume"
-	"github.com/sonm-io/core/util/multierror"
-	"github.com/sonm-io/core/util/xdocker"
-	"go.uber.org/zap"
-
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
+	"github.com/sonm-io/core/insonmnia/worker/network"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
+	"github.com/sonm-io/core/insonmnia/worker/volume"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/xdocker"
+	"go.uber.org/zap"
 )
 
 const overseerTag = "sonm.overseer"
@@ -112,7 +115,7 @@ type ContainerInfo struct {
 	Cgroup       string
 	CgroupParent string
 	NetworkIDs   []string
-	DealID       string
+	DealID       *pb.BigInt
 	TaskId       string
 	Tag          *pb.TaskTag
 	AskID        string
@@ -154,9 +157,9 @@ type ContainerMetrics struct {
 }
 
 func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
-	network := make(map[string]*pb.NetworkUsage)
+	networkUsage := make(map[string]*pb.NetworkUsage)
 	for i, n := range m.net {
-		network[i] = &pb.NetworkUsage{
+		networkUsage[i] = &pb.NetworkUsage{
 			TxBytes:   n.TxBytes,
 			RxBytes:   n.RxBytes,
 			TxPackets: n.TxPackets,
@@ -173,7 +176,7 @@ func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
 		Memory: &pb.MemoryUsage{
 			MaxUsage: m.mem.MaxUsage,
 		},
-		Network: network,
+		Network: networkUsage,
 	}
 }
 
@@ -182,7 +185,7 @@ type ExecConnection types.HijackedResponse
 // Overseer watches all worker's applications.
 type Overseer interface {
 	// Load loads an image from the specified reader to the Docker.
-	Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error)
+	Load(ctx context.Context, rd io.Reader) (imageID, error)
 
 	// Save saves an image from the Docker into the returned reader.
 	Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error)
@@ -207,7 +210,7 @@ type Overseer interface {
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
 
-	// Makes all cleanup related to closed deal
+	// OnDealFinish makes all cleanup related to closed deal
 	OnDealFinish(ctx context.Context, containerID string) error
 
 	// Info returns runtime statistics collected from all running containers.
@@ -215,7 +218,7 @@ type Overseer interface {
 	// Depending on the implementation this can be cached.
 	Info(ctx context.Context) (map[string]ContainerMetrics, error)
 
-	// Fetch logs of the container
+	// Logs fetch logs of the container
 	Logs(ctx context.Context, id string, opts types.ContainerLogsOptions) (io.ReadCloser, error)
 
 	// Close terminates all associated asynchronous operations and prepares the Overseer for shutting down.
@@ -430,17 +433,16 @@ func (o *overseer) collectStats() {
 	}
 }
 
-func (o *overseer) Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error) {
-	response, err := o.client.ImageLoad(ctx, rd, true)
-
+func (o *overseer) Load(ctx context.Context, rd io.Reader) (imageID, error) {
+	response, err := o.client.ImageLoad(ctx, newPrunedImage(rd), true)
 	if err != nil {
-		log.G(o.ctx).Error("failed to load an image", zap.Error(err))
-		return imageLoadStatus{}, err
+		log.G(o.ctx).Error("failed to load image", zap.Error(err))
+		return "", err
 	}
 
 	defer response.Body.Close()
 
-	return decodeImageLoad(response.Body)
+	return getImageID(response.Body)
 }
 
 func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error) {
@@ -507,6 +509,7 @@ func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan p
 
 	return status, nil
 }
+
 func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
 	if description.IsGPURequired() && !o.supportGPU() {
 		err = fmt.Errorf("GPU required but not supported or disabled")
@@ -627,4 +630,109 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 
 func (o *overseer) Logs(ctx context.Context, id string, opts types.ContainerLogsOptions) (io.ReadCloser, error) {
 	return o.client.ContainerLogs(ctx, id, opts)
+}
+
+// prunedImage can stream pushed image with repository and tag data removed.
+type prunedImage struct {
+	image       *tar.Reader
+	writer      *tar.Writer
+	buf         *bytes.Buffer
+	readingFile bool
+	finished    bool
+}
+
+func newPrunedImage(image io.Reader) *prunedImage {
+	var buf = bytes.NewBuffer(nil)
+	return &prunedImage{
+		image:  tar.NewReader(image),
+		writer: tar.NewWriter(buf),
+		buf:    buf,
+	}
+}
+
+func (m *prunedImage) Read(p []byte) (n int, err error) {
+	if len(p) > m.buf.Len() && !m.finished {
+		if err = m.load(); err != nil {
+			return 0, fmt.Errorf("failed to load image chunk: %v", err)
+		}
+	}
+
+	return m.buf.Read(p)
+}
+
+func (m *prunedImage) load() (err error) {
+	if m.readingFile {
+		var in = make([]byte, units.KB*32)
+		n, err := m.image.Read(in)
+		if err == io.EOF {
+			// End of current file, switch to next header.
+			m.readingFile = false
+		}
+		if _, err = m.writer.Write(in[:n]); err != nil {
+			return fmt.Errorf("failed to write image chunk: %v", err)
+		}
+
+		return nil
+	}
+	// Try to read next header.
+	hdr, err := m.image.Next()
+	if err == io.EOF {
+		// End of archive.
+		m.finished = true
+		return m.writer.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("failed to read header: %v", err)
+	}
+	if hdr.Name == "manifest.json" {
+		return m.pruneManifest(hdr)
+	}
+	if err = m.writer.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("failed to write header: %v", err)
+	}
+	// Avoid reading zero length files.
+	if hdr.Size > 0 && (hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA) {
+		m.readingFile = true
+	}
+
+	return nil
+}
+
+// pruneManifest removes repository and tag data from image manifest.json to prevent
+// image overwriting.
+func (m *prunedImage) pruneManifest(hdr *tar.Header) error {
+	if hdr.Size > units.MB*100 {
+		return errors.New("manifest.json larger than 100MB, aborting")
+	}
+	var manifest = bytes.NewBuffer(nil)
+	if _, err := io.Copy(manifest, m.image); err != nil {
+		return err
+	}
+	var contents []interface{}
+	if err := json.Unmarshal(manifest.Bytes(), &contents); err != nil {
+		return fmt.Errorf("failed to unmarshal manifest.json: %v", err)
+	}
+	if len(contents) < 1 {
+		return fmt.Errorf("manifest.json is empty")
+	}
+	data, ok := contents[0].(map[string]interface{})
+	if !ok {
+		return errors.New("unexpected manifest.json data layout")
+	}
+	// Remove repository and tag info.
+	data["RepoTags"] = nil
+	marshaled, err := json.Marshal(contents)
+	if err != nil {
+		return fmt.Errorf("failed to marshal manifest.json: %v", err)
+	}
+	hdr.Size = int64(len(marshaled))
+	if err = m.writer.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("failed to write header: %v", err)
+	}
+	_, err = m.writer.Write(marshaled)
+	if err != nil {
+		return fmt.Errorf("failed to write manifest: %v", err)
+	}
+
+	return nil
 }

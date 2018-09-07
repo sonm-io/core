@@ -28,6 +28,8 @@ const defaultMaintenancePeriod = time.Hour * 24 * 365 * 100
 
 const maintenanceGap = time.Minute * 10
 
+const blockchainProcessConcurrency = 16
+
 type Config struct {
 	Logger        zap.SugaredLogger
 	Storage       *state.Storage
@@ -320,34 +322,57 @@ func (m *Salesman) syncRoutine(ctx context.Context) {
 	}
 }
 
+func (m *Salesman) syncPlanWithBlockchain(ctx context.Context, plan *sonm.AskPlan) {
+	orderId := plan.GetOrderID()
+	dealId := plan.GetDealID()
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, m.config.SyncStepTimeout)
+	defer cancel()
+	if !dealId.IsZero() {
+		if err := m.loadCheckDeal(ctxWithTimeout, plan); err != nil {
+			m.log.Warnf("could not check deal %s for plan %s: %s", dealId.Unwrap().String(), plan.ID, err)
+		}
+	} else if !orderId.IsZero() {
+		if err := m.checkOrder(ctxWithTimeout, plan); err != nil {
+			m.log.Warnf("could not check order %s for plan %s: %s", orderId.Unwrap().String(), plan.ID, err)
+		}
+	} else if plan.GetStatus() != sonm.AskPlan_PENDING_DELETION {
+		order, err := m.placeOrder(ctxWithTimeout, plan)
+		if err != nil {
+			m.log.Warnf("could not place order for plan %s: %s", plan.ID, err)
+		} else {
+			go m.waitForDeal(ctx, order)
+		}
+	}
+	if err := m.maybeShutdownAskPlan(ctxWithTimeout, plan); err != nil {
+		m.log.Warnf("could not shutdown ask plan %s: %s", plan.ID, err)
+	}
+}
+
 func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	m.log.Debugf("syncing salesman with blockchain")
 	plans := m.AskPlans()
-	for _, plan := range plans {
-		orderId := plan.GetOrderID()
-		dealId := plan.GetDealID()
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, m.config.SyncStepTimeout)
-		if !dealId.IsZero() {
-			if err := m.loadCheckDeal(ctxWithTimeout, plan); err != nil {
-				m.log.Warnf("could not check deal %s for plan %s: %s", dealId.Unwrap().String(), plan.ID, err)
-			}
-		} else if !orderId.IsZero() {
-			if err := m.checkOrder(ctxWithTimeout, plan); err != nil {
-				m.log.Warnf("could not check order %s for plan %s: %s", orderId.Unwrap().String(), plan.ID, err)
-			}
-		} else if plan.GetStatus() != sonm.AskPlan_PENDING_DELETION {
-			order, err := m.placeOrder(ctxWithTimeout, plan)
-			if err != nil {
-				m.log.Warnf("could not place order for plan %s: %s", plan.ID, err)
-			} else {
-				go m.waitForDeal(ctx, order)
-			}
-		}
-		if err := m.maybeShutdownAskPlan(ctxWithTimeout, plan); err != nil {
-			m.log.Warnf("could not shutdown ask plan %s: %s", plan.ID, err)
-		}
-		cancel()
+
+	concurrency := blockchainProcessConcurrency
+	if len(plans) < concurrency {
+		concurrency = len(plans)
 	}
+
+	ch := make(chan *sonm.AskPlan)
+	wg := sync.WaitGroup{}
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			for plan := range ch {
+				m.syncPlanWithBlockchain(ctx, plan)
+			}
+		}()
+	}
+	for _, plan := range plans {
+		ch <- plan
+	}
+	close(ch)
+	wg.Wait()
 }
 
 func (m *Salesman) restoreState() error {
