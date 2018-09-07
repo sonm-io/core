@@ -49,4 +49,6 @@ message Container {
     ContainerRestartPolicy restartPolicy = 8;
     // Expose controls how container ports are exposed.
     repeated string expose = 10;
+    // Push the committed image to remote repository (works only if CommitOnStop is set to `true`).
+    bool pushOnStop = 11;
 }

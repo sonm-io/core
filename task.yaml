@@ -15,7 +15,10 @@ container:
     param2: value2
   # Adds an ability to pull container back.
   # Optional.
-  commit_on_stop: false
+  commit_on_stop: true
+  # Push the committed image to remote repository (works only if commit_on_stop is set to `true`).
+  # Optional.
+  push_on_stop: false
   # Volumes settings.
   # Optional.
   volumes:

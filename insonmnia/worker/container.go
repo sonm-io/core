@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
@@ -263,28 +265,24 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 		return err
 	}
 
-	options := types.ImagePushOptions{
-		RegistryAuth: c.description.Auth,
-	}
+	if c.description.PushOnStop {
+		options := types.ImagePushOptions{
+			RegistryAuth: c.description.Auth,
+		}
 
-	c.log.Infof("pushing image %s", newImg)
-	reader, err := c.client.ImagePush(ctx, newImg.String(), options)
-	if err != nil {
-		c.log.Errorf("failed to push image: %s", err)
-		return err
-	}
-	defer reader.Close()
-	buffer := make([]byte, 100*1024)
-	for {
-		readCnt, err := reader.Read(buffer)
-		if readCnt != 0 {
-			c.log.Info(string(buffer[:readCnt]))
-		}
-		if err == io.EOF {
-			return nil
-		}
+		c.log.Infof("pushing image %s", newImg)
+		reader, err := c.client.ImagePush(ctx, newImg.String(), options)
 		if err != nil {
+			c.log.Errorf("failed to push image: %s", err)
 			return err
 		}
+		defer reader.Close()
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.CopyN(buf, reader, units.MB); err != nil && err != io.EOF {
+			return fmt.Errorf("pushing image: failed to read Docker's response: %v", err)
+		}
+		c.log.Infof("pushed image: %s", buf.String())
 	}
+
+	return nil
 }
