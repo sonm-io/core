@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	worker       pb.WorkerManagementClient
-	workerCtx    context.Context
-	workerCancel context.CancelFunc
+	workerAddressFlag string
+	worker            pb.WorkerManagementClient
+	workerCtx         context.Context
+	workerCancel      context.CancelFunc
 )
 
 func workerPreRunE(cmd *cobra.Command, args []string) error {
@@ -28,6 +29,9 @@ func workerPreRunE(cmd *cobra.Command, args []string) error {
 
 	workerCtx, workerCancel = newTimeoutContext()
 	workerAddr := cfg.WorkerAddr
+	if len(workerAddressFlag) != 0 {
+		workerAddr = workerAddressFlag
+	}
 	if len(workerAddr) == 0 {
 		key, err := getDefaultKey()
 		if err != nil {
@@ -37,7 +41,7 @@ func workerPreRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	md := metadata.MD{
-		util.WorkerAddressHeader: []string{cfg.WorkerAddr},
+		util.WorkerAddressHeader: []string{workerAddr},
 	}
 	workerCtx = metadata.NewOutgoingContext(workerCtx, md)
 
@@ -57,6 +61,7 @@ func workerPostRun(_ *cobra.Command, _ []string) {
 }
 
 func init() {
+	workerMgmtCmd.PersistentFlags().StringVar(&workerAddressFlag, "worker-address", "", "Use specified worker address instead of configured value")
 	workerMgmtCmd.AddCommand(
 		workerStatusCmd,
 		askPlansRootCmd,
