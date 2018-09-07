@@ -759,6 +759,20 @@ func (e *engine) startPriceTracking(ctx context.Context) error {
 	}
 }
 
+func (e *engine) filterDeals(deals []*sonm.Deal) []*sonm.Deal {
+	set := map[string]*sonm.Deal{}
+	for _, deal := range deals {
+		if deal.ConsumerID.Unwrap() == e.ethAddr {
+			set[deal.GetId().Unwrap().String()] = deal
+		}
+	}
+	filtered := make([]*sonm.Deal, 0, len(set))
+	for _, deal := range set {
+		filtered = append(filtered, deal)
+	}
+	return filtered
+}
+
 func (e *engine) restoreMarketState(ctx context.Context) error {
 	existingOrders, err := e.market.GetOrders(ctx, &sonm.Count{Count: 1000})
 	if err != nil {
@@ -771,12 +785,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 	}
 
 	// use only deals where Connor is consumer
-	dealsToRestore := []*sonm.Deal{}
-	for _, deal := range existingDeals.GetDeal() {
-		if deal.ConsumerID.Unwrap() == e.ethAddr {
-			dealsToRestore = append(dealsToRestore, deal)
-		}
-	}
+	dealsToRestore := e.filterDeals(existingDeals.GetDeal())
 
 	existingCorders := e.corderFactory.FromSlice(existingOrders.GetOrders())
 	targetCorders := e.getTargetCorders()
