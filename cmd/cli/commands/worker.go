@@ -61,7 +61,7 @@ func workerPostRun(_ *cobra.Command, _ []string) {
 }
 
 func init() {
-	workerMgmtCmd.PersistentFlags().StringVar(&workerAddressFlag, "worker_address", "", "Use specified worker address instead of configured value")
+	workerMgmtCmd.PersistentFlags().StringVar(&workerAddressFlag, "worker-address", "", "Use specified worker address instead of configured value")
 	workerMgmtCmd.AddCommand(
 		workerStatusCmd,
 		askPlansRootCmd,
