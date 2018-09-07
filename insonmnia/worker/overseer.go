@@ -840,14 +840,14 @@ func (m *metaExtractor) Process() (*diffMeta, error) {
 		if _, err := io.Copy(manifest, m.image); err != nil {
 			return nil, err
 		}
-		var layerMeta diffMeta
-		if err := json.Unmarshal(manifest.Bytes(), &layerMeta); err != nil {
+		var manifestContents []*diffMeta
+		if err := json.Unmarshal(manifest.Bytes(), &manifestContents); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal manifest.json: %v", err)
 		}
-		if len(layerMeta.Config) == 0 || len(layerMeta.Layers) == 0 {
+		if len(manifestContents) < 1 || len(manifestContents[0].Config) == 0 || len(manifestContents[0].Layers) == 0 {
 			return nil, errors.New("manifest.json is malformed")
 		}
-		m.meta = &layerMeta
+		m.meta = manifestContents[0]
 
 		return m.meta, nil
 	}
