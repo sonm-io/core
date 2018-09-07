@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sonm-io/core/connor/antifraud"
@@ -30,6 +31,7 @@ type engine struct {
 	log       *zap.Logger
 	cfg       *Config
 	antiFraud antifraud.AntiFraud
+	ethAddr   common.Address
 
 	market        sonm.MarketClient
 	deals         sonm.DealManagementClient
@@ -100,8 +102,9 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 	}
 
 	return &engine{
-		cfg: cfg,
-		log: log,
+		cfg:     cfg,
+		log:     log,
+		ethAddr: crypto.PubkeyToAddress(key.PublicKey),
 
 		priceProvider: cfg.backends().priceProvider,
 		corderFactory: cfg.backends().corderFactory,
@@ -756,6 +759,20 @@ func (e *engine) startPriceTracking(ctx context.Context) error {
 	}
 }
 
+func (e *engine) filterDeals(deals []*sonm.Deal) []*sonm.Deal {
+	set := map[string]*sonm.Deal{}
+	for _, deal := range deals {
+		if deal.ConsumerID.Unwrap() == e.ethAddr {
+			set[deal.GetId().Unwrap().String()] = deal
+		}
+	}
+	filtered := make([]*sonm.Deal, 0, len(set))
+	for _, deal := range set {
+		filtered = append(filtered, deal)
+	}
+	return filtered
+}
+
 func (e *engine) restoreMarketState(ctx context.Context) error {
 	existingOrders, err := e.market.GetOrders(ctx, &sonm.Count{Count: 1000})
 	if err != nil {
@@ -767,6 +784,9 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 		return fmt.Errorf("cannot load deals from market: %v", err)
 	}
 
+	// use only deals where Connor is consumer
+	dealsToRestore := e.filterDeals(existingDeals.GetDeal())
+
 	existingCorders := e.corderFactory.FromSlice(existingOrders.GetOrders())
 	targetCorders := e.getTargetCorders()
 
@@ -775,9 +795,9 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 		zap.Int("orders_restore", len(set.toRestore)),
 		zap.Int("orders_create", len(set.toCreate)),
 		zap.Int("orders_cancel", len(set.toCancel)),
-		zap.Int("deals_restore", len(existingDeals.GetDeal())))
+		zap.Int("deals_restore", len(dealsToRestore)))
 
-	for _, deal := range existingDeals.GetDeal() {
+	for _, deal := range dealsToRestore {
 		e.RestoreDeal(ctx, deal)
 	}
 
