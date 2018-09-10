@@ -82,13 +82,18 @@ func (m *overseerView) ContainerInfo(id string) (*ContainerInfo, bool) {
 	return m.worker.GetContainerInfo(id)
 }
 
-func (m *overseerView) IdentityLevel(id string) (pb.IdentityLevel, error) {
+func (m *overseerView) ConsumerIdentityLevel(ctx context.Context, id string) (pb.IdentityLevel, error) {
 	plan, err := m.worker.AskPlanByTaskID(id)
 	if err != nil {
 		return pb.IdentityLevel_UNKNOWN, err
 	}
 
-	return plan.Identity, nil
+	deal, err := m.worker.salesman.Deal(plan.GetDealID())
+	if err != nil {
+		return pb.IdentityLevel_UNKNOWN, err
+	}
+
+	return m.worker.eth.ProfileRegistry().GetProfileLevel(ctx, deal.GetConsumerID().Unwrap())
 }
 
 func (m *overseerView) ExecIdentity() pb.IdentityLevel {

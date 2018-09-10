@@ -71,7 +71,9 @@ func (nilSSH) Close() error                  { return nil }
 // slightly more decomposed architecture.
 type OverseerView interface {
 	ContainerInfo(id string) (*ContainerInfo, bool)
-	IdentityLevel(id string) (sonm.IdentityLevel, error)
+	// ConsumerIdentityLevel returns the consumer identity level by the given
+	// task identifier.
+	ConsumerIdentityLevel(ctx context.Context, id string) (sonm.IdentityLevel, error)
 	ExecIdentity() sonm.IdentityLevel
 	Exec(ctx context.Context, id string, cmd []string, env []string, isTty bool, wCh <-chan sshd.Window) (types.HijackedResponse, error)
 }
@@ -133,7 +135,7 @@ func (m *connHandler) process(session sshd.Session) (sshStatus, error) {
 		cmd = []string{"login", "-f", "root"}
 	}
 
-	identity, err := m.overseer.IdentityLevel(session.User())
+	identity, err := m.overseer.ConsumerIdentityLevel(session.Context(), session.User())
 	if err != nil {
 		return sshStatusServerError, fmt.Errorf("failed to extract identity level for task `%s`: %v", session.User(), err)
 	}
