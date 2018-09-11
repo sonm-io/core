@@ -546,7 +546,7 @@ var taskPushCmd = &cobra.Command{
 					if bytesCommitted == fileInfo.Size() {
 						id, ok := client.Trailer()["id"]
 						if !ok || len(id) == 0 {
-							return fmt.Errorf("mo status returned: %v", nil)
+							return fmt.Errorf("no status returned: %v", nil)
 						}
 
 						printID(cmd, id[0])
