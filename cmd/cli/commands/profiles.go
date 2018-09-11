@@ -7,6 +7,8 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func init() {
@@ -49,6 +51,10 @@ var profileStatusCmd = &cobra.Command{
 
 		profile, err := client.Status(ctx, &sonm.EthID{Id: sonm.NewEthAddress(addr)})
 		if err != nil {
+			if status.Code(err) == codes.NotFound {
+				return fmt.Errorf("cannot find profile for address `%s`", addr.Hex())
+			}
+
 			return fmt.Errorf("cannot get profile info: %v", err)
 		}
 
