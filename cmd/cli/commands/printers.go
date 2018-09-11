@@ -57,13 +57,12 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		if tag := taskStatus.GetTag(); len(tag.GetData()) != 0 {
-			tagData, err := yaml.Marshal(tag.GetData())
+			tagData, err := yaml.Marshal(tag)
 			if err != nil {
-				cmd.Printf("Tag:             failed to marshal tag: %v\r\n", err)
+				cmd.Printf("  Tag:    failed to marshal tag: %v\r\n", err)
 			} else {
-				cmd.Printf("Tag:             %s\r\n", string(tagData))
+				cmd.Printf("  Tag:    %s\r\n", strings.TrimRight(string(tagData), "\n"))
 			}
-			cmd.Printf("  Tag: %s\r\n", tag)
 		}
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
 
