@@ -151,7 +151,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		case nil:
 			// pass
 		case storagequota.ErrDriverNotSupported:
-			log.G(ctx).Warn("storage quota is not supported by curent Docker driver", zap.String("driver", info.Driver))
+			log.G(ctx).Warn("storage quota is not supported by current Docker driver", zap.String("driver", info.Driver))
 		default:
 			return nil, err
 		}
