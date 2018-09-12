@@ -81,12 +81,7 @@ func (p *cmcPriceProvider) Update(ctx context.Context) error {
 	}
 
 	// 3. calculate token price per hash per second
-	v := p.calculate(
-		big.NewFloat(0).SetInt(price),
-		big.NewFloat(coinParams.BlockReward),
-		big.NewFloat(coinParams.Difficulty),
-		p.margin,
-	)
+	v := p.calculate(price, coinParams, p.margin)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -101,9 +96,13 @@ func (p *cmcPriceProvider) GetPrice() *big.Int {
 	return p.price
 }
 
-type calculateFunc func(a, b, c *big.Float, m float64) *big.Int
+type calculateFunc func(tokenPrice *big.Int, coinParams *coinParams, m float64) *big.Int
 
-func calculateEthPrice(price, reward, difficulty *big.Float, margin float64) *big.Int {
+func calculateEthPrice(tokenPrice *big.Int, coin *coinParams, margin float64) *big.Int {
+	price := big.NewFloat(0).SetInt(tokenPrice)
+	reward := big.NewFloat(coin.BlockReward)
+	difficulty := big.NewFloat(coin.Difficulty)
+
 	weiPerSecPerHash := big.NewFloat(0).Quo(reward, difficulty)
 	ethPerSecPerHash := big.NewFloat(0).Quo(weiPerSecPerHash, big.NewFloat(params.Ether))
 
@@ -115,13 +114,17 @@ func calculateEthPrice(price, reward, difficulty *big.Float, margin float64) *bi
 	return result
 }
 
-func calculateXmrPrice(price, reward, difficulty *big.Float, margin float64) *big.Int {
-	hashrate := big.NewFloat(0).Quo(big.NewFloat(1), difficulty)
+func calculateXmrPrice(tokenPrice *big.Int, coin *coinParams, margin float64) *big.Int {
+	price := big.NewFloat(0).SetInt(tokenPrice)
 
-	xmrPerHashPerSec := big.NewFloat(0).Mul(hashrate, reward)
-	usdPerHashPerSec := big.NewFloat(0).Mul(xmrPerHashPerSec, price)
+	reward := big.NewFloat(coin.BlockReward * 720)
+	netHash := big.NewFloat(float64(coin.Nethash))
+	dailyXMR := big.NewFloat(0).Quo(reward, netHash)
 
-	priceWithMargin := big.NewFloat(0).Mul(usdPerHashPerSec, big.NewFloat(margin))
-	result, _ := priceWithMargin.Int(nil)
-	return result
+	dailyUSD := big.NewFloat(0).Mul(dailyXMR, price)
+	secondUSD := big.NewFloat(0).Quo(dailyUSD, big.NewFloat(86400))
+	withMargin := big.NewFloat(0).Mul(secondUSD, big.NewFloat(margin))
+
+	v, _ := withMargin.Int(nil)
+	return v
 }
