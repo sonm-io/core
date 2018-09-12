@@ -94,6 +94,15 @@ func (m *workerConfig) Validate() error {
 
 type OrderPolicy int
 
+func (m *OrderPolicy) String() string {
+	switch *m {
+	case 0:
+		return "spot_only"
+	default:
+		return "unknown"
+	}
+}
+
 func (m *OrderPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var cfg string
 	if err := unmarshal(&cfg); err != nil {

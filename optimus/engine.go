@@ -590,7 +590,7 @@ func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders,
 		return nil, fmt.Errorf("failed to construct device manager: %v", err)
 	}
 
-	matchedOrders := m.matchingOrders(deviceManager, devices, orders, extra)
+	matchedOrders := m.matchingOrders(deviceManager, devices, orders, extra, log)
 	log.Infof("found %d/%d matching orders", len(matchedOrders), len(orders))
 
 	if len(matchedOrders) == 0 {
@@ -611,11 +611,11 @@ func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders,
 
 // MatchingOrders filters the given orders to have only orders that are subset
 // of ours.
-func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *sonm.DevicesReply, orders, extra []*MarketOrder) []*MarketOrder {
+func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *sonm.DevicesReply, orders, extra []*MarketOrder, log *zap.SugaredLogger) []*MarketOrder {
 	matchedOrders := make([]*MarketOrder, 0, len(orders))
 
 	filter := FittingFunc{
-		Filters: m.filters(deviceManager, devices),
+		Filters: m.filtersErr(deviceManager, devices),
 	}
 
 	for _, order := range extra {
@@ -623,41 +623,72 @@ func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *son
 	}
 
 	for _, order := range orders {
-		if filter.Filter(order.GetOrder()) {
-			matchedOrders = append(matchedOrders, order)
+		if err := filter.Filter(order.GetOrder()); err != nil {
+			log.Debugf("exclude order %s from matching: %v", order.GetOrder().GetId(), err)
+			continue
 		}
+
+		matchedOrders = append(matchedOrders, order)
 	}
 
 	return matchedOrders
 }
 
-func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.DevicesReply) []func(order *sonm.Order) bool {
-	return []func(order *sonm.Order) bool{
-		func(order *sonm.Order) bool {
-			return order.OrderType == sonm.OrderType_BID
+func (m *workerEngine) filtersErr(deviceManager *DeviceManager, devices *sonm.DevicesReply) []func(order *sonm.Order) error {
+	return []func(order *sonm.Order) error{
+		func(order *sonm.Order) error {
+			if order.OrderType == sonm.OrderType_BID {
+				return nil
+			}
+
+			return fmt.Errorf("expected order type %s, actual: %s", sonm.OrderType_BID, order.OrderType)
 		},
-		func(order *sonm.Order) bool {
+		func(order *sonm.Order) error {
 			switch m.cfg.OrderPolicy {
 			case PolicySpotOnly:
-				return order.GetDuration() == 0
+				if order.GetDuration() == 0 {
+					return nil
+				}
+				return fmt.Errorf("expected order duration 0, actual: %d", order.GetDuration())
 			}
-			return false
+
+			return fmt.Errorf("unknown order policy: %s", m.cfg.OrderPolicy.String())
 		},
-		func(order *sonm.Order) bool {
-			return m.blacklist.IsAllowed(order.GetAuthorID().Unwrap())
+		func(order *sonm.Order) error {
+			if m.blacklist.IsAllowed(order.GetAuthorID().Unwrap()) {
+				return nil
+			}
+
+			return fmt.Errorf("order is in blacklist")
 		},
-		func(order *sonm.Order) bool {
-			return devices.GetNetwork().GetNetFlags().ConverseImplication(order.GetNetflags())
+		func(order *sonm.Order) error {
+			if devices.GetNetwork().GetNetFlags().ConverseImplication(order.GetNetflags()) {
+				return nil
+			}
+
+			return fmt.Errorf("netflags mismatch")
 		},
-		func(order *sonm.Order) bool {
+		func(order *sonm.Order) error {
 			counterpartyID := order.CounterpartyID.Unwrap()
-			return counterpartyID == common.Address{} || counterpartyID == m.addr || counterpartyID == m.masterAddr
+			if (counterpartyID == common.Address{} || counterpartyID == m.addr || counterpartyID == m.masterAddr) {
+				return nil
+			}
+
+			return fmt.Errorf("counterparty mismatch")
 		},
-		func(order *sonm.Order) bool {
-			return order.IdentityLevel <= m.cfg.Identity
+		func(order *sonm.Order) error {
+			if order.IdentityLevel <= m.cfg.Identity {
+				return nil
+			}
+
+			return fmt.Errorf("expected minimum identity %s, actual %s", m.cfg.Identity, order.IdentityLevel)
 		},
-		func(order *sonm.Order) bool {
-			return deviceManager.Contains(*order.Benchmarks, *order.Netflags)
+		func(order *sonm.Order) error {
+			if deviceManager.Contains(*order.Benchmarks, *order.Netflags) {
+				return nil
+			}
+
+			return fmt.Errorf("benchmarks mismatch: free %d, actual %d", deviceManager.freeBenchmarks, order.Benchmarks.GetValues())
 		},
 	}
 }
@@ -765,17 +796,17 @@ type OptimizationMethod interface {
 }
 
 type FittingFunc struct {
-	Filters []func(order *sonm.Order) bool
+	Filters []func(order *sonm.Order) error
 }
 
-func (m *FittingFunc) Filter(order *sonm.Order) bool {
+func (m *FittingFunc) Filter(order *sonm.Order) error {
 	for _, filter := range m.Filters {
-		if !filter(order) {
-			return false
+		if err := filter(order); err != nil {
+			return err
 		}
 	}
 
-	return true
+	return nil
 }
 
 type Knapsack struct {
