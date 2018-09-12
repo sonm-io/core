@@ -13,5 +13,5 @@ import (
 var PlatformSupportsQuota = false
 
 func NewQuotaTuner(info types.Info) (StorageQuotaTuner, error) {
-	return nil, fmt.Errorf("Quota not supported by this platform: %s", runtime.GOOS)
+	return nil, fmt.Errorf("quota not supported by this platform: %s", runtime.GOOS)
 }

@@ -44,11 +44,11 @@ func (btrfsNativeAPI) QuotaEnable(ctx context.Context, path string) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to search qgroup for %s: %v", path, errno.Error())
+		return fmt.Errorf("failed to search qgroup for %s: %v", path, errno.Error())
 	}
 	sh := (*C.struct_btrfs_ioctl_search_header)(unsafe.Pointer(&args.buf))
 	if sh._type != C.BTRFS_QGROUP_STATUS_KEY {
-		return fmt.Errorf("Invalid qgroup search header type for %s: %v", path, sh._type)
+		return fmt.Errorf("invalid qgroup search header type for %s: %v", path, sh._type)
 	}
 	return nil
 }
@@ -86,7 +86,7 @@ func (btrfsNativeAPI) quotaCreateOrDestroy(qgroupID string, path string, create 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_CREATE,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to create qgroup for %s: %v", dir, errno.Error())
+		return fmt.Errorf("failed to create qgroup for %s: %v", dir, errno.Error())
 	}
 
 	return nil
@@ -105,7 +105,7 @@ func (btrfsNativeAPI) QuotaLimit(ctx context.Context, sizeInBytes uint64, qgroup
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to limit qgroup for %s: %v", dir, errno.Error())
+		return fmt.Errorf("failed to limit qgroup for %s: %v", dir, errno.Error())
 	}
 
 	return nil
@@ -146,7 +146,7 @@ func (btrfsNativeAPI) quotaAssignOrRemove(src string, dst string, path string, a
 	r1, r2, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_ASSIGN,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to assign qgroup for %s: %v", dir, errno.Error())
+		return fmt.Errorf("failed to assign qgroup for %s: %v", dir, errno.Error())
 	}
 	fmt.Printf("%v %v %s\n", r1, r2, errno)
 	// TODO: add rescan in case of error!!!
@@ -189,7 +189,7 @@ func openDir(path string) (*C.DIR, error) {
 
 	dir := C.opendir(Cpath)
 	if dir == nil {
-		return nil, fmt.Errorf("Can't open dir")
+		return nil, fmt.Errorf("can't open dir")
 	}
 	return dir, nil
 }
