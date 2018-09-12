@@ -23,7 +23,9 @@ type ResourcesConfig struct {
 }
 
 type WhitelistConfig struct {
-	Url                     string             `yaml:"url"`
+	Url string `yaml:"url"`
+	// Deprecated: use PrivilegedIdentityLevel instead
+	Enabled                 *bool              `yaml:"enabled" default:"true" required:"true"`
 	PrivilegedAddresses     []string           `yaml:"privileged_addresses"`
 	RefreshPeriod           uint               `yaml:"refresh_period" default:"60"`
 	PrivilegedIdentityLevel sonm.IdentityLevel `yaml:"privileged_identity_level" default:"identified"`
@@ -63,6 +65,10 @@ func NewConfig(path string) (*Config, error) {
 
 	if err != nil {
 		return nil, err
+	}
+	// TODO: drop in next major version
+	if *cfg.Whitelist.Enabled == false {
+		cfg.Whitelist.PrivilegedIdentityLevel = sonm.IdentityLevel_ANONYMOUS
 	}
 
 	return cfg, nil
