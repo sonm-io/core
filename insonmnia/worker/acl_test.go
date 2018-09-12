@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/golang/mock/gomock"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -139,4 +140,28 @@ func TestMultiAuth(t *testing.T) {
 
 	err = mul.Authorize(context.Background(), nil)
 	assert.Error(t, err)
+}
+
+func TestKycAuthorization(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	identifiedMock := NewMockkycFetcher(ctrl)
+	identifiedMock.EXPECT().GetProfileLevel(gomock.Any(), addr).AnyTimes().Return(sonm.IdentityLevel_IDENTIFIED, nil)
+
+	// Excatly same level
+	kyc := newKYCAuthorization(context.Background(), sonm.IdentityLevel_IDENTIFIED, identifiedMock)
+	peerCtx := peer.NewContext(testCtx(), &peer.Peer{
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
+	})
+	err := kyc.Authorize(peerCtx, nil)
+	require.NoError(t, err)
+
+	// Level is greater than required
+	kyc = newKYCAuthorization(context.Background(), sonm.IdentityLevel_ANONYMOUS, identifiedMock)
+	err = kyc.Authorize(peerCtx, nil)
+	require.NoError(t, err)
+
+	// Level is less than required
+	kyc = newKYCAuthorization(context.Background(), sonm.IdentityLevel_PROFESSIONAL, identifiedMock)
+	err = kyc.Authorize(peerCtx, nil)
+	require.Error(t, err)
 }

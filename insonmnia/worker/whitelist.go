@@ -24,10 +24,6 @@ type Whitelist interface {
 }
 
 func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
-	if config.Enabled != nil && !*config.Enabled {
-		return &disabledWhitelist{}
-	}
-
 	wl := whitelist{
 		superusers: make(map[string]struct{}),
 	}
@@ -165,11 +161,4 @@ func (w *whitelist) Allowed(ctx context.Context, ref reference.Reference, author
 	allowed, err := w.digestAllowed(ref.(reference.Named).Name(), (string)(inspection.Descriptor.Digest))
 
 	return allowed, ref, err
-}
-
-type disabledWhitelist struct {
-}
-
-func (w *disabledWhitelist) Allowed(ctx context.Context, ref reference.Reference, auth string) (bool, reference.Reference, error) {
-	return true, ref, nil
 }

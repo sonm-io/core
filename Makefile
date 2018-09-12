@@ -177,6 +177,7 @@ build_mockgen:
 
 mock: build_mockgen
 	mockgen -package worker -destination insonmnia/worker/overseer_mock.go -source insonmnia/worker/overseer.go
+	mockgen -package worker -destination insonmnia/worker/acl_mock.go -source insonmnia/worker/acl.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go -source insonmnia/benchmarks/benchmarks.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/mapping_mock.go -source insonmnia/benchmarks/mapping.go
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
