@@ -610,7 +610,7 @@ func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) 
 	if err != nil {
 		return false, nil, err
 	}
-	if level <= m.cfg.Whitelist.PrivilegedIdentityLevel {
+	if level < m.cfg.Whitelist.PrivilegedIdentityLevel {
 		return m.whitelist.Allowed(ctx, ref, spec.GetRegistry().Auth())
 	}
 
