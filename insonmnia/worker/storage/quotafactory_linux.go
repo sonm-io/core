@@ -1,6 +1,6 @@
 // +build linux
 
-package storagequota
+package storage
 
 import (
 	"github.com/docker/docker/api/types"

@@ -1,4 +1,4 @@
-package storagequota
+package storage
 
 import (
 	"context"

@@ -1,6 +1,6 @@
 // +build linux
 
-package storagequota
+package storage
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
-	"github.com/sonm-io/core/insonmnia/worker/storagequota/btrfs"
+	"github.com/sonm-io/core/insonmnia/worker/storage/btrfs"
 )
 
 type btrfsQuotaTuner struct {

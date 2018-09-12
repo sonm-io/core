@@ -1,6 +1,6 @@
 // +build linux
 
-package storagequota
+package storage
 
 import (
 	"context"

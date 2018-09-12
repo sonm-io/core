@@ -13,7 +13,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	minet "github.com/sonm-io/core/insonmnia/worker/network"
-	"github.com/sonm-io/core/insonmnia/worker/storagequota"
+	"github.com/sonm-io/core/insonmnia/worker/storage"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -70,7 +70,7 @@ type Repository struct {
 	volumes           map[string]volume.VolumeDriver
 	gpuTuners         map[sonm.GPUVendorType]gpu.Tuner
 	networkTuners     map[string]minet.Tuner
-	storageQuotaTuner storagequota.StorageQuotaTuner
+	storageQuotaTuner storage.StorageQuotaTuner
 }
 
 // NewRepository constructs a new repository for SONM plugins from the
@@ -134,7 +134,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		r.networkTuners[l2tpNetwork] = l2tpTuner
 	}
 
-	if storagequota.PlatformSupportsQuota {
+	if storage.PlatformSupportsQuota {
 		// NOTE: not sure it's safe to do it here. Please, suggest better place
 		docker, err := client.NewEnvClient()
 		if err != nil {
@@ -149,11 +149,11 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 
 		log.G(ctx).Debug("fetched Docker info", zap.Any("info", info))
 
-		r.storageQuotaTuner, err = storagequota.NewQuotaTuner(info)
+		r.storageQuotaTuner, err = storage.NewQuotaTuner(info)
 		switch err.(type) {
 		case nil:
 			// pass
-		case storagequota.ErrDriverNotSupported:
+		case storage.ErrDriverNotSupported:
 			log.G(ctx).Warn("storage quota is not supported by current Docker driver", zap.String("driver", info.Driver))
 		default:
 			return nil, err
