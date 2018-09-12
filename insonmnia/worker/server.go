@@ -948,7 +948,7 @@ func (m *Worker) runBenchmarks() error {
 }
 
 func (m *Worker) setupResources() error {
-	m.resources = resource.NewScheduler(m.ctx, m.hardware)
+	m.resources = resource.NewScheduler(log.S(m.ctx).With("source", "resource_scheduler"), m.hardware)
 	return nil
 }
 
@@ -958,7 +958,7 @@ func (m *Worker) setupSalesman() error {
 		salesman.WithStorage(m.storage),
 		salesman.WithResources(m.resources),
 		salesman.WithHardware(m.hardware),
-		salesman.WithEth(m.eth),
+		salesman.WithEth(salesman.NewEthAPI(m.eth)),
 		salesman.WithCGroupManager(m.cGroupManager),
 		salesman.WithMatcher(m.matcher),
 		salesman.WithEthkey(m.key),

@@ -1,20 +1,16 @@
 package resource
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
 	"github.com/mohae/deepcopy"
-	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 )
 
 type Scheduler struct {
-	OS   *hardware.Hardware
 	mu   sync.Mutex
 	pool *pool
 	// taskToAskPlan maps task ID to ask plan ID
@@ -24,14 +20,16 @@ type Scheduler struct {
 	log          *zap.SugaredLogger
 }
 
-func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
-	resources := hardware.AskPlanResources()
-	log := ctxlog.S(ctx).With("source", "resource_scheduler")
+type ResourceProvider interface {
+	AskPlanResources() *sonm.AskPlanResources
+}
+
+func NewScheduler(log *zap.SugaredLogger, provider ResourceProvider) *Scheduler {
+	resources := provider.AskPlanResources()
 	readableResources, _ := yaml.Marshal(resources)
-	readableHardware, _ := yaml.Marshal(hardware)
+	readableHardware, _ := yaml.Marshal(provider)
 	log.Debugf("constructing scheduler with hardware:\n%s\ninitial resources:\n%s", string(readableHardware), string(readableResources))
 	return &Scheduler{
-		OS:            hardware,
 		pool:          newPool(resources),
 		taskToAskPlan: map[string]string{},
 		askPlanPools:  map[string]*pool{},

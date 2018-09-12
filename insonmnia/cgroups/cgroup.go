@@ -70,7 +70,7 @@ func (*nilCgroup) Stats() (*Stats, error) {
 
 type nilGroupManager struct{}
 
-func newNilCgroupManager() (CGroup, CGroupManager, error) {
+func NewNilCgroupManager() (CGroup, CGroupManager, error) {
 	return &nilCgroup{}, &nilGroupManager{}, nil
 }
 
@@ -149,7 +149,7 @@ func (c *controlGroupManager) Detach(name string) error {
 
 func NewCgroupManager(name string, res *specs.LinuxResources) (CGroup, CGroupManager, error) {
 	if !platformSupportCGroups || res == nil {
-		return newNilCgroupManager()
+		return NewNilCgroupManager()
 	}
 	return newCgroupManager(name, res)
 }

@@ -29,7 +29,7 @@ type Storage struct {
 
 type KeyedStorage struct {
 	key     string
-	storage *Storage
+	storage SimpleStorage
 }
 
 type StorageConfig struct {
@@ -74,7 +74,12 @@ func NewState(ctx context.Context, cfg *StorageConfig) (*Storage, error) {
 	return out, nil
 }
 
-func NewKeyedStorage(key string, storage *Storage) *KeyedStorage {
+type SimpleStorage interface {
+	Save(key string, value interface{}) error
+	Load(key string, value interface{}) (bool, error)
+}
+
+func NewKeyedStorage(key string, storage SimpleStorage) *KeyedStorage {
 	return &KeyedStorage{key, storage}
 }
 

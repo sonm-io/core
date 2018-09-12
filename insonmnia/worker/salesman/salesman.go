@@ -76,7 +76,7 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 		return nil, err
 	}
 
-	askPlansKey := o.eth.ContractRegistry().MarketAddress().Hex() + "/ask_plans"
+	askPlansKey := o.eth.MarketAddress().Hex() + "/ask_plans"
 
 	networkManager, err := network.NewNetworkManagerWithConfig(network.NetworkManagerConfig{
 		Log: o.log,
@@ -113,7 +113,7 @@ func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
 			orderID := plan.GetOrderID()
 			dealID := plan.GetDealID()
 			if dealID.IsZero() && !orderID.IsZero() {
-				order, err := m.eth.Market().GetOrderInfo(ctx, orderID.Unwrap())
+				order, err := m.eth.GetOrderInfo(ctx, orderID.Unwrap())
 				if err != nil {
 					m.log.Warnf("failed to get order info for order %s, stopping waiting for deal: %s", orderID.Unwrap().String(), err)
 					continue
@@ -242,7 +242,7 @@ func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan)
 	}
 
 	if !plan.GetOrderID().IsZero() {
-		if err := m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
+		if err := m.eth.CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
 			return fmt.Errorf("could not cancel order: %s", err)
 		}
 	}
@@ -472,7 +472,7 @@ func (m *Salesman) dropNetwork(planID string) error {
 func (m *Salesman) loadCheckDeal(ctx context.Context, plan *sonm.AskPlan) error {
 	dealID := plan.DealID.Unwrap()
 
-	deal, err := m.eth.Market().GetDealInfo(ctx, dealID)
+	deal, err := m.eth.GetDealInfo(ctx, dealID)
 	if err != nil {
 		return fmt.Errorf("could not get deal info for ask plan  %s: %s", plan.ID, err)
 	}
@@ -520,7 +520,7 @@ func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
 	}
 
 	if time.Now().Sub(billTime) > billPeriod {
-		if err := m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap()); err != nil {
+		if err := m.eth.Bill(ctx, m.ethkey, deal.GetId().Unwrap()); err != nil {
 			return err
 		}
 		m.log.Infof("billed deal %s", deal.GetId().Unwrap().String())
@@ -549,7 +549,7 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, plan *sonm.AskPlan, deal 
 	if m.shouldCloseDeal(ctx, plan, deal) {
 		// TODO: we will know about closed deal on next iteration for simplicicty,
 		// but maybe we can optimize here.
-		if err := m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), sonm.BlacklistType_BLACKLIST_NOBODY); err != nil {
+		if err := m.eth.CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), sonm.BlacklistType_BLACKLIST_NOBODY); err != nil {
 			return err
 		}
 
@@ -657,7 +657,7 @@ func (m *Salesman) registerDeal(planID string, deal *sonm.Deal) error {
 func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	//TODO: validate deal that it is ours
 	m.log.Debugf("checking order %s for ask plan %s", plan.GetOrderID().Unwrap().String(), plan.ID)
-	order, err := m.eth.Market().GetOrderInfo(ctx, plan.GetOrderID().Unwrap())
+	order, err := m.eth.GetOrderInfo(ctx, plan.GetOrderID().Unwrap())
 	if err != nil {
 		return fmt.Errorf("could not get order info for order %s: %s", plan.GetOrderID().Unwrap().String(), err)
 	}
@@ -675,7 +675,7 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 		maintenanceTime := m.NextMaintenance()
 		orderEndTime := time.Now().Add(time.Second * time.Duration(order.Duration))
 		if orderEndTime.After(maintenanceTime) {
-			if err := m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
+			if err := m.eth.CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
 				return fmt.Errorf("could not cancel order for maintenance - %s", err)
 			}
 			return m.unregisterOrder(plan.ID)
@@ -722,7 +722,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 		Tag:           plan.GetTag(),
 		Benchmarks:    benchmarks,
 	}
-	order, err = m.eth.Market().PlaceOrder(ctx, m.ethkey, order)
+	order, err = m.eth.PlaceOrder(ctx, m.ethkey, order)
 	if err != nil {
 		return nil, fmt.Errorf("could not place order on bc market: %s", err)
 	}
@@ -748,7 +748,7 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 			if err != nil {
 				m.log.Warnf("could not wait for deal on order %s: %s", order.Id.Unwrap().String(), err)
 				id := order.Id.Unwrap()
-				order, err := m.eth.Market().GetOrderInfo(ctx, id)
+				order, err := m.eth.GetOrderInfo(ctx, id)
 				if err != nil {
 					m.log.Warnf("could not get order info for order %s: %s", id.String(), err)
 					continue
