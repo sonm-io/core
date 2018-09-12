@@ -50,7 +50,7 @@ func (btrfsCLI) QuotaExists(ctx context.Context, qgroupID string, path string) (
 	// TODO: add implementation
 	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "show", path).Output()
 	if err != nil {
-		log.G(ctx).Error("failet to lookup quota", zap.String("path", path), zap.String("quota", qgroupID), zap.Error(err))
+		log.G(ctx).Error("failed to lookup quota", zap.String("path", path), zap.String("quota", qgroupID), zap.Error(err))
 	}
 
 	return lookupQuotaInShowOutput(output, qgroupID)
