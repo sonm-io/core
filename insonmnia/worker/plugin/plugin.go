@@ -136,16 +136,19 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 
 	if storagequota.PlatformSupportsQuota {
 		// NOTE: not sure it's safe to do it here. Please, suggest better place
-		dockerClient, err := client.NewEnvClient()
+		docker, err := client.NewEnvClient()
 		if err != nil {
 			return nil, nil
 		}
-		defer dockerClient.Close()
+		defer docker.Close()
 
-		info, err := dockerClient.Info(ctx)
+		info, err := docker.Info(ctx)
 		if err != nil {
 			return nil, err
 		}
+
+		log.G(ctx).Debug("fetched Docker info", zap.Any("info", info))
+
 		r.storageQuotaTuner, err = storagequota.NewQuotaTuner(info)
 		switch err.(type) {
 		case nil:
