@@ -102,6 +102,10 @@ message StatusReply {
     uint32 taskCount = 5;
     string DWHStatus = 6;
     string rendezvousStatus = 7;
+    EthAddress master = 8;
+    EthAddress admin = 9;
+    bool isMasterConfirmed = 10;
+    bool isBenchmarkFinished = 11;
 }
 
 message AskPlansReply {

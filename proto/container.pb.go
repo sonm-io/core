@@ -127,7 +127,7 @@ type Container struct {
 	RestartPolicy *ContainerRestartPolicy `protobuf:"bytes,8,opt,name=restartPolicy" json:"restartPolicy,omitempty"`
 	// Expose controls how container ports are exposed.
 	Expose []string `protobuf:"bytes,10,rep,name=expose" json:"expose,omitempty"`
-	// If CommitOnStop is true, push the committed image to remote repository.
+	// Push the committed image to remote repository (works only if CommitOnStop is set to `true`).
 	PushOnStop bool `protobuf:"varint,11,opt,name=pushOnStop" json:"pushOnStop,omitempty"`
 }
 
