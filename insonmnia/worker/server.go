@@ -1114,18 +1114,11 @@ func (m *Worker) setupServer() error {
 	}
 
 	logger := log.GetLogger(m.ctx)
-	grpcServer := xgrpc.NewServer(logger,
-		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
-		xgrpc.Credentials(m.creds),
-		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
-		xgrpc.VerifyInterceptor(),
-	)
-	m.externalGrpc = grpcServer
+	m.externalGrpc = m.createServer(logger)
 
-	pb.RegisterWorkerServer(grpcServer, m)
-	pb.RegisterWorkerManagementServer(grpcServer, m)
-	grpc_prometheus.Register(grpcServer)
+	pb.RegisterWorkerServer(m.externalGrpc, m)
+	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
+	grpc_prometheus.Register(m.externalGrpc)
 
 	if m.cfg.Debug != nil {
 		go debug.ServePProf(m.ctx, *m.cfg.Debug, log.G(m.ctx))
@@ -1136,14 +1129,8 @@ func (m *Worker) setupServer() error {
 
 func (m *Worker) setupStatusServer() error {
 	logger := log.GetLogger(m.ctx)
-	statusServer := xgrpc.NewServer(logger,
-		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
-		xgrpc.Credentials(m.creds),
-		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
-		xgrpc.VerifyInterceptor(),
-	)
-	pb.RegisterWorkerManagementServer(statusServer, m)
+	m.externalGrpc = m.createServer(logger)
+	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
 
 	lis, err := net.Listen("tcp", m.cfg.Endpoint)
 	if err != nil {
@@ -1152,7 +1139,6 @@ func (m *Worker) setupStatusServer() error {
 		return err
 	}
 
-	m.externalGrpc = statusServer
 	go func() {
 		logger.Debug("status server: starting", zap.String("address", m.cfg.Endpoint))
 		defer logger.Debug("status server: stopped")
@@ -1160,6 +1146,16 @@ func (m *Worker) setupStatusServer() error {
 	}()
 
 	return nil
+}
+
+func (m *Worker) createServer(logger *zap.Logger) *grpc.Server {
+	return xgrpc.NewServer(logger,
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
+		xgrpc.Credentials(m.creds),
+		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
+		xgrpc.VerifyInterceptor(),
+	)
 }
 
 type BenchmarkHasher interface {
