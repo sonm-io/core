@@ -21,6 +21,17 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	btrfsQuotaDestroy = iota
+	btrfsQuotaCreate
+)
+
+type btrfsCreateFlag C.__u64
+
+func (m btrfsCreateFlag) asInt() C.__u64 {
+	return C.__u64(m)
+}
+
 type btrfsNativeAPI struct{}
 
 var _ API = btrfsNativeAPI{}
@@ -58,14 +69,14 @@ func (btrfsNativeAPI) QuotaExists(ctx context.Context, qgroupID string, path str
 }
 
 func (b btrfsNativeAPI) QuotaCreate(ctx context.Context, qgroupID string, path string) error {
-	return b.quotaCreateOrDestroy(qgroupID, path, true)
+	return b.quotaCreateOrDestroy(qgroupID, path, btrfsQuotaCreate)
 }
 
 func (b btrfsNativeAPI) QuotaDestroy(ctx context.Context, qgroupID string, path string) error {
-	return b.quotaCreateOrDestroy(qgroupID, path, false)
+	return b.quotaCreateOrDestroy(qgroupID, path, btrfsQuotaDestroy)
 }
 
-func (btrfsNativeAPI) quotaCreateOrDestroy(qgroupID string, path string, create bool) error {
+func (btrfsNativeAPI) quotaCreateOrDestroy(qgroupID string, path string, create btrfsCreateFlag) error {
 	dir, err := openDir(path)
 	if err != nil {
 		return err
@@ -73,11 +84,8 @@ func (btrfsNativeAPI) quotaCreateOrDestroy(qgroupID string, path string, create 
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_qgroup_create_args
-	if create {
-		args.create = 1
-	} else {
-		args.create = 0
-	}
+	args.create = create.asInt()
+
 	qgroupid, err := parseQgroupID(qgroupID)
 	if err != nil {
 		return err
