@@ -133,12 +133,20 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskStatusR
 
 func printWorkerStatus(cmd *cobra.Command, stat *pb.StatusReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Uptime:             %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
-		cmd.Printf("Version:            %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
-		cmd.Printf("Eth address:        %s\r\n", stat.GetEthAddr())
-		cmd.Printf("Task count:         %d\r\n", stat.GetTaskCount())
-		cmd.Printf("DWH status:         %s\r\n", stat.GetDWHStatus())
-		cmd.Printf("Rendezvous status:  %s\r\n", stat.GetRendezvousStatus())
+		cmd.Printf("Uptime:            %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
+		cmd.Printf("Version:           %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
+		cmd.Printf("Eth address:       %s\r\n", stat.GetEthAddr())
+		cmd.Printf("Master address:    %s (confirmed: %v)\r\n",
+			stat.GetMaster().Unwrap().Hex(), stat.GetIsMasterConfirmed())
+		if !stat.GetAdmin().IsZero() {
+			cmd.Printf("Admin address:     %s\r\n", stat.GetAdmin().Unwrap().Hex())
+		}
+		cmd.Printf("Task count:        %d\r\n", stat.GetTaskCount())
+		cmd.Printf("DWH status:        %s\r\n", stat.GetDWHStatus())
+		cmd.Printf("Rendezvous status: %s\r\n", stat.GetRendezvousStatus())
+		if !stat.GetIsBenchmarkFinished() {
+			cmd.Printf("[WARN] Worker is benchmarking now\r\n")
+		}
 	} else {
 		showJSON(cmd, stat)
 	}
