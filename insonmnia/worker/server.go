@@ -213,35 +213,15 @@ func (m *Worker) Serve() error {
 		return err
 	}
 
-	relayListener, err := relay.NewListener(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx))
-	if err != nil {
-		m.Close()
-		return err
-	}
-
-	listener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
-		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
-		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
-		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
-		npp.WithRelayListener(relayListener),
-		npp.WithLogger(log.G(m.ctx)),
-	)
-	if err != nil {
-		log.G(m.ctx).Error("failed to listen", zap.String("address", m.cfg.Endpoint), zap.Error(err))
-		m.Close()
-		return err
-	}
-	m.listener = listener
-
 	wg, ctx := errgroup.WithContext(m.ctx)
 	wg.Go(func() error {
 		return m.RunSSH(ctx)
 	})
 	wg.Go(func() error {
-		log.S(m.ctx).Infof("listening for gRPC API connections on %s", listener.Addr())
-		defer log.S(m.ctx).Infof("finished listening for gRPC API connections on %s", listener.Addr())
+		log.S(m.ctx).Infof("listening for gRPC API connections on %s", m.listener.Addr())
+		defer log.S(m.ctx).Infof("finished listening for gRPC API connections on %s", m.listener.Addr())
 
-		return m.externalGrpc.Serve(listener)
+		return m.externalGrpc.Serve(m.listener)
 	})
 
 	<-ctx.Done()
@@ -1110,7 +1090,7 @@ func (m *Worker) setupRunningContainers() error {
 func (m *Worker) setupServer() error {
 	if m.externalGrpc != nil {
 		log.G(m.ctx).Info("stopping previously running gRPC server")
-		m.externalGrpc.Stop()
+		m.externalGrpc.GracefulStop()
 	}
 
 	logger := log.GetLogger(m.ctx)
@@ -1124,6 +1104,25 @@ func (m *Worker) setupServer() error {
 		go debug.ServePProf(m.ctx, *m.cfg.Debug, log.G(m.ctx))
 	}
 
+	relayListener, err := relay.NewListener(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx))
+	if err != nil {
+		log.G(m.ctx).Error("failed to create Relay listener", zap.Strings("endpoints", m.cfg.NPP.Relay.Endpoints), zap.Error(err))
+		return err
+	}
+
+	nppListener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
+		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
+		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
+		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
+		npp.WithRelayListener(relayListener),
+		npp.WithLogger(log.G(m.ctx)),
+	)
+	if err != nil {
+		log.G(m.ctx).Error("failed to create NPP listener", zap.String("address", m.cfg.Endpoint), zap.Error(err))
+		return err
+	}
+
+	m.listener = nppListener
 	return nil
 }
 
