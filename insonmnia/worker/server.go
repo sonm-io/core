@@ -420,7 +420,7 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 		if err := m.ovs.OnDealFinish(m.ctx, container.ID()); err != nil {
 			result = multierror.Append(result, err)
 		}
-		if err := m.resources.OnDealFinish(container.TaskId); err != nil {
+		if err := m.resources.OnDealFinish(container.TaskID); err != nil {
 			result = multierror.Append(result, err)
 		}
 		if _, err := m.storage.Remove(container.ID()); err != nil {
@@ -431,22 +431,20 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 }
 
 type runningContainerInfo struct {
-	Description Task        `json:"description,omitempty"`
-	Cinfo       Task        `json:"cinfo,omitempty"`
-	Spec        pb.TaskSpec `json:"spec,omitempty"`
+	Task *Task       `json:"description,omitempty"`
+	Spec pb.TaskSpec `json:"spec,omitempty"`
 }
 
-func (m *Worker) saveContainerInfo(id string, info Task, d Task, spec pb.TaskSpec) {
+func (m *Worker) saveContainerInfo(id string, task *Task, spec pb.TaskSpec) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.storage.Save(info.ID(), runningContainerInfo{
-		Description: d,
-		Cinfo:       info,
-		Spec:        spec,
+	m.storage.Save(task.ID(), runningContainerInfo{
+		Task: task,
+		Spec: spec,
 	})
 
-	m.containers[id] = &info
+	m.containers[id] = task
 }
 
 func (m *Worker) GetContainerInfo(id string) (*Task, bool) {
@@ -731,24 +729,28 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		}
 	}
 
-	var d = Task{
+	task := &Task{
 		Container:      *request.Spec.Container,
 		Image:          reference.AsField(ref),
 		Auth:           spec.Registry.Auth(),
 		CgroupParent:   cgroup.Suffix(),
 		Resources:      spec.Resources,
-		DealId:         request.GetDealID().Unwrap(),
-		TaskId:         taskID,
+		dealID:         request.GetDealID(),
+		TaskID:         taskID,
 		GPUDevices:     gpuids,
 		mounts:         mounts,
 		NetworkOptions: network,
+		PublicKey:      publicKey,
+		StartAt:        time.Now(),
+		Tag:            request.GetSpec().GetTag(),
+		AskID:          ask.ID,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, taskID)
 	log.G(m.ctx).Info("spooling an image")
-	if err := m.ovs.Spool(ctx, d); err != nil {
+	if err := m.ovs.Spool(ctx, task); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
@@ -757,7 +759,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, taskID)
 	log.G(m.ctx).Info("spawning an image")
-	statusListener, containerInfo, err := m.ovs.Start(m.ctx, d)
+	statusListener, err := m.ovs.Start(m.ctx, task)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
@@ -765,21 +767,14 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	log.G(m.ctx).Info("spawned an image")
-	containerInfo.PublicKey = publicKey
-	containerInfo.StartAt = time.Now()
-	containerInfo.Image = reference.AsField(ref)
-	containerInfo.dealID = dealID
-	containerInfo.Tag = request.GetSpec().GetTag()
-	containerInfo.TaskId = taskID
-	containerInfo.AskID = ask.ID
 
 	var reply = pb.StartTaskReply{
 		Id:         taskID,
 		PortMap:    make(map[string]*pb.Endpoints, 0),
-		NetworkIDs: containerInfo.NetworkIDs,
+		NetworkIDs: task.NetworkIDs,
 	}
 
-	for internalPort, portBindings := range containerInfo.Ports {
+	for internalPort, portBindings := range task.Ports {
 		if len(portBindings) < 1 {
 			continue
 		}
@@ -805,12 +800,12 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 			}
 		}
 
-		containerInfo.Ports[internalPort] = pubPortBindings
+		task.Ports[internalPort] = pubPortBindings
 
 		reply.PortMap[string(internalPort)] = &pb.Endpoints{Endpoints: socketAddrs}
 	}
 
-	m.saveContainerInfo(taskID, containerInfo, d, *spec)
+	m.saveContainerInfo(taskID, task, *spec)
 
 	go m.listenForStatus(statusListener, taskID)
 
@@ -835,7 +830,7 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	_, err := m.storage.Remove(containerInfo.TaskId)
+	_, err := m.storage.Remove(containerInfo.TaskID)
 
 	if err != nil {
 		log.G(ctx).Warn("failed to delete cached container info", zap.Error(err))
@@ -1038,32 +1033,32 @@ func (m *Worker) setupRunningContainers() error {
 				return err
 			}
 
-			bigDealID := info.Description.DealId
+			bigDealID := info.Task.DealID()
 
 			deal, err := m.eth.Market().GetDealInfo(m.ctx, bigDealID)
 			if err != nil {
-				return fmt.Errorf("failed to get deal %v status: %v", info.Description.DealId, err)
+				return fmt.Errorf("failed to get deal %s status: %v", bigDealID, err)
 			}
 
 			if deal.Status == pb.DealStatus_DEAL_CLOSED {
 				log.G(m.ctx).Info("found task assigned to closed deal, going to cancel it",
-					zap.String("deal_id", bigDealID.String()), zap.String("task_id", info.Cinfo.TaskId))
+					zap.String("deal_id", bigDealID.String()), zap.String("task_id", info.Task.TaskID))
 				closedDeals[deal.Id.Unwrap().String()] = deal
 			}
 
 			// TODO: Match our proto status constants with docker's statuses
 			switch contJson.State.Status {
 			case "created", "paused", "restarting", "removing":
-				info.Cinfo.status = pb.TaskStatusReply_UNKNOWN
+				info.Task.status = pb.TaskStatusReply_UNKNOWN
 			case "running":
-				info.Cinfo.status = pb.TaskStatusReply_RUNNING
+				info.Task.status = pb.TaskStatusReply_RUNNING
 			case "exited":
-				info.Cinfo.status = pb.TaskStatusReply_FINISHED
+				info.Task.status = pb.TaskStatusReply_FINISHED
 			case "dead":
-				info.Cinfo.status = pb.TaskStatusReply_BROKEN
+				info.Task.status = pb.TaskStatusReply_BROKEN
 			}
 
-			m.containers[info.Cinfo.TaskId] = &info.Cinfo
+			m.containers[info.Task.TaskID] = info.Task
 			mounts := make([]volume.Mount, 0)
 
 			for _, spec := range info.Spec.Container.Mounts {
@@ -1074,10 +1069,10 @@ func (m *Worker) setupRunningContainers() error {
 				mounts = append(mounts, mount)
 			}
 
-			info.Description.mounts = mounts
+			info.Task.mounts = mounts
 
-			m.ovs.Attach(m.ctx, container.ID, info.Description)
-			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskId, info.Spec.Resources)
+			m.ovs.Attach(m.ctx, container.ID, info.Task)
+			m.resources.ConsumeTask(info.Task.AskID, info.Task.TaskID, info.Spec.Resources)
 		}
 	}
 
@@ -1349,24 +1344,24 @@ func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
 
 // execBenchmarkContainerWithResults executes benchmark as docker image,
 // returns JSON output with measured values.
-func (m *Worker) execBenchmarkContainerWithResults(d Task) (map[string]*benchmarks.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainerWithResults(task *Task) (map[string]*benchmarks.ResultJSON, error) {
 	logTime := time.Now().Add(-time.Minute)
-	err := m.ovs.Spool(m.ctx, d)
+	err := m.ovs.Spool(m.ctx, task)
 	if err != nil {
 		return nil, err
 	}
 
-	statusChan, statusReply, err := m.ovs.Start(m.ctx, d)
+	statusChan, err := m.ovs.Start(m.ctx, task)
 	if err != nil {
 		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
 	}
-	log.S(m.ctx).Debugf("started benchmark container %s", statusReply.ID())
-	defer m.ovs.OnDealFinish(m.ctx, statusReply.ID())
+	log.S(m.ctx).Debugf("started benchmark container %s", task.ID())
+	defer m.ovs.OnDealFinish(m.ctx, task.ID())
 
 	select {
 	case s := <-statusChan:
 		if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
-			log.S(m.ctx).Debugf("benchmark container %s finished", statusReply.ID())
+			log.S(m.ctx).Debugf("benchmark container %s finished", task.ID())
 			logOpts := types.ContainerLogsOptions{
 				ShowStdout: true,
 				//ShowStderr: true,
@@ -1374,11 +1369,11 @@ func (m *Worker) execBenchmarkContainerWithResults(d Task) (map[string]*benchmar
 				Since:  strconv.FormatInt(logTime.Unix(), 10),
 			}
 
-			reader, err := m.ovs.Logs(m.ctx, statusReply.ID(), logOpts)
+			reader, err := m.ovs.Logs(m.ctx, task.ID(), logOpts)
 			if err != nil {
-				return nil, fmt.Errorf("cannot create container log reader for %s: %v", statusReply.ID(), err)
+				return nil, fmt.Errorf("cannot create container log reader for %s: %v", task.ID(), err)
 			}
-			log.S(m.ctx).Debugf("requested container %s logs", statusReply.ID())
+			log.S(m.ctx).Debugf("requested container %s logs", task.ID())
 			defer reader.Close()
 
 			stdoutBuf := bytes.Buffer{}
@@ -1394,16 +1389,16 @@ func (m *Worker) execBenchmarkContainerWithResults(d Task) (map[string]*benchmar
 
 			return resultsMap, nil
 		} else {
-			return nil, fmt.Errorf("invalid status %d received", s)
+			return nil, fmt.Errorf("invalid status %task received", s)
 		}
 	case <-m.ctx.Done():
 		return nil, m.ctx.Err()
 	}
 }
 
-func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Task) (*benchmarks.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, task *Task) (*benchmarks.ResultJSON, error) {
 	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("benchmark", ben))
-	res, err := m.execBenchmarkContainerWithResults(des)
+	res, err := m.execBenchmarkContainerWithResults(task)
 	if err != nil {
 		return nil, err
 	}
@@ -1434,12 +1429,12 @@ func parseBenchmarkResult(data []byte) (map[string]*benchmarks.ResultJSON, error
 	return v.Results, nil
 }
 
-func getDescriptionForBenchmark(b *pb.Benchmark) (Task, error) {
+func getDescriptionForBenchmark(b *pb.Benchmark) (*Task, error) {
 	ref, err := reference.ParseNormalizedNamed(b.GetImage())
 	if err != nil {
-		return Task{}, err
+		return nil, err
 	}
-	return Task{
+	return &Task{
 		Image: reference.AsField(ref),
 		Container: pb.Container{Env: map[string]string{
 			benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),

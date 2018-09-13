@@ -73,16 +73,16 @@ type Overseer interface {
 	// Spool prepares an application for its further start.
 	//
 	// For Docker containers this is an equivalent of pulling from the registry.
-	Spool(ctx context.Context, d Task) error
+	Spool(ctx context.Context, d *Task) error
 
 	// Start attempts to start an application using the specified description.
 	//
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
-	Start(ctx context.Context, description Task) (chan pb.TaskStatusReply_Status, Task, error)
+	Start(ctx context.Context, description *Task) (chan pb.TaskStatusReply_Status, error)
 
 	// Attach attemps to attach to a running application with a specified description
-	Attach(ctx context.Context, ID string, description Task) (chan pb.TaskStatusReply_Status, error)
+	Attach(ctx context.Context, ID string, description *Task) (chan pb.TaskStatusReply_Status, error)
 
 	// Exec a given command in running container
 	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
@@ -339,7 +339,7 @@ func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect
 	return imageInspect, rd, nil
 }
 
-func (o *overseer) Spool(ctx context.Context, d Task) error {
+func (o *overseer) Spool(ctx context.Context, d *Task) error {
 	log.G(ctx).Info("pull the application image")
 	// TODO: maybe add sonm labels to make filtration easier
 	summaries, err := o.client.ImageList(ctx, types.ImageListOptions{All: true})
@@ -372,7 +372,7 @@ func (o *overseer) Spool(ctx context.Context, d Task) error {
 	return nil
 }
 
-func (o *overseer) Attach(ctx context.Context, ID string, d Task) (chan pb.TaskStatusReply_Status, error) {
+func (o *overseer) Attach(ctx context.Context, ID string, d *Task) (chan pb.TaskStatusReply_Status, error) {
 	cont, err := attachContainer(ctx, o.client, ID, d, o.plugins)
 	if err != nil {
 		log.S(ctx).Debugf("failed to attach to container %s", err)
@@ -390,8 +390,8 @@ func (o *overseer) Attach(ctx context.Context, ID string, d Task) (chan pb.TaskS
 	return status, nil
 }
 
-func (o *overseer) Start(ctx context.Context, description Task) (status chan pb.TaskStatusReply_Status, cinfo Task, err error) {
-	if description.IsGPURequired() && !o.supportGPU() {
+func (o *overseer) Start(ctx context.Context, task *Task) (status chan pb.TaskStatusReply_Status, err error) {
+	if task.IsGPURequired() && !o.supportGPU() {
 		err = fmt.Errorf("GPU required but not supported or disabled")
 		return
 	}
@@ -399,7 +399,7 @@ func (o *overseer) Start(ctx context.Context, description Task) (status chan pb.
 	// TODO: Well, we should refactor those dozens of arguments.
 	// Note: maybe will be better to make the "newContainer()" func as part of the overseer struct
 	// ( in that case we can access docker client and plugins repo from the Ovs instance. )
-	pr, err := newContainer(ctx, o.client, description, o.plugins)
+	pr, err := newContainer(ctx, o.client, task, o.plugins)
 	if err != nil {
 		log.S(ctx).Debugf("failed to create container")
 		return
@@ -431,17 +431,14 @@ func (o *overseer) Start(ctx context.Context, description Task) (status chan pb.
 		networkIDs = append(networkIDs, k)
 	}
 
-	cinfo = Task{
-		status:       pb.TaskStatusReply_RUNNING,
-		ContainerID:  cjson.ID,
-		Ports:        cjson.NetworkSettings.Ports,
-		Cgroup:       string(cjson.HostConfig.Cgroup),
-		CgroupParent: string(cjson.HostConfig.CgroupParent),
-		NetworkIDs:   networkIDs,
-		TaskId:       description.TaskId,
-	}
+	task.status = pb.TaskStatusReply_RUNNING
+	task.ContainerID = cjson.ID
+	task.Ports = cjson.NetworkSettings.Ports
+	task.Cgroup = string(cjson.HostConfig.Cgroup)
+	task.CgroupParent = string(cjson.HostConfig.CgroupParent)
+	task.NetworkIDs = networkIDs
 
-	return status, cinfo, nil
+	return status, nil
 }
 
 func (o *overseer) Exec(ctx context.Context, id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (ret types.HijackedResponse, err error) {

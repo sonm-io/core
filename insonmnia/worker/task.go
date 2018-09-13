@@ -25,8 +25,7 @@ type Task struct {
 	Resources    *sonm.AskPlanResources
 	Cgroup       string
 	CgroupParent string
-	TaskId       string
-	DealId       *big.Int
+	TaskID       string
 	Autoremove   bool
 
 	GPUDevices []gpu.GPUID
@@ -48,7 +47,7 @@ type Task struct {
 }
 
 func (d *Task) ID() string {
-	return d.TaskId
+	return d.TaskID
 }
 
 func (d *Task) Volumes() map[string]*sonm.Volume {
@@ -68,7 +67,7 @@ func (d *Task) Network() (string, string) {
 }
 
 func (d *Task) DealID() *big.Int {
-	return d.DealId
+	return d.dealID.Unwrap()
 }
 
 func (d *Task) IsGPURequired() bool {

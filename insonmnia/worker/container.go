@@ -26,13 +26,13 @@ type containerDescriptor struct {
 
 	ID              string
 	CommitedImageID string
-	description     Task
+	description     *Task
 	stats           types.StatsJSON
 
 	cleanup plugin.Cleanup
 }
 
-func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Task, tuners *plugin.Repository) (*containerDescriptor, error) {
+func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d *Task, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Image.Reference().String())
 
 	cont := containerDescriptor{
@@ -40,7 +40,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 		description: d,
 	}
 
-	cleanup, err := tuners.GetCleanup(ctx, &d)
+	cleanup, err := tuners.GetCleanup(ctx, d)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 	return &cont, nil
 }
 
-func newContainer(ctx context.Context, dockerClient *client.Client, d Task, tuners *plugin.Repository) (*containerDescriptor, error) {
+func newContainer(ctx context.Context, dockerClient *client.Client, d *Task, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.S(ctx).Infof("start container with application, reference %s", d.Image.Reference().String())
 
 	cont := containerDescriptor{
@@ -77,7 +77,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Task, tune
 
 		Image: d.Image.Reference().String(),
 		// TODO: set actual name
-		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealId.String()},
+		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealID().String()},
 		Env:     d.FormatEnv(),
 		Volumes: make(map[string]struct{}),
 	}
@@ -105,7 +105,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Task, tune
 		}
 	}
 
-	cleanup, err := tuners.Tune(ctx, &d, &hostConfig, &networkingConfig)
+	cleanup, err := tuners.Tune(ctx, d, &hostConfig, &networkingConfig)
 	if err != nil {
 		log.G(ctx).Error("failed to tune container", zap.Error(err))
 		return nil, err
@@ -246,7 +246,7 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 		c.CommitedImageID = resp.ID
 		c.log.Infof("committed container with new id %s", resp.ID)
 	}
-	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
+	tag := fmt.Sprintf("%s_%s", c.description.DealID(), c.description.TaskID)
 
 	ref := c.description.Image.Reference()
 	if _, ok := ref.(reference.Named); !ok {
