@@ -749,6 +749,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
+	log.G(m.ctx).Info("spooled an image")
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, taskID)
 	log.G(m.ctx).Info("spawning an image")
@@ -759,6 +760,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
+	log.G(m.ctx).Info("spawned an image")
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
 	containerInfo.ImageName = ref.String()

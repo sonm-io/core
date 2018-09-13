@@ -544,6 +544,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		// NOTE: I don't think it can fail
 		return
 	}
+	log.S(ctx).Debugf("inspected container %s", pr.ID)
 
 	var networkIDs []string
 	for k := range cjson.NetworkSettings.Networks {
@@ -597,11 +598,11 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 
 func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 	o.mu.Lock()
-	defer o.mu.Unlock()
 	descriptor, ok := o.containers[containerID]
 	delete(o.containers, containerID)
 	status, sok := o.statuses[containerID]
 	delete(o.statuses, containerID)
+	o.mu.Unlock()
 	if sok {
 		status <- pb.TaskStatusReply_FINISHED
 		close(status)
