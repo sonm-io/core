@@ -1,4 +1,4 @@
-package connor
+package types
 
 import (
 	"math/big"
@@ -23,10 +23,10 @@ func TestDivideOrders(t *testing.T) {
 	existing := makeTestCordersSet(f, 200, 400)
 	required := makeTestCordersSet(f, 100, 500)
 
-	set := divideOrdersSets(existing, required)
-	assert.Len(t, set.toRestore, 3)
-	assert.Len(t, set.toCreate, 2)
-	assert.Len(t, set.toCancel, 0)
+	set := DivideOrdersSets(existing, required)
+	assert.Len(t, set.Restore, 3)
+	assert.Len(t, set.Create, 2)
+	assert.Len(t, set.Cancel, 0)
 }
 
 func TestDivideOrderHashed(t *testing.T) {
@@ -40,10 +40,10 @@ func TestDivideOrderHashed(t *testing.T) {
 		required = append(required, f.FromParams(big.NewInt(1), uint64(i), newBenchmarksWithGPUMem(100)))
 	}
 
-	set := divideOrdersSets(existing, required)
-	assert.Len(t, set.toRestore, 1)
-	assert.Len(t, set.toCreate, 4)
-	assert.Len(t, set.toCancel, 2)
+	set := DivideOrdersSets(existing, required)
+	assert.Len(t, set.Restore, 1)
+	assert.Len(t, set.Create, 4)
+	assert.Len(t, set.Cancel, 2)
 }
 
 func TestDivideOrderHashedCounterparty(t *testing.T) {
@@ -56,11 +56,11 @@ func TestDivideOrderHashedCounterparty(t *testing.T) {
 		r.CounterpartyID = sonm.NewEthAddress(common.HexToAddress("0xB8f5c92aDDB5e3D8e137e13868caA427EaFf1140"))
 	}
 
-	set := divideOrdersSets(existing, required)
+	set := DivideOrdersSets(existing, required)
 	// should fully replace whole set on Market because counterparty was added.
-	assert.Len(t, set.toRestore, 0)
-	assert.Len(t, set.toCreate, 5)
-	assert.Len(t, set.toCancel, 5)
+	assert.Len(t, set.Restore, 0)
+	assert.Len(t, set.Create, 5)
+	assert.Len(t, set.Cancel, 5)
 }
 
 func TestDivideOrderHashedNetFlags(t *testing.T) {
@@ -71,11 +71,11 @@ func TestDivideOrderHashedNetFlags(t *testing.T) {
 		r.Netflags = &sonm.NetFlags{Flags: sonm.NetworkOutbound | sonm.NetworkIncoming}
 	}
 
-	set := divideOrdersSets(existing, required)
+	set := DivideOrdersSets(existing, required)
 	// should fully replace whole set on Market because netflags was changed.
-	assert.Len(t, set.toRestore, 0)
-	assert.Len(t, set.toCreate, 5)
-	assert.Len(t, set.toCancel, 5)
+	assert.Len(t, set.Restore, 0)
+	assert.Len(t, set.Create, 5)
+	assert.Len(t, set.Cancel, 5)
 }
 
 func TestDivideOrdersWithExtra(t *testing.T) {
@@ -114,9 +114,9 @@ func TestDivideOrdersWithExtra(t *testing.T) {
 		existing := makeTestCordersSet(f, tt.existing[0], tt.existing[1])
 		required := makeTestCordersSet(f, tt.required[0], tt.required[1])
 
-		set := divideOrdersSets(existing, required)
-		assert.Len(t, set.toRestore, tt.toRestore)
-		assert.Len(t, set.toCreate, tt.toCreate)
-		assert.Len(t, set.toCancel, tt.toCancel)
+		set := DivideOrdersSets(existing, required)
+		assert.Len(t, set.Restore, tt.toRestore)
+		assert.Len(t, set.Create, tt.toCreate)
+		assert.Len(t, set.Cancel, tt.toCancel)
 	}
 }

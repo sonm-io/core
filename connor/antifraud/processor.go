@@ -3,7 +3,7 @@ package antifraud
 import (
 	"context"
 
-	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/connor/types"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -36,8 +36,8 @@ func (p *disabledProcessor) Run(ctx context.Context) error {
 
 // ProcessorFactory builds particular processors for the anti-fraud
 type ProcessorFactory interface {
-	LogProcessor(deal *sonm.Deal, taskID string, opts ...Option) Processor
-	PoolProcessor(deal *sonm.Deal, taskID string, opts ...Option) Processor
+	LogProcessor(deal *types.Deal, taskID string, opts ...Option) Processor
+	PoolProcessor(deal *types.Deal, taskID string, opts ...Option) Processor
 }
 
 func NewProcessorFactory(cfg *Config) ProcessorFactory {
@@ -45,7 +45,7 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 
 	switch cfg.PoolProcessorConfig.Format {
 	case PoolFormatDwarf:
-		pool = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+		pool = func(deal *types.Deal, taskID string, opts ...Option) Processor {
 			o := &processorOpts{}
 			for _, opt := range opts {
 				opt(o)
@@ -53,14 +53,14 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 			return newDwarfPoolProcessor(&cfg.PoolProcessorConfig, o.logger, deal, taskID)
 		}
 	case ProcessorFormatDisabled:
-		pool = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+		pool = func(deal *types.Deal, taskID string, opts ...Option) Processor {
 			return &disabledProcessor{}
 		}
 	}
 
 	switch cfg.LogProcessorConfig.Format {
 	case LogFormatClaymore:
-		log = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+		log = func(deal *types.Deal, taskID string, opts ...Option) Processor {
 			o := &processorOpts{}
 			for _, opt := range opts {
 				opt(o)
@@ -68,7 +68,7 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 			return newClaymoreLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
 		}
 	case ProcessorFormatDisabled:
-		log = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+		log = func(deal *types.Deal, taskID string, opts ...Option) Processor {
 			return &disabledProcessor{taskID: taskID}
 		}
 	}
@@ -99,17 +99,17 @@ func WithClientConn(cc *grpc.ClientConn) Option {
 	}
 }
 
-type builderFunc func(deal *sonm.Deal, taskID string, opts ...Option) Processor
+type builderFunc func(deal *types.Deal, taskID string, opts ...Option) Processor
 
 type processorFactory struct {
 	pool builderFunc
 	log  builderFunc
 }
 
-func (p *processorFactory) LogProcessor(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+func (p *processorFactory) LogProcessor(deal *types.Deal, taskID string, opts ...Option) Processor {
 	return p.log(deal, taskID, opts...)
 }
 
-func (p *processorFactory) PoolProcessor(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+func (p *processorFactory) PoolProcessor(deal *types.Deal, taskID string, opts ...Option) Processor {
 	return p.pool(deal, taskID, opts...)
 }

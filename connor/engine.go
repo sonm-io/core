@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sonm-io/core/connor/antifraud"
 	"github.com/sonm-io/core/connor/price"
+	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
@@ -37,12 +38,12 @@ type engine struct {
 	deals         sonm.DealManagementClient
 	tasks         sonm.TaskManagementClient
 	priceProvider price.Provider
-	corderFactory CorderFactory
-	dealFactory   DealFactory
+	corderFactory types.CorderFactory
+	dealFactory   types.DealFactory
 
-	ordersCreateChan  chan *Corder
-	ordersResultsChan chan *Corder
-	orderCancelChan   chan *CorderCancelTuple
+	ordersCreateChan  chan *types.Corder
+	ordersResultsChan chan *types.Corder
+	orderCancelChan   chan *types.CorderCancelTuple
 }
 
 var (
@@ -113,11 +114,11 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		market:    sonm.NewMarketClient(cc),
 		deals:     sonm.NewDealManagementClient(cc),
 		tasks:     sonm.NewTaskManagementClient(cc),
-		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.backends().processorFactory, cc),
+		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.backends().processorFactory, cfg.backends().dealFactory, cc),
 
-		ordersCreateChan:  make(chan *Corder, concurrency),
-		ordersResultsChan: make(chan *Corder, concurrency),
-		orderCancelChan:   make(chan *CorderCancelTuple, concurrency),
+		ordersCreateChan:  make(chan *types.Corder, concurrency),
+		ordersResultsChan: make(chan *types.Corder, concurrency),
+		orderCancelChan:   make(chan *types.CorderCancelTuple, concurrency),
 	}, nil
 }
 
@@ -155,15 +156,15 @@ func (e *engine) Serve(ctx context.Context) error {
 	return wg.Wait()
 }
 
-func (e *engine) CreateOrder(bid *Corder) {
+func (e *engine) CreateOrder(bid *types.Corder) {
 	e.ordersCreateChan <- bid
 }
 
-func (e *engine) CancelOrder(order *Corder) {
-	e.orderCancelChan <- newCorderCancelTuple(order)
+func (e *engine) CancelOrder(order *types.Corder) {
+	e.orderCancelChan <- types.NewCorderCancelTuple(order)
 }
 
-func (e *engine) RestoreOrder(order *Corder) {
+func (e *engine) RestoreOrder(order *types.Corder) {
 	e.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
 	e.ordersResultsChan <- order
 }
@@ -206,22 +207,22 @@ func (e *engine) processOrderCancel(ctx context.Context) {
 	for tuple := range e.orderCancelChan {
 		// prometheus counter?
 		e.log.Debug("cancelling order",
-			zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
+			zap.String("order_id", tuple.Corder.GetId().Unwrap().String()))
 
-		if err := e.cancelOrder(ctx, tuple.corder.GetId()); err != nil {
+		if err := e.cancelOrder(ctx, tuple.Corder.GetId()); err != nil {
 			e.log.Warn("cannot cancel order", zap.Error(err),
-				zap.Duration("retry_after", tuple.delay),
-				zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
+				zap.Duration("retry_after", tuple.Delay),
+				zap.String("order_id", tuple.Corder.GetId().Unwrap().String()))
 
-			go func(tup *CorderCancelTuple) {
-				time.Sleep(tup.delay)
-				e.orderCancelChan <- tup.withIncreasedDelay()
+			go func(tup *types.CorderCancelTuple) {
+				time.Sleep(tup.Delay)
+				e.orderCancelChan <- tup.WithIncreasedDelay()
 			}(tuple)
 
 			continue
 		}
 
-		e.log.Debug("order cancelled", zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
+		e.log.Debug("order cancelled", zap.String("order_id", tuple.Corder.GetId().Unwrap().String()))
 	}
 }
 
@@ -255,7 +256,7 @@ func (e *engine) processOrderResult(ctx context.Context) {
 	}
 }
 
-func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
+func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
 	activeOrdersGauge.Inc()
 
 	id := order.GetId().Unwrap().String()
@@ -270,11 +271,11 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 			return
 		case <-t.C:
 			actualPrice := e.priceProvider.GetPrice()
-			if order.isReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
+			if order.IsReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
 				log.Named("price-deviation").Info("we can replace order with more profitable one",
 					zap.Uint64("benchmark", order.GetHashrate()),
 					zap.String("actual_price", actualPrice.String()),
-					zap.String("current_price", order.restorePrice().String()))
+					zap.String("current_price", order.RestorePrice().String()))
 
 				e.CancelOrder(order)
 				replacedOrdersCounter.Inc()
@@ -428,8 +429,8 @@ func (e *engine) startTaskWithRetry(ctx context.Context, log *zap.Logger, deal *
 			// because worker's task list sanitizing
 			// already performed in `restoreTasks` method.
 			if len(list) == 1 {
-				log.Info("found already started task, continue tracking", zap.String("task_id", list[0].id))
-				return &sonm.StartTaskReply{Id: list[0].id}, nil
+				log.Info("found already started task, continue tracking", zap.String("task_id", list[0].ID))
+				return &sonm.StartTaskReply{Id: list[0].ID}, nil
 			}
 
 			taskReply, err := e.startTaskOnce(ctx, log, deal.GetId())
@@ -531,7 +532,7 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 
 	if dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED {
 		deal := e.dealFactory.FromDeal(dealStatus.GetDeal())
-		if deal.isReplaceable(e.priceProvider.GetPrice(), e.cfg.Market.PriceControl.DealCancelThreshold) {
+		if deal.IsReplaceable(e.priceProvider.GetPrice(), e.cfg.Market.PriceControl.DealCancelThreshold) {
 			log := log.Named("price-deviation")
 			if len(e.orderCancelChan) > 0 {
 				log.Warn("shouldn't finish deal, orders replacing in progress",
@@ -541,9 +542,9 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 			}
 
 			log.Info("too much price deviation detected: closing deal",
-				zap.Uint64("benchmark", deal.getBenchmarkValue()),
+				zap.Uint64("benchmark", deal.BenchmarkValue()),
 				zap.String("actual_price", e.priceProvider.GetPrice().String()),
-				zap.String("current_price", deal.restorePrice().String()))
+				zap.String("current_price", deal.RestorePrice().String()))
 
 			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap(), antifraud.SkipBlacklisting); err != nil {
 				log.Warn("failed to finish deal", zap.Error(err))
@@ -612,11 +613,11 @@ func (e *engine) restoreTasks(ctx context.Context, log *zap.Logger, dealID *sonm
 				if givenTag != requiredTag {
 					log.Warn("unexpected tag assigned to the running on task",
 						zap.String("running", givenTag), zap.String("expected", requiredTag))
-					e.stopOneTask(ctx, log, dealID, list[0].id)
+					e.stopOneTask(ctx, log, dealID, list[0].ID)
 					return "", nil
 				}
 
-				return list[0].id, nil
+				return list[0].ID, nil
 			default:
 				// weird case, we always starting only one task per deal
 				log.Info("worker have more than one task running", zap.Int("count", len(list)))
@@ -630,7 +631,7 @@ func (e *engine) restoreTasks(ctx context.Context, log *zap.Logger, dealID *sonm
 	}
 }
 
-func (e *engine) loadTasksOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) ([]*taskStatus, error) {
+func (e *engine) loadTasksOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) ([]*types.TaskStatus, error) {
 	log.Debug("loading tasks from worker")
 
 	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
@@ -641,24 +642,24 @@ func (e *engine) loadTasksOnce(ctx context.Context, log *zap.Logger, dealID *son
 		return nil, err
 	}
 
-	list := make([]*taskStatus, 0)
+	list := make([]*types.TaskStatus, 0)
 	for id, task := range taskList.GetInfo() {
 		if task.GetStatus() == sonm.TaskStatusReply_RUNNING {
-			list = append(list, &taskStatus{task, id})
+			list = append(list, &types.TaskStatus{task, id})
 		}
 	}
 
 	return list, nil
 }
 
-func (e *engine) stopAllTasks(ctx context.Context, log *zap.Logger, list []*taskStatus, dealID *sonm.BigInt) error {
+func (e *engine) stopAllTasks(ctx context.Context, log *zap.Logger, list []*types.TaskStatus, dealID *sonm.BigInt) error {
 	log.Debug("stopping all tasks on worker")
 
 	var failedIDs []string
 	for _, task := range list {
-		if err := e.stopOneTask(ctx, log, dealID, task.id); err != nil {
-			log.Warn("cannot stop task", zap.Error(err), zap.String("task_id", task.id))
-			failedIDs = append(failedIDs, task.id)
+		if err := e.stopOneTask(ctx, log, dealID, task.ID); err != nil {
+			log.Warn("cannot stop task", zap.Error(err), zap.String("task_id", task.ID))
+			failedIDs = append(failedIDs, task.ID)
 		}
 	}
 
@@ -790,34 +791,34 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 	existingCorders := e.corderFactory.FromSlice(existingOrders.GetOrders())
 	targetCorders := e.getTargetCorders()
 
-	set := divideOrdersSets(existingCorders, targetCorders)
+	set := types.DivideOrdersSets(existingCorders, targetCorders)
 	e.log.Debug("restoring existing entities",
-		zap.Int("orders_restore", len(set.toRestore)),
-		zap.Int("orders_create", len(set.toCreate)),
-		zap.Int("orders_cancel", len(set.toCancel)),
+		zap.Int("orders_restore", len(set.Restore)),
+		zap.Int("orders_create", len(set.Create)),
+		zap.Int("orders_cancel", len(set.Cancel)),
 		zap.Int("deals_restore", len(dealsToRestore)))
 
 	for _, deal := range dealsToRestore {
 		e.RestoreDeal(ctx, deal)
 	}
 
-	for _, ord := range set.toCreate {
+	for _, ord := range set.Create {
 		e.CreateOrder(ord)
 	}
 
-	for _, ord := range set.toRestore {
+	for _, ord := range set.Restore {
 		e.RestoreOrder(ord)
 	}
 
-	for _, ord := range set.toCancel {
+	for _, ord := range set.Cancel {
 		e.CancelOrder(ord)
 	}
 
 	return nil
 }
 
-func (e *engine) getTargetCorders() []*Corder {
-	v := make([]*Corder, 0)
+func (e *engine) getTargetCorders() []*types.Corder {
+	v := make([]*types.Corder, 0)
 
 	for hashrate := e.cfg.Market.From; hashrate <= e.cfg.Market.To; hashrate += e.cfg.Market.Step {
 		// settings zero price is OK for now, we'll update it just before sending to the Marketplace.
