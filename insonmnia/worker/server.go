@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net"
 	"reflect"
 	"strconv"
 	"sync"
@@ -123,7 +124,10 @@ type Worker struct {
 	cGroupManager cgroups.CGroupManager
 	listener      *npp.Listener
 	externalGrpc  *grpc.Server
-	startTime     time.Time
+
+	startTime           time.Time
+	isMasterConfirmed   bool
+	isBenchmarkFinished bool
 }
 
 func NewWorker(opts ...Option) (m *Worker, err error) {
@@ -142,12 +146,17 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 		return nil, err
 	}
 
-	if err := m.setupMaster(); err != nil {
+	if err := m.setupAuthorization(); err != nil {
 		m.Close()
 		return nil, err
 	}
 
-	if err := m.setupAuthorization(); err != nil {
+	if err := m.setupStatusServer(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupMaster(); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -166,6 +175,7 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 		m.Close()
 		return nil, err
 	}
+	m.isBenchmarkFinished = true
 
 	if err := m.setupResources(); err != nil {
 		m.Close()
@@ -178,10 +188,6 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 	}
 
 	if err := m.setupRunningContainers(); err != nil {
-		m.Close()
-		return nil, err
-	}
-	if err := m.setupServer(); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -202,35 +208,20 @@ func (m *Worker) Serve() error {
 		return err
 	}
 
-	relayListener, err := relay.NewListener(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx))
-	if err != nil {
+	if err := m.setupServer(); err != nil {
 		m.Close()
 		return err
 	}
-
-	listener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
-		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
-		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
-		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
-		npp.WithRelayListener(relayListener),
-		npp.WithLogger(log.G(m.ctx)),
-	)
-	if err != nil {
-		log.G(m.ctx).Error("failed to listen", zap.String("address", m.cfg.Endpoint), zap.Error(err))
-		m.Close()
-		return err
-	}
-	m.listener = listener
 
 	wg, ctx := errgroup.WithContext(m.ctx)
 	wg.Go(func() error {
 		return m.RunSSH(ctx)
 	})
 	wg.Go(func() error {
-		log.S(m.ctx).Infof("listening for gRPC API connections on %s", listener.Addr())
-		defer log.S(m.ctx).Infof("finished listening for gRPC API connections on %s", listener.Addr())
+		log.S(m.ctx).Infof("listening for gRPC API connections on %s", m.listener.Addr())
+		defer log.S(m.ctx).Infof("finished listening for gRPC API connections on %s", m.listener.Addr())
 
-		return m.externalGrpc.Serve(listener)
+		return m.externalGrpc.Serve(m.listener)
 	})
 
 	<-ctx.Done()
@@ -241,12 +232,23 @@ func (m *Worker) Serve() error {
 
 func (m *Worker) waitMasterApproved() error {
 	if m.cfg.Development != nil && m.cfg.Development.DisableMasterApproval {
+		log.S(m.ctx).Debug("skip waiting for master approval: disabled")
 		return nil
 	}
+
+	if m.isMasterConfirmed {
+		// master confirmation is detected at startup, we don't want to check it twice.
+		log.S(m.ctx).Debug("skip waiting for master approval: already confirmed")
+		return nil
+	}
+
 	selfAddr := m.ethAddr().Hex()
 	log.S(m.ctx).Infof("waiting approval for %s from master %s", selfAddr, m.cfg.Master.Hex())
+
 	expectedMaster := m.cfg.Master.Hex()
 	ticker := util.NewImmediateTicker(time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -255,15 +257,20 @@ func (m *Worker) waitMasterApproved() error {
 			addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
 			if err != nil {
 				log.S(m.ctx).Warnf("failed to get master: %s, retrying...", err)
+				continue
 			}
+
 			curMaster := addr.Hex()
 			if curMaster == selfAddr {
 				log.S(m.ctx).Infof("still no approval for %s from %s, continue waiting", m.ethAddr().Hex(), m.cfg.Master.Hex())
 				continue
 			}
+
 			if curMaster != expectedMaster {
 				return fmt.Errorf("received unexpected master %s", curMaster)
 			}
+
+			m.isMasterConfirmed = true
 			return nil
 		}
 	}
@@ -277,11 +284,13 @@ func (m *Worker) setupMaster() error {
 	if m.cfg.Development != nil && m.cfg.Development.DisableMasterApproval {
 		return nil
 	}
+
 	log.S(m.ctx).Info("checking current master")
 	addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
 	if err != nil {
 		return err
 	}
+
 	if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
 		log.S(m.ctx).Infof("master is not confirmed or not set, sending request from %s to %s",
 			m.ethAddr().Hex(), m.cfg.Master.Hex())
@@ -291,6 +300,9 @@ func (m *Worker) setupMaster() error {
 		}
 	}
 
+	// master is confirmed when expected master addr is equal to existing
+	// addr recorded into blockchain.
+	m.isMasterConfirmed = m.cfg.Master.Big().Cmp(addr.Big()) == 0
 	return nil
 }
 
@@ -454,19 +466,30 @@ func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, erro
 	uptime := uint64(time.Now().Sub(m.startTime).Seconds())
 
 	rendezvousStatus := "not connected"
-	nppMetrics := m.listener.Metrics()
-	if nppMetrics.RendezvousAddr != nil {
-		rendezvousStatus = nppMetrics.RendezvousAddr.String()
+	if m.listener != nil {
+		nppMetrics := m.listener.Metrics()
+		if nppMetrics.RendezvousAddr != nil {
+			rendezvousStatus = nppMetrics.RendezvousAddr.String()
+		}
+	}
+
+	var adminAddr *pb.EthAddress
+	if m.cfg.Admin != nil {
+		adminAddr = pb.NewEthAddress(*m.cfg.Admin)
 	}
 
 	reply := &pb.StatusReply{
-		Uptime:           uptime,
-		Platform:         util.GetPlatformName(),
-		Version:          m.version,
-		EthAddr:          m.ethAddr().Hex(),
-		TaskCount:        uint32(len(m.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
-		RendezvousStatus: rendezvousStatus,
-		DWHStatus:        m.cfg.Endpoint,
+		Uptime:              uptime,
+		Version:             m.version,
+		Platform:            util.GetPlatformName(),
+		EthAddr:             m.ethAddr().Hex(),
+		TaskCount:           uint32(len(m.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
+		DWHStatus:           m.cfg.Endpoint,
+		RendezvousStatus:    rendezvousStatus,
+		Master:              pb.NewEthAddress(m.cfg.Master),
+		Admin:               adminAddr,
+		IsMasterConfirmed:   m.isMasterConfirmed,
+		IsBenchmarkFinished: m.isBenchmarkFinished,
 	}
 
 	return reply, nil
@@ -1065,25 +1088,73 @@ func (m *Worker) setupRunningContainers() error {
 }
 
 func (m *Worker) setupServer() error {
+	if m.externalGrpc != nil {
+		log.G(m.ctx).Info("stopping previously running gRPC server")
+		m.externalGrpc.GracefulStop()
+	}
+
 	logger := log.GetLogger(m.ctx)
-	grpcServer := xgrpc.NewServer(logger,
+	m.externalGrpc = m.createServer(logger)
+
+	pb.RegisterWorkerServer(m.externalGrpc, m)
+	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
+	grpc_prometheus.Register(m.externalGrpc)
+
+	if m.cfg.Debug != nil {
+		go debug.ServePProf(m.ctx, *m.cfg.Debug, log.G(m.ctx))
+	}
+
+	relayListener, err := relay.NewListener(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx))
+	if err != nil {
+		log.G(m.ctx).Error("failed to create Relay listener", zap.Strings("endpoints", m.cfg.NPP.Relay.Endpoints), zap.Error(err))
+		return err
+	}
+
+	nppListener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
+		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
+		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
+		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
+		npp.WithRelayListener(relayListener),
+		npp.WithLogger(log.G(m.ctx)),
+	)
+	if err != nil {
+		log.G(m.ctx).Error("failed to create NPP listener", zap.String("address", m.cfg.Endpoint), zap.Error(err))
+		return err
+	}
+
+	m.listener = nppListener
+	return nil
+}
+
+func (m *Worker) setupStatusServer() error {
+	logger := log.GetLogger(m.ctx)
+	m.externalGrpc = m.createServer(logger)
+	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
+
+	lis, err := net.Listen("tcp", m.cfg.Endpoint)
+	if err != nil {
+		logger.Error("status server: failed to listen", zap.String("address", m.cfg.Endpoint), zap.Error(err))
+		m.Close()
+		return err
+	}
+
+	go func() {
+		logger.Debug("status server: starting", zap.String("address", m.cfg.Endpoint))
+		defer logger.Debug("status server: stopped")
+		m.externalGrpc.Serve(lis)
+	}()
+
+	return nil
+}
+
+func (m *Worker) createServer(logger *zap.Logger) *grpc.Server {
+	return xgrpc.NewServer(logger,
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
 		xgrpc.Credentials(m.creds),
 		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
 		xgrpc.VerifyInterceptor(),
 	)
-	m.externalGrpc = grpcServer
-
-	pb.RegisterWorkerServer(grpcServer, m)
-	pb.RegisterWorkerManagementServer(grpcServer, m)
-	grpc_prometheus.Register(grpcServer)
-
-	if m.cfg.Debug != nil {
-		go debug.ServePProf(m.ctx, *m.cfg.Debug, log.G(m.ctx))
-	}
-
-	return nil
 }
 
 type BenchmarkHasher interface {
