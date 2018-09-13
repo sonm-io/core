@@ -430,19 +430,11 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	return result.ErrorOrNil()
 }
 
-type runningContainerInfo struct {
-	Task *Task       `json:"description,omitempty"`
-	Spec pb.TaskSpec `json:"spec,omitempty"`
-}
-
 func (m *Worker) saveContainerInfo(id string, task *Task, spec pb.TaskSpec) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.storage.Save(task.ID(), runningContainerInfo{
-		Task: task,
-		Spec: spec,
-	})
+	m.storage.Save(task.ID(), task)
 
 	m.containers[id] = task
 }
@@ -1013,10 +1005,10 @@ func (m *Worker) setupRunningContainers() error {
 
 	var closedDeals = map[string]*pb.Deal{}
 	for _, container := range containers {
-		var info runningContainerInfo
+		var task Task
 
 		if _, ok := container.Labels[overseerTag]; ok {
-			loaded, err := m.storage.Load(container.ID, &info)
+			loaded, err := m.storage.Load(container.ID, &task)
 
 			if err != nil {
 				log.S(m.ctx).Warnf("failed to load running container info %s", err)
@@ -1033,7 +1025,7 @@ func (m *Worker) setupRunningContainers() error {
 				return err
 			}
 
-			bigDealID := info.Task.DealID()
+			bigDealID := task.DealID()
 
 			deal, err := m.eth.Market().GetDealInfo(m.ctx, bigDealID)
 			if err != nil {
@@ -1042,26 +1034,26 @@ func (m *Worker) setupRunningContainers() error {
 
 			if deal.Status == pb.DealStatus_DEAL_CLOSED {
 				log.G(m.ctx).Info("found task assigned to closed deal, going to cancel it",
-					zap.String("deal_id", bigDealID.String()), zap.String("task_id", info.Task.TaskID))
+					zap.String("deal_id", bigDealID.String()), zap.String("task_id", task.ID()))
 				closedDeals[deal.Id.Unwrap().String()] = deal
 			}
 
 			// TODO: Match our proto status constants with docker's statuses
 			switch contJson.State.Status {
 			case "created", "paused", "restarting", "removing":
-				info.Task.status = pb.TaskStatusReply_UNKNOWN
+				task.status = pb.TaskStatusReply_UNKNOWN
 			case "running":
-				info.Task.status = pb.TaskStatusReply_RUNNING
+				task.status = pb.TaskStatusReply_RUNNING
 			case "exited":
-				info.Task.status = pb.TaskStatusReply_FINISHED
+				task.status = pb.TaskStatusReply_FINISHED
 			case "dead":
-				info.Task.status = pb.TaskStatusReply_BROKEN
+				task.status = pb.TaskStatusReply_BROKEN
 			}
 
-			m.containers[info.Task.TaskID] = info.Task
+			m.containers[task.TaskID] = &task
 			mounts := make([]volume.Mount, 0)
 
-			for _, spec := range info.Spec.Container.Mounts {
+			for _, spec := range task.TaskSpec.GetContainer().GetMounts() {
 				mount, err := volume.NewMount(spec)
 				if err != nil {
 					return err
@@ -1069,10 +1061,10 @@ func (m *Worker) setupRunningContainers() error {
 				mounts = append(mounts, mount)
 			}
 
-			info.Task.mounts = mounts
+			task.mounts = mounts
 
-			m.ovs.Attach(m.ctx, container.ID, info.Task)
-			m.resources.ConsumeTask(info.Task.AskID, info.Task.TaskID, info.Spec.Resources)
+			m.ovs.Attach(m.ctx, container.ID, &task)
+			m.resources.ConsumeTask(task.AskID, task.TaskID, task.TaskSpec.Resources)
 		}
 	}
 
