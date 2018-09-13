@@ -1614,3 +1614,11 @@ func (m *Worker) Close() {
 		m.certRotator.Close()
 	}
 }
+
+func newStatusAuthorization(ctx context.Context) *auth.AuthRouter {
+	return auth.NewEventAuthorization(ctx,
+		auth.WithLog(log.G(ctx)),
+		auth.Allow(workerAPIPrefix+"Status").With(auth.NewNilAuthorization()),
+		auth.WithFallback(auth.NewDenyAuthorization()),
+	)
+}

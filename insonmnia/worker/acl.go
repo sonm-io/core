@@ -166,11 +166,3 @@ func (a *anyOfAuth) Authorize(ctx context.Context, request interface{}) error {
 func newAnyOfAuth(a ...auth.Authorization) auth.Authorization {
 	return &anyOfAuth{authorizers: a}
 }
-
-func newStatusAuthorization(ctx context.Context) *auth.AuthRouter {
-	return auth.NewEventAuthorization(ctx,
-		auth.WithLog(log.G(ctx)),
-		auth.Allow(workerAPIPrefix+"Status").With(auth.NewNilAuthorization()),
-		auth.WithFallback(auth.NewDenyAuthorization()),
-	)
-}
