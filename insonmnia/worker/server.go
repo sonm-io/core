@@ -675,6 +675,13 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
+
+	for _, net := range spec.Container.GetNetworks() {
+		if err := net.GenerateID(); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to generate ID for network: %s", err)
+		}
+	}
+
 	if spec.GetResources() == nil {
 		spec.Resources = &pb.AskPlanResources{}
 	}
@@ -705,7 +712,6 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		mounts = append(mounts, mount)
 	}
 
-	networks, err := structs.NewNetworkSpecs(spec.Container.Networks)
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
@@ -727,16 +733,15 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	var d = Task{
 		Container:      *request.Spec.Container,
-		Reference:      reference.AsField(ref),
+		Image:          reference.AsField(ref),
 		Auth:           spec.Registry.Auth(),
-		CGroupParent:   cgroup.Suffix(),
+		CgroupParent:   cgroup.Suffix(),
 		Resources:      spec.Resources,
 		DealId:         request.GetDealID().Unwrap(),
 		TaskId:         taskID,
 		GPUDevices:     gpuids,
 		mounts:         mounts,
 		NetworkOptions: network,
-		NetworkSpecs:   networks,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -762,7 +767,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	log.G(m.ctx).Info("spawned an image")
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
-	containerInfo.ImageName = ref.String()
+	containerInfo.Image = reference.AsField(ref)
 	containerInfo.dealID = dealID
 	containerInfo.Tag = request.GetSpec().GetTag()
 	containerInfo.TaskId = taskID
@@ -1435,7 +1440,7 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Task, error) {
 		return Task{}, err
 	}
 	return Task{
-		Reference: reference.AsField(ref),
+		Image: reference.AsField(ref),
 		Container: pb.Container{Env: map[string]string{
 			benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		}},

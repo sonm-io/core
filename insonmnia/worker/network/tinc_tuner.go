@@ -16,7 +16,7 @@ import (
 	"github.com/docker/go-plugins-helpers/ipam"
 	netdriver "github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -99,7 +99,7 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 	return nil
 }
 
-func (t *TincTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
+func (t *TincTuner) Tune(ctx context.Context, net *sonm.NetworkSpec, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
 	tincNet, err := t.netDriver.InsertTincNetwork(net, hostConfig.Resources.CgroupParent)
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func (t *TincTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostConf
 		Options: opts,
 	}
 
-	response, err := t.client.NetworkCreate(ctx, net.NetID, createOpts)
+	response, err := t.client.NetworkCreate(ctx, net.GetID(), createOpts)
 	if err != nil {
 		log.G(ctx).Warn("failed to create tinc network", zap.Error(err))
 		return nil, err
@@ -160,7 +160,7 @@ func (t *TincTuner) Tuned(ID string) bool {
 	return t.netDriver.HasNetwork(ID)
 }
 
-func (t *TincTuner) GenerateInvitation(ID string) (*structs.NetworkSpec, error) {
+func (t *TincTuner) GenerateInvitation(ID string) (*sonm.NetworkSpec, error) {
 	return t.netDriver.GenerateInvitation(ID)
 }
 

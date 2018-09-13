@@ -10,7 +10,6 @@ import (
 	"github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
@@ -197,7 +196,7 @@ func (t *TincNetworkDriver) HasNetwork(NodeID string) bool {
 	return ok
 }
 
-func (t *TincNetworkDriver) GenerateInvitation(NodeID string) (*structs.NetworkSpec, error) {
+func (t *TincNetworkDriver) GenerateInvitation(NodeID string) (*sonm.NetworkSpec, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	n, ok := t.Networks[NodeID]
@@ -208,11 +207,9 @@ func (t *TincNetworkDriver) GenerateInvitation(NodeID string) (*structs.NetworkS
 	//TODO: Check this
 	inviteeID := strings.Replace(uuid.New(), "-", "_", -1)
 	invitation, err := n.Invite(t.ctx, inviteeID)
-	spec := structs.NetworkSpec{
-		NetworkSpec: &sonm.NetworkSpec{
-			Type:    "tinc",
-			Options: map[string]string{"invitation": invitation},
-		},
+	spec := &sonm.NetworkSpec{
+		Type:    "tinc",
+		Options: map[string]string{"invitation": invitation},
 	}
-	return &spec, err
+	return spec, err
 }

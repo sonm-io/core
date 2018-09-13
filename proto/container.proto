@@ -24,6 +24,7 @@ message NetworkSpec {
     map<string, string> options = 2;
     string subnet = 3;
     string addr = 4;
+    string ID = 5;
 }
 
 message Container {

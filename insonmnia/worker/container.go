@@ -33,7 +33,7 @@ type containerDescriptor struct {
 }
 
 func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Task, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.Reference().String())
+	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Image.Reference().String())
 
 	cont := containerDescriptor{
 		client:      dockerClient,
@@ -52,7 +52,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Task, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.S(ctx).Infof("start container with application, reference %s", d.Reference.Reference().String())
+	log.S(ctx).Infof("start container with application, reference %s", d.Image.Reference().String())
 
 	cont := containerDescriptor{
 		client:      dockerClient,
@@ -75,7 +75,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Task, tune
 
 		ExposedPorts: exposedPorts,
 
-		Image: d.Reference.Reference().String(),
+		Image: d.Image.Reference().String(),
 		// TODO: set actual name
 		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealId.String()},
 		Env:     d.FormatEnv(),
@@ -93,7 +93,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Task, tune
 		PortBindings:    portBindings,
 		RestartPolicy:   d.RestartPolicy.Unwrap(),
 		AutoRemove:      d.Autoremove,
-		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),
+		Resources:       d.Resources.ToHostConfigResources(d.CgroupParent),
 	}
 
 	networkingConfig := network.NetworkingConfig{
@@ -248,12 +248,12 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 	}
 	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
 
-	ref := c.description.Reference.Reference()
+	ref := c.description.Image.Reference()
 	if _, ok := ref.(reference.Named); !ok {
 		return errors.New("can not upload image without name")
 	}
 
-	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference.Reference().(reference.Named)), tag)
+	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Image.Reference().(reference.Named)), tag)
 	if err != nil {
 		c.log.Errorf("failed to add tag: %s", err)
 		return err

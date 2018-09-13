@@ -346,10 +346,10 @@ func (o *overseer) Spool(ctx context.Context, d Task) error {
 	if err != nil {
 		return err
 	}
-	refStr := d.Reference.Reference().String()
+	refStr := d.Image.Reference().String()
 	for _, summary := range summaries {
 		if summary.ID == refStr {
-			log.S(ctx).Infof("application image %s is already present", d.Reference.Reference().String())
+			log.S(ctx).Infof("application image %s is already present", d.Image.Reference().String())
 			return nil
 		}
 	}

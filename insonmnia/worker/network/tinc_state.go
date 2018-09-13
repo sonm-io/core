@@ -16,7 +16,7 @@ import (
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -70,7 +70,7 @@ func getNetByCIDR(cidr string) (*net.IPNet, error) {
 	}
 }
 
-func (t *TincNetworkState) InsertTincNetwork(n *structs.NetworkSpec, cgroupParent string) (*TincNetwork, error) {
+func (t *TincNetworkState) InsertTincNetwork(n *sonm.NetworkSpec, cgroupParent string) (*TincNetwork, error) {
 	pool, err := getNetByCIDR(n.Subnet)
 	if err != nil {
 		return nil, err
@@ -110,16 +110,16 @@ func (t *TincNetworkState) InsertTincNetwork(n *structs.NetworkSpec, cgroupParen
 	invitation, _ := n.Options["invitation"]
 
 	result := &TincNetwork{
-		NodeID:          n.NetID,
+		NodeID:          n.GetID(),
 		DockerID:        "",
 		Pool:            pool,
 		Invitation:      invitation,
 		EnableBridge:    enableBridge,
 		CgroupParent:    cgroupParent,
-		ConfigPath:      t.config.ConfigDir + "/" + n.NetID,
+		ConfigPath:      t.config.ConfigDir + "/" + n.GetID(),
 		TincContainerID: resp.ID,
 		cli:             t.cli,
-		logger:          t.logger.With("source", "tinc/network/"+n.NetID, "container", resp.ID),
+		logger:          t.logger.With("source", "tinc/network/"+n.GetID(), "container", resp.ID),
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()

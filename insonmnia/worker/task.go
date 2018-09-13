@@ -10,22 +10,21 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
-	pb "github.com/sonm-io/core/proto"
+	sonm "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
 // Task for a target application.
 type Task struct {
-	pb.Container
-	Reference    reference.Field
+	sonm.Container
+	Image        reference.Field
 	Auth         string
-	Resources    *pb.AskPlanResources
-	CGroupParent string
-	Cmd          []string
+	Resources    *sonm.AskPlanResources
+	Cgroup       string
+	CgroupParent string
 	TaskId       string
 	DealId       *big.Int
 	Autoremove   bool
@@ -35,27 +34,24 @@ type Task struct {
 	mounts []volume.Mount
 
 	NetworkOptions *network.Network
-	NetworkSpecs   []*structs.NetworkSpec
 
-	status       pb.TaskStatusReply_Status
-	ContainerID  string
-	ImageName    string
-	StartAt      time.Time
-	Ports        nat.PortMap
-	PublicKey    PublicKey
-	Cgroup       string
-	CgroupParent string
-	NetworkIDs   []string
-	dealID       *pb.BigInt
-	Tag          *pb.TaskTag
-	AskID        string
+	status      sonm.TaskStatusReply_Status
+	ContainerID string
+	StartAt     time.Time
+	Ports       nat.PortMap
+	PublicKey   PublicKey
+
+	NetworkIDs []string
+	dealID     *sonm.BigInt
+	Tag        *sonm.TaskTag
+	AskID      string
 }
 
 func (d *Task) ID() string {
 	return d.TaskId
 }
 
-func (d *Task) Volumes() map[string]*pb.Volume {
+func (d *Task) Volumes() map[string]*sonm.Volume {
 	return d.Container.Volumes
 }
 
@@ -83,8 +79,8 @@ func (d *Task) GpuDeviceIDs() []gpu.GPUID {
 	return d.GPUDevices
 }
 
-func (d *Task) Networks() []*structs.NetworkSpec {
-	return d.NetworkSpecs
+func (d *Task) Networks() []*sonm.NetworkSpec {
+	return d.GetNetworks()
 }
 
 func (d *Task) FormatEnv() []string {
@@ -100,10 +96,10 @@ func (d *Task) Expose() (nat.PortSet, nat.PortMap, error) {
 	return nat.ParsePortSpecs(d.Container.Expose)
 }
 
-func (c *Task) IntoProto(ctx context.Context) *pb.TaskStatusReply {
-	ports := make(map[string]*pb.Endpoints)
+func (c *Task) IntoProto(ctx context.Context) *sonm.TaskStatusReply {
+	ports := make(map[string]*sonm.Endpoints)
 	for hostPort, binding := range c.Ports {
-		addrs := make([]*pb.SocketAddr, len(binding))
+		addrs := make([]*sonm.SocketAddr, len(binding))
 		for i, bind := range binding {
 			port, err := strconv.ParseUint(bind.HostPort, 10, 16)
 			if err != nil {
@@ -111,15 +107,17 @@ func (c *Task) IntoProto(ctx context.Context) *pb.TaskStatusReply {
 					zap.Error(err), zap.String("value", bind.HostPort))
 				continue
 			}
-			addrs[i] = &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)}
+			addrs[i] = &sonm.SocketAddr{Addr: bind.HostIP, Port: uint32(port)}
 		}
 
-		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addrs}
+		ports[string(hostPort)] = &sonm.Endpoints{Endpoints: addrs}
 	}
 
-	return &pb.TaskStatusReply{
+	// According to the source code it cannot fail
+	imageName, _ := c.Image.MarshalText()
+	return &sonm.TaskStatusReply{
 		Status:             c.status,
-		ImageName:          c.ImageName,
+		ImageName:          string(imageName),
 		PortMap:            ports,
 		Uptime:             uint64(time.Now().Sub(c.StartAt).Nanoseconds()),
 		Usage:              nil,

@@ -18,7 +18,7 @@ import (
 	"github.com/docker/go-plugins-helpers/ipam"
 	netDriver "github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -58,7 +58,7 @@ func NewL2TPTuner(ctx context.Context, cfg *L2TPConfig) (*L2TPTuner, error) {
 	return tuner, nil
 }
 
-func (t *L2TPTuner) GenerateInvitation(ID string) (*structs.NetworkSpec, error) {
+func (t *L2TPTuner) GenerateInvitation(ID string) (*sonm.NetworkSpec, error) {
 	return nil, errors.New("not supported")
 }
 
@@ -109,9 +109,9 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 	return nil
 }
 
-func (t *L2TPTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
+func (t *L2TPTuner) Tune(ctx context.Context, net *sonm.NetworkSpec, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
 	log.G(ctx).Info("tuning l2tp")
-	configPath, err := t.writeConfig(net.NetID, net.Options)
+	configPath, err := t.writeConfig(net.GetID(), net.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (t *L2TPTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostCfg 
 		IPAM:    &network.IPAM{Driver: "l2tp_ipam", Options: driverOpts},
 	}
 
-	response, err := t.cli.NetworkCreate(ctx, net.NetID, createOpts)
+	response, err := t.cli.NetworkCreate(ctx, net.GetID(), createOpts)
 	if err != nil {
 		return nil, err
 	}

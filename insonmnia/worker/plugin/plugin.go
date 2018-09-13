@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	minet "github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
@@ -55,7 +54,7 @@ type VolumeProvider interface {
 }
 
 type NetworkProvider interface {
-	Networks() []*structs.NetworkSpec
+	Networks() []*sonm.NetworkSpec
 }
 
 // Repository describes a place where all SONM plugins for Docker live.
@@ -338,7 +337,7 @@ func (r *Repository) GetNetworkCleaner(ctx context.Context, provider NetworkProv
 			cleanup.Close()
 			return nil, fmt.Errorf("network driver not supported: %s", net.Type)
 		}
-		c, err := tuner.GetCleaner(ctx, net.NetID)
+		c, err := tuner.GetCleaner(ctx, net.GetID())
 		if err != nil {
 			cleanup.Close()
 			return nil, err
@@ -349,7 +348,7 @@ func (r *Repository) GetNetworkCleaner(ctx context.Context, provider NetworkProv
 	return &cleanup, nil
 }
 
-func (r *Repository) JoinNetwork(ID string) (*structs.NetworkSpec, error) {
+func (r *Repository) JoinNetwork(ID string) (*sonm.NetworkSpec, error) {
 	for _, net := range r.networkTuners {
 		if net.Tuned(ID) {
 			return net.GenerateInvitation(ID)
