@@ -91,7 +91,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d *Task, tun
 		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
 		PublishAllPorts: true,
 		PortBindings:    portBindings,
-		RestartPolicy:   d.RestartPolicy.Unwrap(),
+		RestartPolicy:   d.GetContainer().GetRestartPolicy().Unwrap(),
 		AutoRemove:      d.Autoremove,
 		Resources:       d.Resources.ToHostConfigResources(d.CgroupParent),
 	}
@@ -266,7 +266,7 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 		return err
 	}
 
-	if c.description.PushOnStop {
+	if c.description.Container.PushOnStop {
 		options := types.ImagePushOptions{
 			RegistryAuth: c.description.Auth,
 		}

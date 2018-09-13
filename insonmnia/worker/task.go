@@ -19,7 +19,7 @@ import (
 
 // Task for a target application.
 type Task struct {
-	sonm.Container
+	*sonm.TaskSpec
 	Image        reference.Field
 	Auth         string
 	Resources    *sonm.AskPlanResources
@@ -79,12 +79,12 @@ func (d *Task) GpuDeviceIDs() []gpu.GPUID {
 }
 
 func (d *Task) Networks() []*sonm.NetworkSpec {
-	return d.GetNetworks()
+	return d.Container.GetNetworks()
 }
 
 func (d *Task) FormatEnv() []string {
-	vars := make([]string, 0, len(d.Env))
-	for k, v := range d.Env {
+	vars := make([]string, 0, len(d.Container.Env))
+	for k, v := range d.Container.Env {
 		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
 	}
 

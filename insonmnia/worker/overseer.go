@@ -215,7 +215,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 					s <- pb.TaskStatusReply_BROKEN
 					close(s)
 				}
-				if c.description.CommitOnStop {
+				if c.description.GetContainer().GetCommitOnStop() {
 					log.G(ctx).Info("trying to upload container")
 					err := c.upload(ctx)
 					if err != nil {
@@ -492,7 +492,7 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 		result = multierror.Append(result, err)
 	}
 	//This is needed in case container is uploaded into external registry
-	if descriptor.description.CommitOnStop {
+	if descriptor.description.GetContainer().GetCommitOnStop() {
 		if err := descriptor.upload(ctx); err != nil {
 			result = multierror.Append(result, err)
 		}

@@ -730,7 +730,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	task := &Task{
-		Container:      *request.Spec.Container,
+		TaskSpec:       spec,
 		Image:          reference.AsField(ref),
 		Auth:           spec.Registry.Auth(),
 		CgroupParent:   cgroup.Suffix(),
@@ -1278,10 +1278,10 @@ func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64,
 		if err != nil {
 			return uint64(0), fmt.Errorf("could not create description for benchmark: %s", err)
 		}
-		d.Env[benchmarks.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
+		d.GetContainer().GetEnv()[benchmarks.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
 
 		if isGpu {
-			d.Env[benchmarks.GPUVendorParam] = gpuDevice.VendorType().String()
+			d.GetContainer().GetEnv()[benchmarks.GPUVendorParam] = gpuDevice.VendorType().String()
 			d.GPUDevices = []gpu.GPUID{gpu.GPUID(gpuDevice.GetID())}
 		}
 		res, err := m.execBenchmarkContainer(bench, d)
@@ -1436,9 +1436,11 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (*Task, error) {
 	}
 	return &Task{
 		Image: reference.AsField(ref),
-		Container: pb.Container{Env: map[string]string{
-			benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
-		}},
+		TaskSpec: &pb.TaskSpec{
+			Container: &pb.Container{Env: map[string]string{
+				benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
+			}},
+		},
 	}, nil
 }
 
