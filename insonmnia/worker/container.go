@@ -268,7 +268,7 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 
 	if c.description.Container.PushOnStop {
 		options := types.ImagePushOptions{
-			RegistryAuth: c.description.Auth,
+			RegistryAuth: c.description.GetRegistry().Auth(),
 		}
 
 		c.log.Infof("pushing image %s", newImg)

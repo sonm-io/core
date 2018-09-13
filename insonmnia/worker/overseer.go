@@ -355,7 +355,7 @@ func (o *overseer) Spool(ctx context.Context, d *Task) error {
 	}
 	options := types.ImagePullOptions{
 		All:          false,
-		RegistryAuth: d.Auth,
+		RegistryAuth: d.GetRegistry().Auth(),
 	}
 
 	body, err := o.client.ImagePull(ctx, refStr, options)

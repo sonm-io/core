@@ -724,9 +724,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	task := &Task{
 		TaskSpec:       spec,
 		Image:          reference.AsField(ref),
-		Auth:           spec.Registry.Auth(),
 		CgroupParent:   cgroup.Suffix(),
-		Resources:      spec.Resources,
 		dealID:         request.GetDealID(),
 		TaskID:         taskID,
 		GPUDevices:     gpuids,
@@ -734,7 +732,6 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		NetworkOptions: network,
 		PublicKey:      publicKey,
 		StartAt:        time.Now(),
-		Tag:            request.GetSpec().GetTag(),
 		AskID:          ask.ID,
 	}
 

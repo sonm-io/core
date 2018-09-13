@@ -21,8 +21,6 @@ import (
 type Task struct {
 	*sonm.TaskSpec
 	Image        reference.Field
-	Auth         string
-	Resources    *sonm.AskPlanResources
 	Cgroup       string
 	CgroupParent string
 	TaskID       string
@@ -42,7 +40,6 @@ type Task struct {
 
 	NetworkIDs []string
 	dealID     *sonm.BigInt
-	Tag        *sonm.TaskTag
 	AskID      string
 }
 
