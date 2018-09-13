@@ -202,3 +202,38 @@ func claymoreLogParser(ctx context.Context, m *commonLogProcessor, reader io.Rea
 
 	m.log.Debug("finished reading logs", zap.Error(scanner.Err()))
 }
+
+func newXmrigLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *types.Deal, taskID string) Processor {
+	return newLogProcessor(cfg, log, nodeConnection, deal, taskID, xmrigLogParser)
+}
+
+func xmrigLogParser(ctx context.Context, m *commonLogProcessor, reader io.Reader) {
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		if ctx.Err() != nil {
+			m.log.Debug("stop reading logs: context cancelled")
+			return
+		}
+
+		line := scanner.Text()
+		m.maybeSaveLogLine(line)
+
+		if strings.Contains(line, "speed 10s/60s/15m") {
+			fields := strings.Fields(line)
+			if len(fields) != 11 {
+				m.log.Warn("invalid xmrig log line", zap.String("line", line), zap.Int("fields_count", len(fields)))
+				return
+			}
+
+			raw := fields[4]
+			hashrate, err := strconv.ParseFloat(raw, 64)
+			if err != nil {
+				m.log.Warn("failed to parse hashrate", zap.String("line", line),
+					zap.String("field", raw), zap.Error(err))
+				return
+			}
+
+			m.hashrate = hashrate
+		}
+	}
+}
