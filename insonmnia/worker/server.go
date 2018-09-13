@@ -1096,7 +1096,7 @@ func (m *Worker) setupServer() error {
 	}
 
 	logger := log.GetLogger(m.ctx)
-	m.externalGrpc = m.createServer(logger)
+	m.externalGrpc = m.createServer(logger, m.eventAuthorization)
 
 	pb.RegisterWorkerServer(m.externalGrpc, m)
 	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
@@ -1130,7 +1130,7 @@ func (m *Worker) setupServer() error {
 
 func (m *Worker) setupStatusServer() error {
 	logger := log.GetLogger(m.ctx)
-	m.externalGrpc = m.createServer(logger)
+	m.externalGrpc = m.createServer(logger, newStatusAuthorization(m.ctx))
 	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
 
 	lis, err := net.Listen("tcp", m.cfg.Endpoint)
@@ -1149,12 +1149,12 @@ func (m *Worker) setupStatusServer() error {
 	return nil
 }
 
-func (m *Worker) createServer(logger *zap.Logger) *grpc.Server {
+func (m *Worker) createServer(logger *zap.Logger, authRouter *auth.AuthRouter) *grpc.Server {
 	return xgrpc.NewServer(logger,
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
 		xgrpc.Credentials(m.creds),
-		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
+		xgrpc.AuthorizationInterceptor(authRouter),
 		xgrpc.VerifyInterceptor(),
 	)
 }
