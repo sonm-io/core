@@ -1002,7 +1002,7 @@ func (m *Worker) setupRunningContainers() error {
 	if err != nil {
 		return err
 	}
-	// Overseer mantains it's own instance of docker.Client
+	// Overseer maintains it's own instance of docker.Client
 	defer dockerClient.Close()
 
 	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{})
