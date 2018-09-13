@@ -188,6 +188,8 @@ func (m *Scheduler) ResourceByTask(taskID string) (*sonm.AskPlanResources, error
 }
 
 func (m *Scheduler) OnDealFinish(taskID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	_, ok := m.taskToAskPlan[taskID]
 
 	if !ok {
