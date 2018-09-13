@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/sync/errgroup"
 )
@@ -17,8 +18,78 @@ type niceMarketAPI struct {
 	blacklist BlacklistAPI
 }
 
+func (m *niceMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askID *big.Int, duration uint64) (*sonm.Deal, error) {
+	ask, err := m.GetOrderInfo(ctx, askID)
+	if err != nil {
+		return nil, err
+	}
+
+	if ask.GetOrderType() != sonm.OrderType_ASK {
+		return nil, fmt.Errorf("ask must have ASK type, but it is %s", ask.GetOrderType())
+	}
+	if ask.GetOrderStatus() != sonm.OrderStatus_ORDER_ACTIVE {
+		return nil, fmt.Errorf("ask order must be active, but it is %s", ask.GetOrderStatus())
+	}
+	if ask.GetDuration() < duration {
+		return nil, fmt.Errorf("required duration %d must be <= ASK duration %d", duration, ask.GetDuration())
+	}
+
+	senderAddr := crypto.PubkeyToAddress(key.PublicKey)
+	senderIdentity, err := m.profiles.GetProfileLevel(ctx, senderAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Here the market bug, but we need to live with it #1293.
+	if senderIdentity < ask.GetIdentityLevel() {
+		return nil, fmt.Errorf("owner master identity %s must be >= ask identity %s", senderIdentity.String(), ask.GetIdentityLevel().String())
+	}
+
+	askMaster, err := m.GetMaster(ctx, ask.GetAuthorID().Unwrap())
+	if err != nil {
+		return nil, err
+	}
+
+	wg, blacklistCtx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		denied, err := m.blacklist.Check(blacklistCtx, senderAddr, askMaster)
+		if err != nil {
+			return err
+		}
+		if denied {
+			return fmt.Errorf("ASK master %s is in SENDER blacklist %s", askMaster.Hex(), senderAddr)
+		}
+		return nil
+	})
+	wg.Go(func() error {
+		denied, err := m.blacklist.Check(blacklistCtx, ask.GetAuthorID().Unwrap(), senderAddr)
+		if err != nil {
+			return err
+		}
+		if denied {
+			return fmt.Errorf("SENDER %s is in ASK author blacklist %s", senderAddr, ask.GetAuthorID().Unwrap())
+		}
+		return nil
+	})
+	wg.Go(func() error {
+		denied, err := m.blacklist.Check(blacklistCtx, common.HexToAddress(ask.GetBlacklist()), senderAddr)
+		if err != nil {
+			return err
+		}
+		if denied {
+			return fmt.Errorf("SENDER %s is in ASK blacklist %s", senderAddr, common.HexToAddress(ask.GetBlacklist()))
+		}
+		return nil
+	})
+	if err := wg.Wait(); err != nil {
+		return nil, fmt.Errorf("blacklist check failed: %v", err)
+	}
+
+	return m.MarketAPI.QuickBuy(ctx, key, askID, duration)
+}
+
 func (m *niceMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) (*sonm.Deal, error) {
-	orders, err := m.GetOrderInfoMulti(ctx, key, askID, bidID)
+	orders, err := m.GetOrderInfoMulti(ctx, askID, bidID)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +196,7 @@ func (m *niceMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, ask
 	return m.MarketAPI.OpenDeal(ctx, key, askID, bidID)
 }
 
-func (m *niceMarketAPI) GetOrderInfoMulti(ctx context.Context, key *ecdsa.PrivateKey, orderIDs ...*big.Int) ([]*sonm.Order, error) {
+func (m *niceMarketAPI) GetOrderInfoMulti(ctx context.Context, orderIDs ...*big.Int) ([]*sonm.Order, error) {
 	wg, ctx := errgroup.WithContext(ctx)
 
 	orders := make([]*sonm.Order, len(orderIDs))
