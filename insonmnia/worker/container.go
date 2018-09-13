@@ -110,6 +110,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		log.G(ctx).Error("failed to tune container", zap.Error(err))
 		return nil, err
 	}
+	log.G(ctx).Debug("successfully tuned container")
 
 	// create new container
 	// assign resulted containerid
