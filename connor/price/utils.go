@@ -22,7 +22,7 @@ const (
 	moneroEtmID   = 101
 )
 
-type wtmCoin struct {
+type coinParams struct {
 	ID          int     `json:"id"`
 	Difficulty  float64 `json:"difficulty"`
 	BlockReward float64 `json:"block_reward"`
@@ -32,10 +32,10 @@ type wtmCoin struct {
 }
 
 type wtmResponse struct {
-	Coins map[string]*wtmCoin `json:"coins"`
+	Coins map[string]*coinParams `json:"coins"`
 }
 
-func getTokenParamsFromWTM(id int) (*wtmCoin, error) {
+func getTokenParamsFromWTM(id int) (*coinParams, error) {
 	data, err := FetchURLWithRetry(whatToMineURL)
 	if err != nil {
 		return nil, err
