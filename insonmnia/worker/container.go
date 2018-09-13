@@ -26,13 +26,13 @@ type containerDescriptor struct {
 
 	ID              string
 	CommitedImageID string
-	description     Description
+	description     Task
 	stats           types.StatsJSON
 
 	cleanup plugin.Cleanup
 }
 
-func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
+func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Task, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.Reference().String())
 
 	cont := containerDescriptor{
@@ -51,7 +51,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 	return &cont, nil
 }
 
-func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
+func newContainer(ctx context.Context, dockerClient *client.Client, d Task, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.S(ctx).Infof("start container with application, reference %s", d.Reference.Reference().String())
 
 	cont := containerDescriptor{
@@ -77,7 +77,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 		Image: d.Reference.Reference().String(),
 		// TODO: set actual name
-		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealId},
+		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealId.String()},
 		Env:     d.FormatEnv(),
 		Volumes: make(map[string]struct{}),
 	}

@@ -11,20 +11,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
-	"github.com/sonm-io/core/insonmnia/structs"
-	"github.com/sonm-io/core/insonmnia/worker/gpu"
-	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
-	"github.com/sonm-io/core/insonmnia/worker/volume"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xdocker"
@@ -34,120 +28,6 @@ import (
 const overseerTag = "sonm.overseer"
 const dealIDTag = "sonm.dealid"
 const dieEvent = "die"
-
-// Description for a target application.
-type Description struct {
-	pb.Container
-	Reference    reference.Field
-	Auth         string
-	Resources    *pb.AskPlanResources
-	CGroupParent string
-	Cmd          []string
-	TaskId       string
-	DealId       string
-	Autoremove   bool
-
-	GPUDevices []gpu.GPUID
-
-	mounts []volume.Mount
-
-	NetworkOptions *network.Network
-	NetworkSpecs   []*structs.NetworkSpec
-}
-
-func (d *Description) ID() string {
-	return d.TaskId
-}
-
-func (d *Description) Volumes() map[string]*pb.Volume {
-	return d.Container.Volumes
-}
-
-func (d *Description) Mounts(source string) []volume.Mount {
-	return d.mounts
-}
-
-func (d *Description) Network() (string, string) {
-	if d.NetworkOptions == nil {
-		return "", ""
-	}
-
-	return d.NetworkOptions.Name, d.NetworkOptions.ID
-}
-
-func (d *Description) DealID() string {
-	return d.DealId
-}
-
-func (d *Description) IsGPURequired() bool {
-	return len(d.GPUDevices) > 0
-}
-
-func (d *Description) GpuDeviceIDs() []gpu.GPUID {
-	return d.GPUDevices
-}
-
-func (d *Description) Networks() []*structs.NetworkSpec {
-	return d.NetworkSpecs
-}
-
-func (d *Description) FormatEnv() []string {
-	vars := make([]string, 0, len(d.Env))
-	for k, v := range d.Env {
-		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	return vars
-}
-
-func (d *Description) Expose() (nat.PortSet, nat.PortMap, error) {
-	return nat.ParsePortSpecs(d.Container.Expose)
-}
-
-// ContainerInfo is a brief information about containers
-type ContainerInfo struct {
-	status       pb.TaskStatusReply_Status
-	ID           string
-	ImageName    string
-	StartAt      time.Time
-	Ports        nat.PortMap
-	PublicKey    PublicKey
-	Cgroup       string
-	CgroupParent string
-	NetworkIDs   []string
-	DealID       *pb.BigInt
-	TaskId       string
-	Tag          *pb.TaskTag
-	AskID        string
-}
-
-func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
-	ports := make(map[string]*pb.Endpoints)
-	for hostPort, binding := range c.Ports {
-		addrs := make([]*pb.SocketAddr, len(binding))
-		for i, bind := range binding {
-			port, err := strconv.ParseUint(bind.HostPort, 10, 16)
-			if err != nil {
-				log.G(ctx).Warn("cannot parse port from nat.PortMap",
-					zap.Error(err), zap.String("value", bind.HostPort))
-				continue
-			}
-			addrs[i] = &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)}
-		}
-
-		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addrs}
-	}
-
-	return &pb.TaskStatusReply{
-		Status:             c.status,
-		ImageName:          c.ImageName,
-		PortMap:            ports,
-		Uptime:             uint64(time.Now().Sub(c.StartAt).Nanoseconds()),
-		Usage:              nil,
-		AllocatedResources: nil,
-		Tag:                c.Tag,
-	}
-}
 
 // ContainerMetrics are metrics collected from Docker about running containers
 type ContainerMetrics struct {
@@ -193,16 +73,16 @@ type Overseer interface {
 	// Spool prepares an application for its further start.
 	//
 	// For Docker containers this is an equivalent of pulling from the registry.
-	Spool(ctx context.Context, d Description) error
+	Spool(ctx context.Context, d Task) error
 
 	// Start attempts to start an application using the specified description.
 	//
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
-	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
+	Start(ctx context.Context, description Task) (chan pb.TaskStatusReply_Status, Task, error)
 
 	// Attach attemps to attach to a running application with a specified description
-	Attach(ctx context.Context, ID string, description Description) (chan pb.TaskStatusReply_Status, error)
+	Attach(ctx context.Context, ID string, description Task) (chan pb.TaskStatusReply_Status, error)
 
 	// Exec a given command in running container
 	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
@@ -459,7 +339,7 @@ func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect
 	return imageInspect, rd, nil
 }
 
-func (o *overseer) Spool(ctx context.Context, d Description) error {
+func (o *overseer) Spool(ctx context.Context, d Task) error {
 	log.G(ctx).Info("pull the application image")
 	// TODO: maybe add sonm labels to make filtration easier
 	summaries, err := o.client.ImageList(ctx, types.ImageListOptions{All: true})
@@ -492,7 +372,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan pb.TaskStatusReply_Status, error) {
+func (o *overseer) Attach(ctx context.Context, ID string, d Task) (chan pb.TaskStatusReply_Status, error) {
 	cont, err := attachContainer(ctx, o.client, ID, d, o.plugins)
 	if err != nil {
 		log.S(ctx).Debugf("failed to attach to container %s", err)
@@ -510,7 +390,7 @@ func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan p
 	return status, nil
 }
 
-func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
+func (o *overseer) Start(ctx context.Context, description Task) (status chan pb.TaskStatusReply_Status, cinfo Task, err error) {
 	if description.IsGPURequired() && !o.supportGPU() {
 		err = fmt.Errorf("GPU required but not supported or disabled")
 		return
@@ -551,9 +431,9 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		networkIDs = append(networkIDs, k)
 	}
 
-	cinfo = ContainerInfo{
+	cinfo = Task{
 		status:       pb.TaskStatusReply_RUNNING,
-		ID:           cjson.ID,
+		ContainerID:  cjson.ID,
 		Ports:        cjson.NetworkSettings.Ports,
 		Cgroup:       string(cjson.HostConfig.Cgroup),
 		CgroupParent: string(cjson.HostConfig.CgroupParent),

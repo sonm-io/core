@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net"
 	"reflect"
 	"strconv"
@@ -79,7 +78,7 @@ type overseerView struct {
 	worker *Worker
 }
 
-func (m *overseerView) ContainerInfo(id string) (*ContainerInfo, bool) {
+func (m *overseerView) Task(id string) (*Task, bool) {
 	return m.worker.GetContainerInfo(id)
 }
 
@@ -118,7 +117,7 @@ type Worker struct {
 
 	// Maps StartRequest's IDs to containers' IDs
 	// TODO: It's doubtful that we should keep this map here instead in the Overseer.
-	containers map[string]*ContainerInfo
+	containers map[string]*Task
 
 	controlGroup  cgroups.CGroup
 	cGroupManager cgroups.CGroupManager
@@ -138,7 +137,7 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 
 	m = &Worker{
 		options:    o,
-		containers: make(map[string]*ContainerInfo),
+		containers: make(map[string]*Task),
 	}
 
 	if err := m.SetupDefaults(); err != nil {
@@ -405,11 +404,11 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 }
 
 func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
-	var toDelete []*ContainerInfo
+	var toDelete []*Task
 
 	m.mu.Lock()
 	for key, container := range m.containers {
-		if container.DealID.Cmp(deal.GetId()) == 0 {
+		if container.DealID().Cmp(deal.GetId().Unwrap()) == 0 {
 			toDelete = append(toDelete, container)
 			delete(m.containers, key)
 		}
@@ -418,13 +417,13 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 
 	result := multierror.NewMultiError()
 	for _, container := range toDelete {
-		if err := m.ovs.OnDealFinish(m.ctx, container.ID); err != nil {
+		if err := m.ovs.OnDealFinish(m.ctx, container.ID()); err != nil {
 			result = multierror.Append(result, err)
 		}
 		if err := m.resources.OnDealFinish(container.TaskId); err != nil {
 			result = multierror.Append(result, err)
 		}
-		if _, err := m.storage.Remove(container.ID); err != nil {
+		if _, err := m.storage.Remove(container.ID()); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
@@ -432,16 +431,16 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 }
 
 type runningContainerInfo struct {
-	Description Description   `json:"description,omitempty"`
-	Cinfo       ContainerInfo `json:"cinfo,omitempty"`
-	Spec        pb.TaskSpec   `json:"spec,omitempty"`
+	Description Task        `json:"description,omitempty"`
+	Cinfo       Task        `json:"cinfo,omitempty"`
+	Spec        pb.TaskSpec `json:"spec,omitempty"`
 }
 
-func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description, spec pb.TaskSpec) {
+func (m *Worker) saveContainerInfo(id string, info Task, d Task, spec pb.TaskSpec) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.storage.Save(info.ID, runningContainerInfo{
+	m.storage.Save(info.ID(), runningContainerInfo{
 		Description: d,
 		Cinfo:       info,
 		Spec:        spec,
@@ -450,7 +449,7 @@ func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description,
 	m.containers[id] = &info
 }
 
-func (m *Worker) GetContainerInfo(id string) (*ContainerInfo, bool) {
+func (m *Worker) GetContainerInfo(id string) (*Task, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	info, ok := m.containers[id]
@@ -518,7 +517,7 @@ func (m *Worker) setStatus(status *pb.TaskStatusReply, id string) {
 
 	_, ok := m.containers[id]
 	if !ok {
-		m.containers[id] = &ContainerInfo{}
+		m.containers[id] = &Task{}
 	}
 
 	m.containers[id].status = status.GetStatus()
@@ -726,13 +725,13 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		}
 	}
 
-	var d = Description{
+	var d = Task{
 		Container:      *request.Spec.Container,
 		Reference:      reference.AsField(ref),
 		Auth:           spec.Registry.Auth(),
 		CGroupParent:   cgroup.Suffix(),
 		Resources:      spec.Resources,
-		DealId:         request.GetDealID().Unwrap().String(),
+		DealId:         request.GetDealID().Unwrap(),
 		TaskId:         taskID,
 		GPUDevices:     gpuids,
 		mounts:         mounts,
@@ -764,7 +763,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
 	containerInfo.ImageName = ref.String()
-	containerInfo.DealID = dealID
+	containerInfo.dealID = dealID
 	containerInfo.Tag = request.GetSpec().GetTag()
 	containerInfo.TaskId = taskID
 	containerInfo.AskID = ask.ID
@@ -823,7 +822,7 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
-	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
+	if err := m.ovs.Stop(ctx, containerInfo.ID()); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
 
@@ -883,7 +882,7 @@ func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogs
 		Tail:       request.Tail,
 		Details:    request.Details,
 	}
-	reader, err := m.ovs.Logs(server.Context(), containerInfo.ID, opts)
+	reader, err := m.ovs.Logs(server.Context(), containerInfo.ID(), opts)
 	if err != nil {
 		return err
 	}
@@ -934,7 +933,7 @@ func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 			return nil, status.Errorf(codes.Internal, "cannot get container metrics: %s", err.Error())
 		}
 
-		metric, ok = metrics[info.ID]
+		metric, ok = metrics[info.ID()]
 		if !ok {
 			return nil, status.Errorf(codes.NotFound, "cannot get metrics for container %s", req.GetId())
 		}
@@ -1034,10 +1033,7 @@ func (m *Worker) setupRunningContainers() error {
 				return err
 			}
 
-			bigDealID, ok := big.NewInt(0).SetString(info.Description.DealId, 10)
-			if !ok {
-				return fmt.Errorf("failed to parse container's DealID (%s)", info.Description.DealId)
-			}
+			bigDealID := info.Description.DealId
 
 			deal, err := m.eth.Market().GetDealInfo(m.ctx, bigDealID)
 			if err != nil {
@@ -1046,7 +1042,7 @@ func (m *Worker) setupRunningContainers() error {
 
 			if deal.Status == pb.DealStatus_DEAL_CLOSED {
 				log.G(m.ctx).Info("found task assigned to closed deal, going to cancel it",
-					zap.String("deal_id", info.Description.DealId), zap.String("task_id", info.Cinfo.TaskId))
+					zap.String("deal_id", bigDealID.String()), zap.String("task_id", info.Cinfo.TaskId))
 				closedDeals[deal.Id.Unwrap().String()] = deal
 			}
 
@@ -1348,7 +1344,7 @@ func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
 
 // execBenchmarkContainerWithResults executes benchmark as docker image,
 // returns JSON output with measured values.
-func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*benchmarks.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainerWithResults(d Task) (map[string]*benchmarks.ResultJSON, error) {
 	logTime := time.Now().Add(-time.Minute)
 	err := m.ovs.Spool(m.ctx, d)
 	if err != nil {
@@ -1359,13 +1355,13 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 	if err != nil {
 		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
 	}
-	log.S(m.ctx).Debugf("started benchmark container %s", statusReply.ID)
-	defer m.ovs.OnDealFinish(m.ctx, statusReply.ID)
+	log.S(m.ctx).Debugf("started benchmark container %s", statusReply.ID())
+	defer m.ovs.OnDealFinish(m.ctx, statusReply.ID())
 
 	select {
 	case s := <-statusChan:
 		if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
-			log.S(m.ctx).Debugf("benchmark container %s finished", statusReply.ID)
+			log.S(m.ctx).Debugf("benchmark container %s finished", statusReply.ID())
 			logOpts := types.ContainerLogsOptions{
 				ShowStdout: true,
 				//ShowStderr: true,
@@ -1373,11 +1369,11 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 				Since:  strconv.FormatInt(logTime.Unix(), 10),
 			}
 
-			reader, err := m.ovs.Logs(m.ctx, statusReply.ID, logOpts)
+			reader, err := m.ovs.Logs(m.ctx, statusReply.ID(), logOpts)
 			if err != nil {
-				return nil, fmt.Errorf("cannot create container log reader for %s: %v", statusReply.ID, err)
+				return nil, fmt.Errorf("cannot create container log reader for %s: %v", statusReply.ID(), err)
 			}
-			log.S(m.ctx).Debugf("requested container %s logs", statusReply.ID)
+			log.S(m.ctx).Debugf("requested container %s logs", statusReply.ID())
 			defer reader.Close()
 
 			stdoutBuf := bytes.Buffer{}
@@ -1400,7 +1396,7 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 	}
 }
 
-func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*benchmarks.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Task) (*benchmarks.ResultJSON, error) {
 	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("benchmark", ben))
 	res, err := m.execBenchmarkContainerWithResults(des)
 	if err != nil {
@@ -1433,12 +1429,12 @@ func parseBenchmarkResult(data []byte) (map[string]*benchmarks.ResultJSON, error
 	return v.Results, nil
 }
 
-func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
+func getDescriptionForBenchmark(b *pb.Benchmark) (Task, error) {
 	ref, err := reference.ParseNormalizedNamed(b.GetImage())
 	if err != nil {
-		return Description{}, err
+		return Task{}, err
 	}
-	return Description{
+	return Task{
 		Reference: reference.AsField(ref),
 		Container: pb.Container{Env: map[string]string{
 			benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
@@ -1556,7 +1552,7 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 
 	for id, c := range m.containers {
 		// task is ours
-		if c.DealID.Cmp(dealID) == 0 {
+		if c.DealID().Cmp(dealID.Unwrap()) == 0 {
 			task := c.IntoProto(m.ctx)
 
 			// task is running or preparing to start

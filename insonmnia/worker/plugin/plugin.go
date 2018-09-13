@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sort"
 
 	"github.com/docker/docker/api/types/container"
@@ -47,7 +48,7 @@ type VolumeProvider interface {
 	// provided.
 	Mounts(source string) []volume.Mount
 	// DealID provides the deal ID for the volume is planned to be executed.
-	DealID() string
+	DealID() *big.Int
 	// Network provides an optional network name and ID indicating under which
 	// network the volume plugin should be executed.
 	Network() (string, string)
@@ -257,7 +258,7 @@ func (r *Repository) TuneVolumes(ctx context.Context, provider VolumeProvider, c
 	}
 
 	for _, mount := range cfg.Mounts {
-		mount.VolumeOptions.Labels["DealID"] = provider.DealID()
+		mount.VolumeOptions.Labels["DealID"] = provider.DealID().String()
 	}
 
 	return &cleanup, nil

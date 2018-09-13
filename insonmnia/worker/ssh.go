@@ -68,7 +68,7 @@ func (nilSSH) Close() error                  { return nil }
 // OverseerView is a bridge between keeping "Worker" as a parameter and
 // slightly more decomposed architecture.
 type OverseerView interface {
-	ContainerInfo(id string) (*ContainerInfo, bool)
+	Task(id string) (*Task, bool)
 	// ConsumerIdentityLevel returns the consumer identity level by the given
 	// task identifier.
 	ConsumerIdentityLevel(ctx context.Context, id string) (sonm.IdentityLevel, error)
@@ -100,13 +100,13 @@ func (m *connHandler) Verify(ctx sshd.Context, key sshd.PublicKey) bool {
 func (m *connHandler) verify(taskID string, key sshd.PublicKey) error {
 	m.log.Debugf("public key %s verification from user %s", ssh.FingerprintSHA256(key), taskID)
 
-	containerInfo, ok := m.overseer.ContainerInfo(taskID)
+	task, ok := m.overseer.Task(taskID)
 	if !ok {
 		return fmt.Errorf("container `%s` not found", taskID)
 	}
 
-	if !sshd.KeysEqual(containerInfo.PublicKey, key) {
-		return fmt.Errorf("provided public key `%s` is not equal with the specified key `%s`", ssh.FingerprintSHA256(key), ssh.FingerprintSHA256(containerInfo.PublicKey))
+	if !sshd.KeysEqual(task.PublicKey, key) {
+		return fmt.Errorf("provided public key `%s` is not equal with the specified key `%s`", ssh.FingerprintSHA256(key), ssh.FingerprintSHA256(task.PublicKey))
 	}
 
 	return nil
@@ -142,12 +142,12 @@ func (m *connHandler) process(session sshd.Session) (sshStatus, error) {
 		return sshStatusServerError, fmt.Errorf("identity level `%s` does not allow to exec ssh: must be `%s` or higher", identity.String(), m.overseer.ExecIdentity())
 	}
 
-	containerInfo, ok := m.overseer.ContainerInfo(session.User())
+	task, ok := m.overseer.Task(session.User())
 	if !ok {
 		return sshStatusServerError, fmt.Errorf("failed to find container for task `%s`", session.User())
 	}
 
-	stream, err := m.overseer.Exec(session.Context(), containerInfo.ID, cmd, session.Environ(), isTty, wCh)
+	stream, err := m.overseer.Exec(session.Context(), task.ID(), cmd, session.Environ(), isTty, wCh)
 	if err != nil {
 		return sshStatusServerError, err
 	}
