@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"strings"
 
@@ -27,10 +26,9 @@ const (
 type sshStatus int
 
 type SSHConfig struct {
-	Endpoint       string             `yaml:"endpoint" required:"true"`
-	PrivateKeyPath string             `yaml:"private_key_path" required:"true"`
-	NPP            npp.Config         `yaml:"npp"`
-	Identity       sonm.IdentityLevel `yaml:"identity" default:"identified"`
+	Endpoint string             `yaml:"endpoint" default:":0"`
+	NPP      npp.Config         `yaml:"npp"`
+	Identity sonm.IdentityLevel `yaml:"identity" default:"identified"`
 }
 
 type PublicKey struct {
@@ -187,22 +185,12 @@ type sshServer struct {
 	log         *zap.SugaredLogger
 }
 
-func NewSSHServer(cfg SSHConfig, credentials credentials.TransportCredentials, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
-	privateKeyData, err := ioutil.ReadFile(cfg.PrivateKeyPath)
-	if err != nil {
-		return nil, err
-	}
-
-	privateKey, err := ssh.ParsePrivateKey(privateKeyData)
-	if err != nil {
-		return nil, err
-	}
-
+func NewSSHServer(cfg SSHConfig, signer ssh.Signer, credentials credentials.TransportCredentials, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
 	connHandler := newConnHandler(overseer, log)
 
 	server := &sshd.Server{
 		Handler:          connHandler.onSession,
-		HostSigners:      []sshd.Signer{privateKey},
+		HostSigners:      []sshd.Signer{signer},
 		PublicKeyHandler: connHandler.Verify,
 	}
 

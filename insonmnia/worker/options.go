@@ -3,6 +3,10 @@ package worker
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -20,10 +24,12 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"github.com/sonm-io/core/util/xgrpc"
+	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/credentials"
 )
 
 const (
+	sshPrivateKeyKey      = "ssh_private_key"
 	ethereumPrivateKeyKey = "ethereum_private_key"
 	exportKeystorePath    = "/var/lib/sonm/worker_keystore"
 )
@@ -272,9 +278,25 @@ func (m *options) setupNetworkOptions() error {
 	return nil
 }
 
+func encodeRSAPrivateKeyToPEM(privateKey *rsa.PrivateKey) []byte {
+	bytes := x509.MarshalPKCS1PrivateKey(privateKey)
+	block := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   bytes,
+	}
+
+	return pem.EncodeToMemory(&block)
+}
+
 func (m *options) setupSSH(view OverseerView) error {
 	if m.cfg.SSH != nil {
-		ssh, err := NewSSHServer(*m.cfg.SSH, m.creds, view, ctxlog.S(m.ctx))
+		signer, err := m.loadOrGenerateSSHSigner()
+		if err != nil {
+			return err
+		}
+
+		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.creds, view, ctxlog.S(m.ctx))
 		if err != nil {
 			return err
 		}
@@ -286,6 +308,29 @@ func (m *options) setupSSH(view OverseerView) error {
 		m.ssh = nilSSH{}
 	}
 	return nil
+}
+
+func (m *options) loadOrGenerateSSHSigner() (ssh.Signer, error) {
+	var privateKeyData []byte
+	ok, err := m.storage.Load(sshPrivateKeyKey, &privateKeyData)
+	if err != nil {
+		return nil, err
+	}
+
+	if ok {
+		return ssh.ParsePrivateKey(privateKeyData)
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := m.storage.Save(sshPrivateKeyKey, encodeRSAPrivateKeyToPEM(privateKey)); err != nil {
+		return nil, err
+	}
+
+	return ssh.NewSignerFromSigner(privateKey)
 }
 
 func (m *options) setupOverseer() error {
