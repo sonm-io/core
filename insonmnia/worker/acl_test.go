@@ -147,7 +147,7 @@ func TestKycAuthorization(t *testing.T) {
 	identifiedMock := NewMockkycFetcher(ctrl)
 	identifiedMock.EXPECT().GetProfileLevel(gomock.Any(), addr).AnyTimes().Return(sonm.IdentityLevel_IDENTIFIED, nil)
 
-	// Excatly same level
+	// Exactly the same level
 	kyc := newKYCAuthorization(context.Background(), sonm.IdentityLevel_IDENTIFIED, identifiedMock)
 	peerCtx := peer.NewContext(testCtx(), &peer.Peer{
 		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
