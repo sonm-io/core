@@ -1,4 +1,4 @@
-package connor
+package types
 
 import (
 	"fmt"

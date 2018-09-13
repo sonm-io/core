@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -49,6 +50,7 @@ type antiFraud struct {
 	meta              map[string]*dealMeta
 	blacklistWatchers map[common.Address]*blacklistWatcher
 	processorFactory  ProcessorFactory
+	dealFactory       types.DealFactory
 
 	cfg            Config
 	nodeConnection *grpc.ClientConn
@@ -56,9 +58,10 @@ type antiFraud struct {
 	log            *zap.Logger
 }
 
-func NewAntiFraud(cfg Config, log *zap.Logger, processors ProcessorFactory, nodeConnection *grpc.ClientConn) AntiFraud {
+func NewAntiFraud(cfg Config, log *zap.Logger, processors ProcessorFactory, dealFactory types.DealFactory, nodeConnection *grpc.ClientConn) AntiFraud {
 	return &antiFraud{
 		processorFactory:  processors,
+		dealFactory:       dealFactory,
 		meta:              make(map[string]*dealMeta),
 		blacklistWatchers: map[common.Address]*blacklistWatcher{},
 		nodeConnection:    nodeConnection,
@@ -182,8 +185,8 @@ func (m *antiFraud) TrackTask(ctx context.Context, deal *sonm.Deal, taskID strin
 		return fmt.Errorf("could not register spawned task %s, no deal with id %s", taskID, deal.Id.Unwrap().String())
 	}
 
-	meta.poolProcessor = m.processorFactory.PoolProcessor(deal, taskID, WithLogger(m.log))
-	meta.logProcessor = m.processorFactory.LogProcessor(deal, taskID, WithLogger(m.log), WithClientConn(m.nodeConnection))
+	meta.poolProcessor = m.processorFactory.PoolProcessor(m.dealFactory.FromDeal(deal), taskID, WithLogger(m.log))
+	meta.logProcessor = m.processorFactory.LogProcessor(m.dealFactory.FromDeal(deal), taskID, WithLogger(m.log), WithClientConn(m.nodeConnection))
 	m.mu.Unlock()
 
 	g, ctx := errgroup.WithContext(ctx)

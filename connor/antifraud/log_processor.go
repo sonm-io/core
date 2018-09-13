@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/rcrowley/go-metrics"
+	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -24,7 +25,7 @@ type logParseFunc func(context.Context, *commonLogProcessor, io.Reader)
 type commonLogProcessor struct {
 	log          *zap.Logger
 	cfg          *ProcessorConfig
-	deal         *sonm.Deal
+	deal         *types.Deal
 	taskID       string
 	taskClient   sonm.TaskManagementClient
 	hashrateEWMA metrics.EWMA
@@ -35,7 +36,7 @@ type commonLogProcessor struct {
 	historyFile *os.File
 }
 
-func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientConn, deal *sonm.Deal, taskID string, lp logParseFunc) Processor {
+func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientConn, deal *types.Deal, taskID string, lp logParseFunc) Processor {
 	log = log.Named("task-logs").With(zap.String("task_id", taskID),
 		zap.String("deal_id", deal.GetId().Unwrap().String()))
 
@@ -54,7 +55,7 @@ func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientCon
 
 func (m *commonLogProcessor) TaskQuality() (bool, float64) {
 	accurate := m.startTime.Add(m.cfg.TaskWarmupDelay).Before(time.Now())
-	desired := float64(m.deal.Benchmarks.GPUEthHashrate())
+	desired := float64(m.deal.BenchmarkValue())
 	actual := m.hashrateEWMA.Rate()
 	return accurate, actual / desired
 }
@@ -163,7 +164,7 @@ func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 	}
 }
 
-func newClaymoreLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *sonm.Deal, taskID string) Processor {
+func newClaymoreLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *types.Deal, taskID string) Processor {
 	return newLogProcessor(cfg, log, nodeConnection, deal, taskID, claymoreLogParser)
 }
 

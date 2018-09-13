@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/connor/antifraud"
 	"github.com/sonm-io/core/connor/price"
+	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
@@ -132,8 +133,8 @@ func (c *Config) validateBenchmarks(list benchmarks.BenchList) error {
 	return nil
 }
 
-func (c *Config) getBaseBenchmarks() Benchmarks {
-	return Benchmarks{
+func (c *Config) getBaseBenchmarks() types.Benchmarks {
+	return types.Benchmarks{
 		Values: []uint64{
 			c.Market.Benchmarks["cpu-sysbench-multi"],
 			c.Market.Benchmarks["cpu-sysbench-single"],
@@ -147,15 +148,17 @@ func (c *Config) getBaseBenchmarks() Benchmarks {
 			c.Market.Benchmarks["gpu-eth-hashrate"],
 			c.Market.Benchmarks["gpu-cash-hashrate"],
 			c.Market.Benchmarks["gpu-redshift"],
+			c.Market.Benchmarks["cpu-cryptonight"],
 		},
 	}
 }
 
 func (c *Config) backends() *backends {
+	// todo: do not init backends on each call
 	return &backends{
 		processorFactory: antifraud.NewProcessorFactory(&c.AntiFraud),
-		corderFactory:    NewCorderFactory(c.Container.Tag, c.Market.benchmarkID, c.Market.Counterparty),
-		dealFactory:      NewDealFactory(c.Market.benchmarkID),
+		corderFactory:    types.NewCorderFactory(c.Container.Tag, c.Market.benchmarkID, c.Market.Counterparty),
+		dealFactory:      types.NewDealFactory(c.Market.benchmarkID),
 		priceProvider:    c.PriceSource.Init(c.Market.PriceControl.Marginality),
 	}
 }

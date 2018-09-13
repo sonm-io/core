@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rcrowley/go-metrics"
 	"github.com/sonm-io/core/connor/price"
-	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"gopkg.in/oleiade/lane.v1"
@@ -23,7 +23,7 @@ type dwarfPoolProcessor struct {
 	wallet   common.Address
 	taskID   string
 	workerID string
-	deal     *sonm.Deal
+	deal     *types.Deal
 
 	startTime       time.Time
 	currentHashrate float64
@@ -31,7 +31,7 @@ type dwarfPoolProcessor struct {
 	hashrateQueue   *lane.Queue
 }
 
-func newDwarfPoolProcessor(cfg *ProcessorConfig, log *zap.Logger, deal *sonm.Deal, taskID string) *dwarfPoolProcessor {
+func newDwarfPoolProcessor(cfg *ProcessorConfig, log *zap.Logger, deal *types.Deal, taskID string) *dwarfPoolProcessor {
 	workerID := fmt.Sprintf("c%s", deal.GetId().Unwrap().String())
 	l := log.Named("dwarfpool").With(
 		zap.String("deal_id", deal.GetId().Unwrap().String()),
@@ -47,7 +47,7 @@ func newDwarfPoolProcessor(cfg *ProcessorConfig, log *zap.Logger, deal *sonm.Dea
 		startTime:       time.Now(),
 		deal:            deal,
 		hashrateEWMA:    metrics.NewEWMA(1 - math.Exp(-5.0/60.0/60)),
-		currentHashrate: float64(deal.GetBenchmarks().GPUEthHashrate()),
+		currentHashrate: float64(deal.BenchmarkValue()),
 		hashrateQueue:   &lane.Queue{Deque: lane.NewCappedDeque(60)},
 	}
 }
@@ -95,7 +95,7 @@ func (w *dwarfPoolProcessor) TaskID() string {
 func (w *dwarfPoolProcessor) TaskQuality() (bool, float64) {
 	// should not be configured - ewma is bound to 1 hour rate
 	accurate := w.startTime.Add(time.Hour).Before(time.Now())
-	desired := float64(w.deal.Benchmarks.GPUEthHashrate())
+	desired := float64(w.deal.BenchmarkValue())
 	actual := w.hashrateEWMA.Rate()
 	rate := actual / desired
 
