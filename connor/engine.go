@@ -645,7 +645,7 @@ func (e *engine) loadTasksOnce(ctx context.Context, log *zap.Logger, dealID *son
 	list := make([]*types.TaskStatus, 0)
 	for id, task := range taskList.GetInfo() {
 		if task.GetStatus() == sonm.TaskStatusReply_RUNNING {
-			list = append(list, &types.TaskStatus{task, id})
+			list = append(list, &types.TaskStatus{TaskStatusReply: task, ID: id})
 		}
 	}
 
