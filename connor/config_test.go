@@ -36,5 +36,18 @@ func TestApplyEnvTemplate(t *testing.T) {
 	assert.Equal(t, "123", m2["deal"])
 	assert.Equal(t, "sonm_123", m2["worker"])
 	assert.Equal(t, "123_123_123123_c123", m2["foo"])
+}
 
+func TestApplyEnvTemplate_Copy(t *testing.T) {
+	root := map[string]string{
+		"deal_id": "{DEAL_ID}",
+	}
+
+	env1 := applyEnvTemplate(root, sonm.NewBigIntFromInt(111))
+	assert.Equal(t, "111", env1["deal_id"])
+	assert.Equal(t, "{DEAL_ID}", root["deal_id"])
+
+	env2 := applyEnvTemplate(root, sonm.NewBigIntFromInt(222))
+	assert.Equal(t, "222", env2["deal_id"])
+	assert.Equal(t, "{DEAL_ID}", root["deal_id"])
 }

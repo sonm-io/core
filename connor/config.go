@@ -167,11 +167,12 @@ func (c *Config) backends() *backends {
 func applyEnvTemplate(env map[string]string, dealID *sonm.BigInt) map[string]string {
 	dealTag := "{DEAL_ID}"
 
+	result := map[string]string{}
 	for key, value := range env {
-		env[key] = strings.Replace(value, dealTag, dealID.Unwrap().String(), -1)
+		result[key] = strings.Replace(value, dealTag, dealID.Unwrap().String(), -1)
 	}
 
-	return env
+	return result
 }
 
 func NewConfig(path string) (*Config, error) {
