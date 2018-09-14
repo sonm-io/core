@@ -732,7 +732,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		NetworkOptions: network,
 		PublicKey:      publicKey,
 		StartAt:        time.Now(),
-		AskID:          ask.ID,
+		AskPlanID:      ask.ID,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -1061,7 +1061,7 @@ func (m *Worker) setupRunningContainers() error {
 			task.mounts = mounts
 
 			m.ovs.Attach(m.ctx, container.ID, &task)
-			m.resources.ConsumeTask(task.AskID, task.TaskID, task.TaskSpec.Resources)
+			m.resources.ConsumeTask(task.AskPlanID, task.TaskID, task.TaskSpec.Resources)
 		}
 	}
 

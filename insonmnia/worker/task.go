@@ -20,15 +20,17 @@ import (
 // Task for a target application.
 type Task struct {
 	*sonm.TaskSpec
-	Image        reference.Field
+	// Fields parsable from TaskSpec
+	Image     reference.Field
+	mounts    []volume.Mount
+	PublicKey PublicKey
+
 	Cgroup       string
 	CgroupParent string
 	TaskID       string
-	Autoremove   bool
-
+	//TODO: it's not used
+	Autoremove bool
 	GPUDevices []gpu.GPUID
-
-	mounts []volume.Mount
 
 	NetworkOptions *network.Network
 
@@ -36,11 +38,10 @@ type Task struct {
 	ContainerID string
 	StartAt     time.Time
 	Ports       nat.PortMap
-	PublicKey   PublicKey
 
 	NetworkIDs []string
 	dealID     *sonm.BigInt
-	AskID      string
+	AskPlanID  string
 }
 
 func (d *Task) ID() string {

@@ -187,7 +187,7 @@ func (m *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 		}
 	}
 	if !r.AskID.IsZero() {
-		builder = builder.Where("AskID = ?", r.AskID)
+		builder = builder.Where("AskPlanID = ?", r.AskID)
 	}
 	if !r.BidID.IsZero() {
 		builder = builder.Where("BidID = ?", r.BidID)
@@ -1810,7 +1810,7 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"SupplierID",
 		"ConsumerID",
 		"MasterID",
-		"AskID",
+		"AskPlanID",
 		"BidID",
 		"Duration",
 		"Price",
@@ -1934,7 +1934,7 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		SupplierID				TEXT NOT NULL,
 		ConsumerID				TEXT NOT NULL,
 		MasterID				TEXT NOT NULL,
-		AskID					TEXT NOT NULL,
+		AskPlanID					TEXT NOT NULL,
 		BidID					TEXT NOT NULL,
 		Duration 				INTEGER NOT NULL,
 		Price					TEXT NOT NULL,
