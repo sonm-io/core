@@ -396,7 +396,7 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 			return
 		case deal := <-dealsCh:
 			if deal.Status == pb.DealStatus_DEAL_CLOSED {
-				if err := m.cancelDealTasks(deal); err != nil {
+				if err := m.cancelDealTasks(deal.GetId()); err != nil {
 					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s: %s", deal.GetId().Unwrap().String(), err)
 				}
 			}
@@ -404,12 +404,12 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 	}
 }
 
-func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
+func (m *Worker) cancelDealTasks(dealID *pb.BigInt) error {
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
 	for key, container := range m.containers {
-		if container.DealID.Cmp(deal.GetId()) == 0 {
+		if container.DealID.Cmp(dealID) == 0 {
 			toDelete = append(toDelete, container)
 			delete(m.containers, key)
 		}
@@ -810,6 +810,15 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	go m.listenForStatus(statusListener, taskID)
 
+	deal, err := m.salesman.Deal(dealID)
+	if err != nil || deal.Status != pb.DealStatus_DEAL_ACCEPTED {
+		log.G(m.ctx).Warn("deal was closed before task was spawned")
+		if err := m.cancelDealTasks(dealID); err != nil {
+			log.S(m.ctx).Errorf("failed to drop tasks of closed deals: %s", err)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to start task: corresponding deal was closed")
+	}
+
 	return &reply, nil
 }
 
@@ -1081,7 +1090,7 @@ func (m *Worker) setupRunningContainers() error {
 	}
 
 	for _, deal := range closedDeals {
-		if err := m.cancelDealTasks(deal); err != nil {
+		if err := m.cancelDealTasks(deal.GetId()); err != nil {
 			return fmt.Errorf("failed to cancel tasks for deal %s: %v", deal.Id.Unwrap().String(), err)
 		}
 	}
