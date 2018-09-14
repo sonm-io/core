@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -19,6 +18,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xdocker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,13 +29,13 @@ func TestOvsSpool(t *testing.T) {
 	defer ovs.Close()
 	require.NoError(t, err, "failed to create Overseer")
 
-	ref, err := reference.ParseNormalizedNamed("docker.io/alpine")
+	ref, err := xdocker.NewReference("docker.io/alpine")
 	require.NoError(t, err, "failed to create Overseer")
-	err = ovs.Spool(ctx, Description{Reference: reference.AsField(ref)})
+	err = ovs.Spool(ctx, Description{Reference: ref})
 	require.NoError(t, err, "failed to pull an image")
 
-	ref, err = reference.ParseNormalizedNamed("docker2.io/alpine")
-	err = ovs.Spool(ctx, Description{Reference: reference.AsField(ref)})
+	ref, err = xdocker.NewReference("docker2.io/alpine")
+	err = ovs.Spool(ctx, Description{Reference: ref})
 	require.NotNil(t, err)
 }
 
@@ -114,9 +114,9 @@ func TestOvsSpawn(t *testing.T) {
 	ctx := context.Background()
 	ovs, err := NewOverseer(ctx, plugin.EmptyRepository())
 	require.NoError(t, err)
-	ref, err := reference.ParseNormalizedNamed("worker")
+	ref, err := xdocker.NewReference("worker")
 	require.NoError(t, err)
-	ch, info, err := ovs.Start(ctx, Description{Reference: reference.AsField(ref)})
+	ch, info, err := ovs.Start(ctx, Description{Reference: ref})
 	require.NoError(t, err)
 	cjson, err := cl.ContainerInspect(ctx, info.ID)
 	require.NoError(t, err)
@@ -155,9 +155,9 @@ func TestOvsAttach(t *testing.T) {
 	ctx := context.Background()
 	ovs, err := NewOverseer(ctx, plugin.EmptyRepository())
 	require.NoError(t, err)
-	ref, err := reference.ParseNormalizedNamed("worker")
+	ref, err := xdocker.NewReference("worker")
 	require.NoError(t, err)
-	_, info, err := ovs.Start(ctx, Description{Reference: reference.AsField(ref)})
+	_, info, err := ovs.Start(ctx, Description{Reference: ref})
 	require.NoError(t, err)
 	cjson, err := cl.ContainerInspect(ctx, info.ID)
 	require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestOvsAttach(t *testing.T) {
 
 	ovs2, err := NewOverseer(ctx, plugin.EmptyRepository())
 	require.NoError(t, err)
-	descr := Description{Reference: reference.AsField(ref)}
+	descr := Description{Reference: ref}
 	ch, err := ovs2.Attach(ctx, info.ID, descr)
 	t.Logf("attached to container %s", info.ID)
 	require.NoError(t, err)
@@ -214,11 +214,11 @@ func TestExpose(t *testing.T) {
 }
 
 func TestMarshalDescription(t *testing.T) {
-	ref, err := reference.ParseNamed("docker.io/sonm-io/tests:latest")
+	ref, err := xdocker.NewReference("docker.io/sonm-io/tests:latest")
 	require.NoError(t, err)
 
 	d := Description{
-		Reference: reference.AsField(ref),
+		Reference: ref,
 		NetworkOptions: &network.Network{
 			ID:               "1234",
 			Name:             "net_name",
@@ -255,9 +255,9 @@ func TestMarshalDescription(t *testing.T) {
 	err = json.Unmarshal(data, &n)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, n.Reference.Reference().String())
-	assert.Equal(t, d.Reference.Reference().String(), n.Reference.Reference().String())
-	assert.Equal(t, ref.String(), n.Reference.Reference().String())
+	assert.NotEmpty(t, n.Reference.String())
+	assert.Equal(t, d.Reference.String(), n.Reference.String())
+	assert.Equal(t, ref.String(), n.Reference.String())
 	assert.Equal(t, len(d.NetworkSpecs), len(n.NetworkSpecs))
 
 	assert.Equal(t, d.NetworkSpecs[0].Type, n.NetworkSpecs[0].Type)
