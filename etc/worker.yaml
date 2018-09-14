@@ -62,7 +62,10 @@ benchmarks:
 whitelist:
   # URL to downloads list of allowed containers.
   url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/general_whitelist.json"
+  # Deprecated: use PrivilegedIdentityLevel instead
   enabled: true
+  # allow users of this level or higher to skip whitelist
+  privileged_identity_level: identified
 
 matcher:
   poll_delay: 10s

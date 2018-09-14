@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/debug"
 )
 
@@ -22,10 +23,12 @@ type ResourcesConfig struct {
 }
 
 type WhitelistConfig struct {
-	Url                 string   `yaml:"url"`
-	Enabled             *bool    `yaml:"enabled" default:"true" required:"true"`
-	PrivilegedAddresses []string `yaml:"privileged_addresses"`
-	RefreshPeriod       uint     `yaml:"refresh_period" default:"60"`
+	Url string `yaml:"url"`
+	// Deprecated: use PrivilegedIdentityLevel instead. Breaking issue #1470.
+	Enabled                 *bool              `yaml:"enabled" default:"true" required:"true"`
+	PrivilegedAddresses     []string           `yaml:"privileged_addresses"`
+	RefreshPeriod           uint               `yaml:"refresh_period" default:"60"`
+	PrivilegedIdentityLevel sonm.IdentityLevel `yaml:"privileged_identity_level" default:"identified"`
 }
 
 type DevConfig struct {
@@ -35,7 +38,7 @@ type DevConfig struct {
 type Config struct {
 	Endpoint          string              `yaml:"endpoint" required:"true"`
 	Logging           logging.Config      `yaml:"logging"`
-	Resources         *ResourcesConfig    `yaml:"resources" required:"false" `
+	Resources         *ResourcesConfig    `yaml:"resources" required:"false"`
 	Blockchain        *blockchain.Config  `yaml:"blockchain"`
 	NPP               npp.Config          `yaml:"npp"`
 	SSH               *SSHConfig          `yaml:"ssh" required:"false" `
@@ -62,6 +65,10 @@ func NewConfig(path string) (*Config, error) {
 
 	if err != nil {
 		return nil, err
+	}
+	// TODO: drop in next major version. Breaking issue #1470.
+	if !*cfg.Whitelist.Enabled {
+		cfg.Whitelist.PrivilegedIdentityLevel = sonm.IdentityLevel_ANONYMOUS
 	}
 
 	return cfg, nil

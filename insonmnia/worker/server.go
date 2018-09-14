@@ -335,7 +335,10 @@ func (m *Worker) setupAuthorization() error {
 			return structs.DealID(request.(*pb.StartTaskRequest).GetDealID().Unwrap().String()), nil
 		}))),
 		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
-		auth.Allow(taskAPIPrefix+"PushTask").With(newDealAuthorization(m.ctx, m, newContextDealExtractor())),
+		auth.Allow(taskAPIPrefix+"PushTask").With(newAllOfAuth(
+			newDealAuthorization(m.ctx, m, newContextDealExtractor()),
+			newKYCAuthorization(m.ctx, m.cfg.Whitelist.PrivilegedIdentityLevel, m.eth.ProfileRegistry())),
+		),
 		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
 			return structs.DealID(request.(*pb.PullTaskRequest).DealId), nil
 		}))),
@@ -630,7 +633,7 @@ func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) 
 	if err != nil {
 		return false, nil, err
 	}
-	if level <= pb.IdentityLevel_REGISTERED {
+	if level < m.cfg.Whitelist.PrivilegedIdentityLevel {
 		return m.whitelist.Allowed(ctx, ref, spec.GetRegistry().Auth())
 	}
 

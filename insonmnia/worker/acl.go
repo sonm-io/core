@@ -4,10 +4,12 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
-	"github.com/sonm-io/core/proto"
+	// alias here is required for dumb gomock
+	sonm "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -37,7 +39,6 @@ type DealInfoSupplier interface {
 	GetDealInfo(ctx context.Context, id *sonm.ID) (*sonm.DealInfoReply, error)
 }
 
-// todo: do not accept Worker as param, use some interface that have DealInfo method.
 func newDealAuthorization(ctx context.Context, supplier DealInfoSupplier, extractor DealExtractor) auth.Authorization {
 	return &dealAuthorization{
 		ctx:       ctx,
@@ -75,6 +76,38 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return status.Errorf(codes.Unauthenticated, "wallet mismatch: %s", peerWallet)
 	}
 
+	return nil
+}
+
+type kycFetcher interface {
+	GetProfileLevel(ctx context.Context, owner common.Address) (sonm.IdentityLevel, error)
+}
+
+type kycAuthorization struct {
+	fetcher       kycFetcher
+	requiredLevel sonm.IdentityLevel
+}
+
+func newKYCAuthorization(ctx context.Context, requiredLevel sonm.IdentityLevel, fetcher kycFetcher) *kycAuthorization {
+	return &kycAuthorization{
+		fetcher:       fetcher,
+		requiredLevel: requiredLevel,
+	}
+}
+
+func (m *kycAuthorization) Authorize(ctx context.Context, request interface{}) error {
+	wallet, err := auth.ExtractWalletFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	actualLevel, err := m.fetcher.GetProfileLevel(ctx, *wallet)
+	if err != nil {
+		return err
+	}
+	if actualLevel < m.requiredLevel {
+		return status.Errorf(codes.Unauthenticated, "action not allowed for identity level %s, required %s identity level", actualLevel, m.requiredLevel)
+	}
 	return nil
 }
 
@@ -165,4 +198,21 @@ func (a *anyOfAuth) Authorize(ctx context.Context, request interface{}) error {
 
 func newAnyOfAuth(a ...auth.Authorization) auth.Authorization {
 	return &anyOfAuth{authorizers: a}
+}
+
+type allOfAuth struct {
+	authorizers []auth.Authorization
+}
+
+func (a *allOfAuth) Authorize(ctx context.Context, request interface{}) error {
+	for _, au := range a.authorizers {
+		if err := au.Authorize(ctx, request); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func newAllOfAuth(a ...auth.Authorization) auth.Authorization {
+	return &allOfAuth{authorizers: a}
 }
