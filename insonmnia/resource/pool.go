@@ -188,6 +188,9 @@ func (m *Scheduler) ResourceByTask(taskID string) (*sonm.AskPlanResources, error
 }
 
 func (m *Scheduler) OnDealFinish(taskID string) error {
+	// We don't care about error here if the task was already released, but we need to be sure, if it was not.
+	m.ReleaseTask(taskID)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	_, ok := m.taskToAskPlan[taskID]
