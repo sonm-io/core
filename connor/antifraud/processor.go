@@ -47,10 +47,7 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 	switch cfg.PoolProcessorConfig.Format {
 	case PoolFormatDwarf:
 		pool = func(deal *types.Deal, taskID string, opts ...Option) Processor {
-			o := &processorOpts{}
-			for _, opt := range opts {
-				opt(o)
-			}
+			o := makeOpts(opts...)
 			return newDwarfPoolProcessor(&cfg.PoolProcessorConfig, o.logger, deal, taskID)
 		}
 	case ProcessorFormatDisabled:
@@ -62,18 +59,12 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 	switch cfg.LogProcessorConfig.Format {
 	case LogFormatClaymore:
 		log = func(deal *types.Deal, taskID string, opts ...Option) Processor {
-			o := &processorOpts{}
-			for _, opt := range opts {
-				opt(o)
-			}
+			o := makeOpts(opts...)
 			return newClaymoreLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
 		}
 	case LogFormatXMRing:
 		log = func(deal *types.Deal, taskID string, opts ...Option) Processor {
-			o := &processorOpts{}
-			for _, opt := range opts {
-				opt(o)
-			}
+			o := makeOpts(opts...)
 			return newXmrigLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
 		}
 	case ProcessorFormatDisabled:
@@ -86,7 +77,14 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 		pool: pool,
 		log:  log,
 	}
+}
 
+func makeOpts(opts ...Option) *processorOpts {
+	o := &processorOpts{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return o
 }
 
 type processorOpts struct {
