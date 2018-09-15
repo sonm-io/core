@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -139,10 +138,6 @@ func NewDenyAuthorization() Authorization {
 
 func (denyAuthorization) Authorize(ctx context.Context, request interface{}) error {
 	return status.Error(codes.Unauthenticated, "permission denied")
-}
-
-func (denyAuthorization) AuthorizeStream(ctx context.Context, stream grpc.ServerStream) (grpc.ServerStream, error) {
-	return stream, nil
 }
 
 // NewTransportAuthorization constructs an authorization that allows to call
