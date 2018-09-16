@@ -41,7 +41,7 @@ func testE2EOne(t *testing.T, b API, path string) {
 
 	exists, err = b.QuotaExists(ctx, qgroupID, path)
 	require.NoError(err)
-	// require.True(exists)
+	require.True(exists)
 
 	const Limit = 10 * 1024 * 1024
 	require.NoError(b.QuotaLimit(ctx, Limit, qgroupID, path))

@@ -65,8 +65,46 @@ func (btrfsNativeAPI) QuotaEnable(ctx context.Context, path string) error {
 }
 
 func (btrfsNativeAPI) QuotaExists(ctx context.Context, qgroupID string, path string) (bool, error) {
-	// return false, fmt.Errorf("NOT IMPLEMENTED NATIVE API CALL")
-	return btrfsCLI{}.QuotaExists(ctx, qgroupID, path)
+	var args C.struct_btrfs_ioctl_search_args
+	args.key.tree_id = C.BTRFS_QUOTA_TREE_OBJECTID
+	args.key.max_type = C.BTRFS_QGROUP_INFO_KEY
+	args.key.min_type = C.BTRFS_QGROUP_INFO_KEY
+	args.key.max_objectid = C.__u64(math.MaxUint64)
+	args.key.max_offset = C.__u64(math.MaxUint64)
+	args.key.max_transid = C.__u64(math.MaxUint64)
+	args.key.nr_items = 4096
+
+	qgroupid, err := parseQgroupID(qgroupID)
+	if err != nil {
+		return false, err
+	}
+
+	dir, err := openDir(path)
+	if err != nil {
+		return false, err
+	}
+	defer closeDir(dir)
+
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
+		uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return false, fmt.Errorf("failed to search qgroup for %s: %v", path, errno.Error())
+	}
+
+	var sh C.struct_btrfs_ioctl_search_header
+	shSize := unsafe.Sizeof(sh)
+	buf := (*[1<<31 - 1]byte)(unsafe.Pointer(&args.buf[0]))[:C.BTRFS_SEARCH_ARGS_BUFSIZE]
+
+	for i := C.uint(0); i < args.key.nr_items; i++ {
+		sh = (*(*C.struct_btrfs_ioctl_search_header)(unsafe.Pointer(&buf[0])))
+		buf = buf[shSize:]
+		if sh._type == C.BTRFS_QGROUP_INFO_KEY && uint64(sh.offset) == qgroupid {
+			return true, nil
+		}
+		buf = buf[sh.len:]
+	}
+
+	return false, nil
 }
 
 func (b btrfsNativeAPI) QuotaCreate(ctx context.Context, qgroupID string, path string) error {
@@ -95,7 +133,7 @@ func (btrfsNativeAPI) quotaCreateOrDestroy(qgroupID string, path string, create 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_CREATE,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("failed to create qgroup for %s: %v", dir, errno.Error())
+		return fmt.Errorf("failed to create qgroup %s for %s: %v", qgroupID, path, errno.Error())
 	}
 
 	return nil
@@ -108,13 +146,19 @@ func (btrfsNativeAPI) QuotaLimit(ctx context.Context, sizeInBytes uint64, qgroup
 	}
 	defer closeDir(dir)
 
+	qgroupid, err := parseQgroupID(qgroupID)
+	if err != nil {
+		return err
+	}
+
 	var args C.struct_btrfs_ioctl_qgroup_limit_args
 	args.lim.max_exclusive = C.__u64(sizeInBytes)
 	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_EXCL
+	args.qgroupid = C.__u64(qgroupid)
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("failed to limit qgroup for %s: %v", dir, errno.Error())
+		return fmt.Errorf("failed to limit qgroup %s for %s: %v", qgroupID, path, errno.Error())
 	}
 
 	return nil
@@ -170,7 +214,41 @@ func (btrfsNativeAPI) quotaAssignOrRemove(src string, dst string, path string, a
 }
 
 func (btrfsNativeAPI) GetQuotaID(ctx context.Context, path string) (string, error) {
-	// return "", fmt.Errorf("NOT IMPLEMENTED NATIVE API CALL")
+	var args C.struct_btrfs_ioctl_search_args
+	args.key.tree_id = C.BTRFS_QUOTA_TREE_OBJECTID
+	args.key.max_type = C.BTRFS_QGROUP_INFO_KEY
+	args.key.min_type = C.BTRFS_QGROUP_INFO_KEY
+	args.key.max_objectid = C.__u64(math.MaxUint64)
+	args.key.max_offset = C.__u64(math.MaxUint64)
+	args.key.max_transid = C.__u64(math.MaxUint64)
+	args.key.nr_items = 4096
+
+	dir, err := openDir(path)
+	if err != nil {
+		return "", err
+	}
+	defer closeDir(dir)
+
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
+		uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return "", fmt.Errorf("failed to search qgroup at %s: %v", path, errno.Error())
+	}
+
+	var sh C.struct_btrfs_ioctl_search_header
+	shSize := unsafe.Sizeof(sh)
+	buf := (*[1<<31 - 1]byte)(unsafe.Pointer(&args.buf[0]))[:C.BTRFS_SEARCH_ARGS_BUFSIZE]
+
+	for i := C.uint(0); i < args.key.nr_items; i++ {
+		sh = (*(*C.struct_btrfs_ioctl_search_header)(unsafe.Pointer(&buf[0])))
+		buf = buf[shSize:]
+		if sh._type == C.BTRFS_QGROUP_INFO_KEY {
+			// TODO: implement
+			// return fmt.Sprintf("%d/%d", sh.objectid, sh.offset), nil
+		}
+		buf = buf[sh.len:]
+	}
+
 	return btrfsCLI{}.GetQuotaID(ctx, path)
 }
 

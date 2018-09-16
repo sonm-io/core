@@ -76,7 +76,6 @@ func lookupQuotaInShowOutput(output []byte, qgroupID string) (bool, error) {
 }
 
 func (btrfsCLI) GetQuotaID(ctx context.Context, path string) (string, error) {
-	// btrfs subvolume list -t -o
 	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "show", "-f", path).Output()
 	if err != nil {
 		log.G(ctx).Error("failed to lookup groupid for a btrfs subvolume", zap.String("path", path), zap.Error(err))
