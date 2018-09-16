@@ -214,6 +214,21 @@ func (btrfsNativeAPI) quotaAssignOrRemove(src string, dst string, path string, a
 }
 
 func (btrfsNativeAPI) GetQuotaID(ctx context.Context, path string) (string, error) {
+	dir, err := openDir(path)
+	if err != nil {
+		return "", err
+	}
+	defer closeDir(dir)
+	// https://github.com/kdave/btrfs-progs/blob/7faaca0d9f78f7162ae603231f693dd8e1af2a41/cmds-qgroup.c#L387
+	var xargs C.struct_btrfs_ioctl_ino_lookup_args
+	xargs.treeid = 0
+	xargs.objectid = C.BTRFS_FIRST_FREE_OBJECTID
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
+		uintptr(unsafe.Pointer(&xargs)))
+	if errno != 0 {
+		return "", fmt.Errorf("failed to search qgroup at %s: %v", path, errno.Error())
+	}
+
 	var args C.struct_btrfs_ioctl_search_args
 	args.key.tree_id = C.BTRFS_QUOTA_TREE_OBJECTID
 	args.key.max_type = C.BTRFS_QGROUP_INFO_KEY
@@ -223,13 +238,7 @@ func (btrfsNativeAPI) GetQuotaID(ctx context.Context, path string) (string, erro
 	args.key.max_transid = C.__u64(math.MaxUint64)
 	args.key.nr_items = 4096
 
-	dir, err := openDir(path)
-	if err != nil {
-		return "", err
-	}
-	defer closeDir(dir)
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return "", fmt.Errorf("failed to search qgroup at %s: %v", path, errno.Error())
@@ -242,14 +251,14 @@ func (btrfsNativeAPI) GetQuotaID(ctx context.Context, path string) (string, erro
 	for i := C.uint(0); i < args.key.nr_items; i++ {
 		sh = (*(*C.struct_btrfs_ioctl_search_header)(unsafe.Pointer(&buf[0])))
 		buf = buf[shSize:]
-		if sh._type == C.BTRFS_QGROUP_INFO_KEY {
-			// TODO: implement
-			// return fmt.Sprintf("%d/%d", sh.objectid, sh.offset), nil
+		if sh._type == C.BTRFS_QGROUP_INFO_KEY && xargs.treeid == sh.offset {
+			return fmt.Sprintf("%d/%d", sh.objectid, sh.offset), nil
 		}
 		buf = buf[sh.len:]
 	}
 
-	return btrfsCLI{}.GetQuotaID(ctx, path)
+	// return btrfsCLI{}.GetQuotaID(ctx, path)
+	return "", fmt.Errorf("not found")
 }
 
 // https://github.com/oldcap/btrfs-progs/blob/master/qgroup.c#L1223
