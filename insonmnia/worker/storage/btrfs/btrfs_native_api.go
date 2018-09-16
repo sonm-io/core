@@ -65,7 +65,8 @@ func (btrfsNativeAPI) QuotaEnable(ctx context.Context, path string) error {
 }
 
 func (btrfsNativeAPI) QuotaExists(ctx context.Context, qgroupID string, path string) (bool, error) {
-	return false, fmt.Errorf("NOT IMPLEMENTED NATIVE API CALL")
+	// return false, fmt.Errorf("NOT IMPLEMENTED NATIVE API CALL")
+	return btrfsCLI{}.QuotaExists(ctx, qgroupID, path)
 }
 
 func (b btrfsNativeAPI) QuotaCreate(ctx context.Context, qgroupID string, path string) error {
@@ -151,20 +152,26 @@ func (btrfsNativeAPI) quotaAssignOrRemove(src string, dst string, path string, a
 	}
 	defer closeDir(dir)
 
-	r1, r2, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_ASSIGN,
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_ASSIGN,
 		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
+	// https://github.com/kdave/btrfs-progs/blob/23df5de0d07028f31f017a0f80091ba158980742/cmds-qgroup.c#L108
+	if errno == 0 {
+		return nil
+	} else if errno < 0 {
 		return fmt.Errorf("failed to assign qgroup for %s: %v", dir, errno.Error())
 	}
-	fmt.Printf("%v %v %s\n", r1, r2, errno)
-	// TODO: add rescan in case of error!!!
-	// https://github.com/kdave/btrfs-progs/blob/23df5de0d07028f31f017a0f80091ba158980742/cmds-qgroup.c#L108
-
+	// errno > 0 -> rescan
+	var qargs C.struct_btrfs_ioctl_quota_rescan_args
+	_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN, uintptr(unsafe.Pointer(&qargs)))
+	if errno < 0 {
+		return fmt.Errorf("rescan failed, quotas may be inconsistent %s: %v", dir, errno)
+	}
 	return nil
 }
 
 func (btrfsNativeAPI) GetQuotaID(ctx context.Context, path string) (string, error) {
-	return "", fmt.Errorf("NOT IMPLEMENTED NATIVE API CALL")
+	// return "", fmt.Errorf("NOT IMPLEMENTED NATIVE API CALL")
+	return btrfsCLI{}.GetQuotaID(ctx, path)
 }
 
 // https://github.com/oldcap/btrfs-progs/blob/master/qgroup.c#L1223
