@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -38,7 +37,7 @@ const dieEvent = "die"
 // Description for a target application.
 type Description struct {
 	pb.Container
-	Reference    reference.Field
+	Reference    xdocker.Reference
 	Auth         string
 	Resources    *pb.AskPlanResources
 	CGroupParent string
@@ -466,10 +465,10 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	if err != nil {
 		return err
 	}
-	refStr := d.Reference.Reference().String()
+	refStr := d.Reference.String()
 	for _, summary := range summaries {
 		if summary.ID == refStr {
-			log.S(ctx).Infof("application image %s is already present", d.Reference.Reference().String())
+			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
 			return nil
 		}
 	}

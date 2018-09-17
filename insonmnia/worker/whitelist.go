@@ -14,13 +14,15 @@ import (
 	dc "github.com/docker/docker/client"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/opencontainers/go-digest"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
 )
 
 type Whitelist interface {
-	Allowed(ctx context.Context, ref reference.Reference, auth string) (bool, reference.Reference, error)
+	Allowed(ctx context.Context, ref xdocker.Reference, auth string) (bool, xdocker.Reference, error)
 }
 
 func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
@@ -39,7 +41,7 @@ func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
 }
 
 type WhitelistRecord struct {
-	AllowedHashes []string `json:"allowed_hashes"`
+	AllowedHashes []digest.Digest `json:"allowed_hashes"`
 }
 
 type whitelist struct {
@@ -95,7 +97,7 @@ func (w *whitelist) fillFromJsonReader(ctx context.Context, jsonReader io.Reader
 	return nil
 }
 
-func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
+func (w *whitelist) digestAllowed(name string, digest digest.Digest) (bool, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return false, err
@@ -117,48 +119,43 @@ func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	return false, nil
 }
 
-func (w *whitelist) Allowed(ctx context.Context, ref reference.Reference, authority string) (bool, reference.Reference, error) {
+func (w *whitelist) Allowed(ctx context.Context, ref xdocker.Reference, authority string) (bool, xdocker.Reference, error) {
 	wallet, err := auth.ExtractWalletFromContext(ctx)
 	if err != nil {
 		log.G(ctx).Warn("could not extract wallet from context", zap.Error(err))
-		return false, nil, err
+		return false, ref, err
 	}
 	_, ok := w.superusers[wallet.Hex()]
 	if ok {
 		return true, ref, nil
 	}
 
-	digestedRef, isDigested := ref.(reference.Digested)
-	if isDigested {
-		if err != nil {
-			return false, nil, err
-		}
-		if _, ok := ref.(reference.Named); !ok {
-			return false, nil, errors.New("can not check whitelist for unnamed reference")
-		}
+	if !ref.HasName() {
+		return false, ref, errors.New("can not check whitelist for unnamed reference")
+	}
 
-		allowed, err := w.digestAllowed(ref.(reference.Named).Name(), (string)(digestedRef.Digest()))
-
+	if ref.HasDigest() {
+		allowed, err := w.digestAllowed(ref.Name(), ref.Digest())
 		return allowed, ref, err
 	}
+
 	dockerClient, err := dc.NewEnvClient()
 	if err != nil {
-		return false, nil, err
+		return false, ref, err
 	}
 	defer dockerClient.Close()
 
 	inspection, err := dockerClient.DistributionInspect(ctx, ref.String(), authority)
 	if err != nil {
-		return false, nil, fmt.Errorf("could not perform DistributionInspect for %s: %v", ref.String(), err)
+		return false, ref, fmt.Errorf("could not perform DistributionInspect for %s: %v", ref.String(), err)
 	}
 
-	ref, err = reference.WithDigest(ref.(reference.Named), inspection.Descriptor.Digest)
+	ref, err = ref.WithDigest(inspection.Descriptor.Digest)
 	if err != nil {
-		// This should never happen
-		panic("logical error - can not append digest and parse")
+		return false, ref, fmt.Errorf("could not add digest to reference %s: %v", ref.String(), err)
 	}
 
-	allowed, err := w.digestAllowed(ref.(reference.Named).Name(), (string)(inspection.Descriptor.Digest))
+	allowed, err := w.digestAllowed(ref.Name(), inspection.Descriptor.Digest)
 
 	return allowed, ref, err
 }
