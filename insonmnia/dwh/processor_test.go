@@ -315,7 +315,7 @@ func testCertificateCreated(p *L1Processor, certificate *pb.Certificate, commonI
 }
 
 func testCertificateUpdated(p *L1Processor, cert *pb.Certificate) error {
-	if err := p.onCertificateUpdated(newSimpleConn(p.db), cert.Id.Unwrap()); err != nil {
+	if err := p.onCertificateUpdated(cert.Id.Unwrap()); err != nil {
 		return fmt.Errorf("(CertificateUpdated) %v", err)
 	}
 

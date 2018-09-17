@@ -273,6 +273,8 @@ func (m *L1Processor) processEvent(event *blockchain.Event) error {
 		return m.onValidatorDeleted(value.ID)
 	case *blockchain.CertificateCreatedData:
 		return m.onCertificateCreated(value.ID)
+	case *blockchain.CertificateUpdatedData:
+		return m.onCertificateUpdated(value.ID)
 	}
 
 	return nil
@@ -792,7 +794,13 @@ func (m *L1Processor) updateProfileStats(conn queryConn, orderType pb.OrderType,
 	return nil
 }
 
-func (m *L1Processor) onCertificateUpdated(conn queryConn, certID *big.Int) error {
+func (m *L1Processor) onCertificateUpdated(certID *big.Int) error {
+	conn, err := newTxConn(m.db, m.logger)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+	defer conn.Finish()
+
 	cert, err := m.storage.GetCertificate(conn, certID)
 	if err != nil {
 		return fmt.Errorf("failed to GetCertificate: %v", err)
