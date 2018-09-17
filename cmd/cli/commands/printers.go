@@ -211,7 +211,7 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 		}
 
 		w := tablewriter.NewWriter(cmd.OutOrStdout())
-		w.SetHeader([]string{"ID", "type", "price", "duration"})
+		w.SetHeader([]string{"ID", "type", "tag", "price", "duration"})
 		w.SetBorder(false)
 
 		for _, order := range orders {
@@ -225,6 +225,7 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 			w.Append([]string{
 				order.GetId().Unwrap().String(),
 				order.OrderType.String(),
+				string(order.GetTag()),
 				order.PricePerHour(),
 				duration,
 			})
