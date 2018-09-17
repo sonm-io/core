@@ -844,11 +844,6 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	_, err := m.storage.Remove(containerInfo.TaskId)
-
-	if err != nil {
-		log.G(ctx).Warn("failed to delete cached container info", zap.Error(err))
-	}
 
 	return &pb.Empty{}, nil
 }
@@ -1020,7 +1015,7 @@ func (m *Worker) setupRunningContainers() error {
 	// Overseer maintains it's own instance of docker.Client
 	defer dockerClient.Close()
 
-	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{})
+	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{All: true})
 	if err != nil {
 		return err
 	}
