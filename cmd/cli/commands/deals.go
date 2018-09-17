@@ -290,7 +290,8 @@ var dealCloseCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("cannot finish deal: %v", err)
 		}
-		printErrorById(cmd, status)
+
+		printErrorByID(cmd, newTupleFromErrors(status))
 		return nil
 	},
 }
@@ -317,7 +318,7 @@ var dealPurgeCmd = &cobra.Command{
 			return fmt.Errorf("cannot purge deals: %v", err)
 		}
 
-		printErrorById(cmd, status)
+		printErrorByID(cmd, newTupleFromErrors(status))
 		return nil
 	},
 }

@@ -163,6 +163,7 @@ It has these top-level messages:
 	SchedulerData
 	SalesmanData
 	DebugStateReply
+	PurgeTasksRequest
 */
 package sonm
 

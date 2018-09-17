@@ -336,6 +336,9 @@ func (m *Worker) setupAuthorization() error {
 		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
 			return structs.DealID(request.(*sonm.StartTaskRequest).GetDealID().Unwrap().String()), nil
 		}))),
+		auth.Allow(taskAPIPrefix+"PurgeTasks").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+			return structs.DealID(request.(*sonm.PurgeTasksRequest).GetDealID().Unwrap().String()), nil
+		}))),
 		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"PushTask").With(newAllOfAuth(
 			newDealAuthorization(m.ctx, m, newContextDealExtractor()),
@@ -826,16 +829,47 @@ func (m *Worker) StopTask(ctx context.Context, request *sonm.ID) (*sonm.Empty, e
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
-	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
+	if err := m.stopTask(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
-		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, request.Id)
-
-		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
+		return nil, err
 	}
 
-	m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_FINISHED}, request.Id)
-
 	return &sonm.Empty{}, nil
+}
+
+func (m *Worker) stopTask(ctx context.Context, id string) error {
+	if err := m.ovs.Stop(ctx, id); err != nil {
+		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, id)
+		return status.Errorf(codes.Internal, "failed to stop container %v", err)
+	}
+
+	m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_FINISHED}, id)
+	return nil
+}
+
+func (m *Worker) PurgeTasks(ctx context.Context, request *sonm.PurgeTasksRequest) (*sonm.ErrorByStringID, error) {
+	var toDelete []*ContainerInfo
+
+	m.mu.Lock()
+	for _, info := range m.containers {
+		if info.DealID.Cmp(request.GetDealID()) == 0 {
+			toDelete = append(toDelete, info)
+		}
+	}
+	m.mu.Unlock()
+
+	errs := &sonm.ErrorByStringID{Response: []*sonm.ErrorByStringID_Item{}}
+	for _, task := range toDelete {
+		if task.status == sonm.TaskStatusReply_RUNNING {
+			item := &sonm.ErrorByStringID_Item{ID: task.TaskId}
+			if err := m.stopTask(ctx, task.ID); err != nil {
+				item.Error = err.Error()
+			}
+			errs.Response = append(errs.Response, item)
+		}
+	}
+
+	return errs, nil
 }
 
 func (m *Worker) Tasks(ctx context.Context, request *sonm.Empty) (*sonm.TaskListReply, error) {

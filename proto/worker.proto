@@ -58,6 +58,8 @@ service Worker {
     // StartTask schedules the task associcated with a deal.
     rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
+    // PurgeTasks stops all tasks by given deal
+    rpc PurgeTasks(PurgeTasksRequest) returns (ErrorByStringID) {}
     rpc TaskStatus(ID) returns (TaskStatusReply) {}
     rpc JoinNetwork(WorkerJoinNetworkRequest) returns (NetworkSpec) {}
 
@@ -183,4 +185,8 @@ message SalesmanData {
 message DebugStateReply {
     SchedulerData schedulerData = 1;
     SalesmanData salesmanData = 2;
+}
+
+message PurgeTasksRequest {
+    BigInt dealID = 1;
 }

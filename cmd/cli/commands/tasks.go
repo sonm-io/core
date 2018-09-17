@@ -39,6 +39,7 @@ func init() {
 		taskStatusCmd,
 		taskLogsCmd,
 		taskStopCmd,
+		taskPurgeCmd,
 		taskPullCmd,
 		taskPushCmd,
 		taskJoinNetworkCmd,
@@ -383,6 +384,35 @@ var taskStopCmd = &cobra.Command{
 		}
 
 		showOk(cmd)
+		return nil
+	},
+}
+
+var taskPurgeCmd = &cobra.Command{
+	Use:   "purge <deal_id>",
+	Short: "Purge all tasks running on given deal",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		strID := args[0]
+		id, err := sonm.NewBigIntFromString(strID)
+		if err != nil {
+			return err
+		}
+
+		node, err := newTaskClient(ctx)
+		if err != nil {
+			return fmt.Errorf("cannot create client connection: %v", err)
+		}
+
+		taskErr, err := node.PurgeTasks(newDealContext(ctx, strID), &sonm.PurgeTasksRequest{DealID: id})
+		if err != nil {
+			return fmt.Errorf("cannot purge tasks: %v", err)
+		}
+
+		printErrorByID(cmd, newTupleFromString(taskErr))
 		return nil
 	},
 }
