@@ -49,7 +49,7 @@ func (m *OrderPredictor) PredictPrice(order *MarketOrder) (float64, error) {
 		if m.normalizers[id] == nil {
 			continue
 		}
-		vec = append(vec, m.normalizers[id].Normalize(float64(benchmark)))
+		vec = append(vec, math.Max(0.0, m.normalizers[id].Normalize(float64(benchmark))))
 	}
 
 	price, err := m.predictor.Predict(vec)
