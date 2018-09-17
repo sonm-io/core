@@ -1,3 +1,155 @@
+sonm-core (0.4.11) unstable; urgency=low
+
+  * Added: restrict Optimus CPU usage via cgroup (#1244).
+    This commit allows restricting Optimus CPU usage via cgroups from the
+    config.
+    Since Optimus can consume a significant amount of CPU this can be useful
+    for semi-automatic resource restrictions.
+  * Added: disabled anti-fraud modules in Connor (#1370).
+    This commit adds null log and pool processors for Connor's anti-fraud
+    module.
+    It can be used for testing purposes or if the user wants to run
+    custom (non-mining) tasks with external quality tracking.
+  * Added: detect duplicate orders in Optimus (#1359).
+    During learning the following situation may appear: there are a set of
+    orders that are planned to replace existing ones, but some of them are
+    technically equal, i.e. have the same resources, price, and duration.
+    Current Optimus just replaces ask-plans, which results in deal
+    cancellation, which is not good.
+    This commit teaches Optimus to detect duplicate orders when it's time to
+    replace ask-plans with more profitable ones and not to touch them if any.
+  * Added: store Connor's task logs (#1390).
+  * Added: NPP metrics in Node (#1392).
+    This commit adds NPP metric collection on a client side, allowing to
+    see how exactly connections are established, which kind of NAT punching
+    tool was used and how much time it was consumed. Also, there is a new
+    service in Node - monitoring, where one can fetch collected metrics.
+  * Added: counterparty address for Connor's orders (#1401).
+    This commit adds an ability to set counterparty address and place orders
+    only for the required supplier. Also, migration code was added.
+    If a user wants to change non-main benchmark or set counterparty or change
+    netflags, Connor should be able to detect that new requirements are
+    changed.
+    It reached with partial order hashing when we decide to restore existing
+    order or not.
+  * Added: worker address flag for CLI (#1431).
+    This PR adds an ability to specify custom worker address in CLI to work
+    with.
+  * Added: add push_on_stop flag to container desc (#1426).
+    This PR introduces a push_on_stop flag to task specification that makes
+    pushing to remote repository conditional.
+  * Added: verbose filtering in Optimus (#1443).
+  * Added: log requests in Rendezvous (#1455).
+  * Added: extended status for Worker (#1456).
+    This commit extends status method with following data:
+    - Master and admin addresses.
+    - Are benchmarks passed?
+    - Is the master address confirmed?
+    We are forced to start gRPC server before benchmarks passed and master
+    confirmed.
+    Now, on worker's startup, only WorkerManagement service will be registered,
+    and no NPP listener used.
+    When all of the setup routines completed, we're closing gRPC server and
+    re-create it with fully-registered services and NPP listener.
+  * Added: generate SSH key instead of requiring (#1462).
+    This commit simplifies SSH server configuration on a Worker by deprecating
+    "private_key_path" option in "ssh" section. Now SSH key is generated at
+    Worker startup and cached in boltdb.
+  * Added: Connor's log processor for xmrig (#1472).
+    This commit adds a new log processor type for Connor's anti-fraud module.
+    Brand new processor able to read logs from the xmrig miner, which is used
+    to mine Monero (cryptonight) on CPUs.
+  * Changed: process blockchain in Worker in parallel (#1377).
+    This PR enables parallel blockchain processing in the salesman, which
+    results in a boost in massive ask-plan creation or purging.
+  * Changed: show tags in orders list (#1503).
+  * Fixed: proper deal closing when a price is changed in Connor (#1352).
+    Such problem occurs in the following conditions: Connor detects price
+    deviation and starts replacing orders, also it starts to close
+    non-profitable deals. When the deal is closed, a worker on another
+    side can pick the order that we schedule for cancellation. This order
+    is turned into a deal that immediately will be closed because of the low
+    price. So this shitfall will perform until all of the orders isn't
+    replaced. This commit fixes that behavior: now Connor checks that the
+    cancel chan is empty before really closing an active deal.
+  * Fixed: remove repo & tag from an uploaded image (#1353).
+  * Fixed: allow gRPC logger to truncate specific methods output (#1360).
+  * Fixed: proper (un)marshaling for empty SSH keys (#1375).
+    This commit fixes couple bugs introduced in #1281.
+    - Failed to start a task without providing ssh pubkey.
+    - Marshalling an empty pubkey crashes worker.
+  * Fixed: show allocated resources in TaskStatus (#1368).
+    This commit fills the `AllocatedResources` field from the deal's ask-plan.
+    Actual resources info gives an ability to show what part of deal's
+    resources are acquired by task, at least what GPUs is used.
+  * Fixed: properly parse docker load output (#1373).
+  * Fixed: kill tasks if deal was closed (#1387).
+  * Fixed: proper init for disabled processor in Connor (#1388).
+  * Fixed: Node hanging on failed startup (#1395).
+    This commit fixes race when Node starts with some failed condition, for
+    example, when SSH port is occupied, and then hangs forever.
+  * Fixed: properly close read/write part of sockets in Relay (#1398).
+  * Fixed: proper deal id comparison (#1408).
+  * Fixed: socket leak in Node (#1424).
+    This commit fixes socket leakage in Node by draining pending channels in
+    case of timeout errors.
+  * Fixed: unregister closed deal despite the result of order deregistration (#1433).
+    Due to some strange circumstances, that could be possible if we received
+    stale data from blockchain after deal registration, or failed to save data
+    in boltdb, an order could be removed before a deal, resulting in a
+    neverending cycle of deal removal. This PR fixes this behavior.
+  * Fixed: restore deals only if Connor is a consumer (#1427).
+  * Fixed: proper task tag printer (#1451).
+  * Fixed: proper error if the profile doesn't exist (#1450).
+  * Fixed: proper identity level checking worker SSH (#1444).
+    This commit fixes invalid identity level verification while performing SSH
+    access to a container using NPP API.
+    Previously an identity level of ask-plan was checked, while actually it
+    must be the consumer's level checked.
+  * Fixed: properly detect IPv4 addresses (#1460).
+    For some unknown reasons, Go developers keep IPv4 addresses in a slice of
+    size 16(!). It's so logical, yes.
+  * Fixed: the proper formula for XMR price calculation (#1459).
+    This commit fixes calculation algo for XMR.  Also, a signature of the
+    PriceProvider's `calculateFunc` has been changed because we want to use
+    all available token params, not only reward and net difficulty.
+  * Fixed: proper env params applying in Connor (#1474).
+  * Fixed: restrict image push with KYC level (#1458).
+    This PR introduces ACL which checks KYC level and allow only users of a
+    specific level to push custom images on the worker. Also, it's made
+    configurable and it is reused in whitelist configuration.
+  * Fixed: drop task if the deal was closed during startup (#1476).
+    This PR fixes bug, when a deal was closed during task start and the task
+    was not released properly.
+  * Fixed: underflow in price prediction service (#1498).
+  * Fixed: show all balances when with output=JSON (#1500).
+  * Fixed: keep container info after task stop (#1441).
+  * Fixed: activate onCertificateUpdated handler in DWH (#1502).
+  * Fixed: configurable EWMA for Connor's processor (#1478).
+  * Fixed: properly initialize tinc network (#1505).
+    This PR fixes ability to add tinc network alongside shaped interface. As
+    Docker does not accept multiple networks during container creation we do
+    connect them afterward.
+  * Fixed: log the supplier's address in Connor (#1510).
+    This commit extends Connor's logger (bounded to a deal) with the supplier
+    eth address.
+    Also, use proper logger instance in the `startTaskOnce` method.
+  * Fixed: proper logging on price deviation in Connor (#1511).
+    Early we logging price-per-second-per-hash from the PriceProvider,
+    this commit replaces this value with full order price per second which
+    is more easy for future analysis.
+  * Fixed: proper log processor for Connor (#1514).
+    This commit fixes several issues with log processor:
+    - Wrap calculated hashrate value with atomic to make it thread-safe.
+    - Perform initializing tick for EWMA.
+    - Add timestamps for stored logs.
+    - Read logs with tail. It prevents us from reloading full task log when
+      Connor restarts or when connection was lost and Connor should start
+      read logs again.
+  * Fixed: proper systemd config (#1516).
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 17 Sep 2018 15:00:16 +0300
+
 sonm-core (0.4.10) unstable; urgency=low
 
   * Added: DWH L2 (#1295).
