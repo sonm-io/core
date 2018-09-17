@@ -128,14 +128,10 @@ func (t *TincTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostConf
 	//t.netDriver.RegisterNetworkMapping(response.ID, net.ID())
 	if config.EndpointsConfig == nil {
 		config.EndpointsConfig = make(map[string]*network.EndpointSettings)
-		config.EndpointsConfig[response.ID] = &network.EndpointSettings{
-			//IPAMConfig: &network.EndpointIPAMConfig{
-			//	IPv4Address: net.NetworkAddr(),
-			//},
-			//IPAddress: net.NetworkAddr(),
-			//NetworkID: response.ID,
-			DriverOpts: opts,
-		}
+	}
+	config.EndpointsConfig[response.ID] = &network.EndpointSettings{
+		NetworkID:  response.ID,
+		DriverOpts: opts,
 	}
 
 	return &TincCleaner{
