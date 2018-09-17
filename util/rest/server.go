@@ -159,7 +159,7 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if len(body) == 0 {
 		s.log.Error("missing required body")
 		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(fmt.Sprintf("miissing required body")))
+		rw.Write([]byte(fmt.Sprintf("missing required body")))
 		return
 	}
 
