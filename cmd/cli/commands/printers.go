@@ -567,6 +567,11 @@ func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
 		cmd.Printf("On SONM:     %s SNM\n", sideSNM)
 	} else {
 		showJSON(cmd, map[string]map[string]string{"balance": {
+			"eth_live": liveEth,
+			"snm_live": liveSNM,
+			"snm_side": sideSNM,
+			// TODO: Will be removed in the next
+			// minor version update #1499
 			"ethereum": liveSNM,
 			"sonm":     sideSNM,
 		}})
