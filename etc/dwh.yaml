@@ -13,7 +13,7 @@ ethereum:
   pass_phrase: "any"
 
 blockchain:
-   blocks_batch_size: 500000
+  blocks_batch_size: 500000
 
 logging:
   # The desired logging level.
