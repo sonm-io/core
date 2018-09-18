@@ -46,7 +46,7 @@ func newDwarfPoolProcessor(cfg *ProcessorConfig, log *zap.Logger, deal *types.De
 		wallet:          deal.GetConsumerID().Unwrap(),
 		startTime:       time.Now(),
 		deal:            deal,
-		hashrateEWMA:    metrics.NewEWMA(1 - math.Exp(-5.0/60.0/60)),
+		hashrateEWMA:    metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
 		currentHashrate: float64(deal.BenchmarkValue()),
 		hashrateQueue:   &lane.Queue{Deque: lane.NewCappedDeque(60)},
 	}

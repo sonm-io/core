@@ -99,11 +99,15 @@ antifraud:
     format: claymore
     track_interval: 30s
     warmup_delay: 5m
+    # EWMA decay factor, seconds
+    decay_time: 900
 
   pool_processor:
     format: dwarf
     track_interval: 1m
     warmup_delay: 15m
+    # EWMA decay factor, seconds
+    decay_time: 3600
 
 engine:
   # timeout for connections to external services

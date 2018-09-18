@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -47,7 +48,7 @@ func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientCon
 		taskID:       taskID,
 		logParser:    lp,
 		taskClient:   sonm.NewTaskManagementClient(conn),
-		hashrateEWMA: metrics.NewEWMA1(),
+		hashrateEWMA: metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
 		startTime:    time.Now(),
 		hashrate:     float64(deal.Benchmarks.GPUEthHashrate()),
 	}
