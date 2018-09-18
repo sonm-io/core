@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/connor/price"
 	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"gopkg.in/oleiade/lane.v1"
 )
@@ -26,7 +27,7 @@ type dwarfPoolProcessor struct {
 	deal     *types.Deal
 
 	startTime       time.Time
-	currentHashrate float64
+	currentHashrate *atomic.Float64
 	hashrateEWMA    metrics.EWMA
 	hashrateQueue   *lane.Queue
 }
@@ -47,12 +48,15 @@ func newDwarfPoolProcessor(cfg *ProcessorConfig, log *zap.Logger, deal *types.De
 		startTime:       time.Now(),
 		deal:            deal,
 		hashrateEWMA:    metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
-		currentHashrate: float64(deal.BenchmarkValue()),
+		currentHashrate: atomic.NewFloat64(float64(deal.BenchmarkValue())),
 		hashrateQueue:   &lane.Queue{Deque: lane.NewCappedDeque(60)},
 	}
 }
 
 func (w *dwarfPoolProcessor) Run(ctx context.Context) error {
+	w.hashrateEWMA.Update(int64(w.currentHashrate.Load() * 5.))
+	w.hashrateEWMA.Tick()
+
 	timer := time.NewTimer(w.cfg.TaskWarmupDelay)
 	w.log.Info("starting task's warm-up")
 	select {
@@ -64,8 +68,8 @@ func (w *dwarfPoolProcessor) Run(ctx context.Context) error {
 	timer.Stop()
 
 	// This should not be configured, as ticker in ewma is bound to 5 seconds
-	ewmaTick := time.NewTicker(5 * time.Second)
-	ewmaUpdate := time.NewTicker(1 * time.Second)
+	ewmaTick := util.NewImmediateTicker(5 * time.Second)
+	ewmaUpdate := util.NewImmediateTicker(1 * time.Second)
 	track := util.NewImmediateTicker(w.cfg.TrackInterval)
 
 	defer ewmaUpdate.Stop()
@@ -77,7 +81,7 @@ func (w *dwarfPoolProcessor) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ewmaUpdate.C:
-			w.hashrateEWMA.Update(int64(w.currentHashrate))
+			w.hashrateEWMA.Update(int64(w.currentHashrate.Load()))
 		case <-ewmaTick.C:
 			w.hashrateEWMA.Tick()
 		case <-track.C:
@@ -134,8 +138,9 @@ func (w *dwarfPoolProcessor) watch() error {
 		rate = worker.Hashrate
 	}
 
-	w.currentHashrate = rate * 1e6
-	w.updateHashRateQueue(w.currentHashrate)
+	v := rate * 1e6
+	w.currentHashrate.Store(v)
+	w.updateHashRateQueue(v)
 	return nil
 }
 
