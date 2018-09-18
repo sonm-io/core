@@ -1,5 +1,7 @@
 [Unit]
 Description=SONM Worker
+Wants=network-online.target
+After=network.target network-online.target
 
 
 [Service]
@@ -10,5 +12,4 @@ Restart=on-failure
 
 
 [Install]
-Wants=network-online.target
-After=network.target network-online.target
+WantedBy=multi-user.target
