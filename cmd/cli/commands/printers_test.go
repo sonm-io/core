@@ -74,3 +74,20 @@ func TestFlags(t *testing.T) {
 	assert.False(t, printerFlags(printEverything).WarningSuppressed())
 	assert.True(t, printerFlags(suppressWarnings).WarningSuppressed())
 }
+
+func TestExpensesPerHour(t *testing.T) {
+	my := common.HexToAddress("0x928cA7817FE2eBAC8C41e9dEF8EA6c09ffbd385A")
+	other := common.HexToAddress("0xEAed1BFb645Dd9ca85a062B4e5eF34857aecdd4E")
+	deals := []*pb.Deal{
+		{Price: pb.NewBigIntFromInt(100), SupplierID: pb.NewEthAddress(my)},
+		{Price: pb.NewBigIntFromInt(150), SupplierID: pb.NewEthAddress(my)},
+		{Price: pb.NewBigIntFromInt(200), SupplierID: pb.NewEthAddress(my)},
+
+		{Price: pb.NewBigIntFromInt(123), SupplierID: pb.NewEthAddress(other)},
+		{Price: pb.NewBigIntFromInt(450), SupplierID: pb.NewEthAddress(other)},
+	}
+
+	asks, bids := dealsExpensesPerHour(my, deals)
+	assert.Equal(t, pb.NewBigIntFromInt(450*3600), asks)
+	assert.Equal(t, pb.NewBigIntFromInt(573*3600), bids)
+}

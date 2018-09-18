@@ -84,7 +84,7 @@ var dealListCmd = &cobra.Command{
 		}
 
 		deals, err := dwh.GetDeals(ctx, req)
-		printDealsList(cmd, deals.GetDeals())
+		printDealsList(cmd, addr, deals.GetDeals())
 		return nil
 	},
 }
