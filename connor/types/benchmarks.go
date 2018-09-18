@@ -43,6 +43,7 @@ func (b *Benchmarks) toMap() map[string]uint64 {
 		"gpu-eth-hashrate":    v.GPUEthHashrate(),
 		"gpu-cash-hashrate":   v.GPUCashHashrate(),
 		"gpu-redshift":        v.GPURedshift(),
+		"cpu-cryptonight":     v.CPUCryptonight(),
 	}
 }
 
