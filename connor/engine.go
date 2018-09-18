@@ -272,10 +272,11 @@ func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
 		case <-t.C:
 			actualPrice := e.priceProvider.GetPrice()
 			if order.IsReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
+				pricePerOrder := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(order.GetHashrate())))
 				log.Named("price-deviation").Info("we can replace order with more profitable one",
 					zap.Uint64("benchmark", order.GetHashrate()),
-					zap.String("actual_price", actualPrice.String()),
-					zap.String("current_price", order.RestorePrice().String()))
+					zap.String("actual_price", pricePerOrder.String()),
+					zap.String("current_price", order.GetPrice().Unwrap().String()))
 
 				e.CancelOrder(order)
 				replacedOrdersCounter.Inc()
@@ -532,7 +533,8 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 
 	if dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED {
 		deal := e.dealFactory.FromDeal(dealStatus.GetDeal())
-		if deal.IsReplaceable(e.priceProvider.GetPrice(), e.cfg.Market.PriceControl.DealCancelThreshold) {
+		actualPrice := e.priceProvider.GetPrice()
+		if deal.IsReplaceable(actualPrice, e.cfg.Market.PriceControl.DealCancelThreshold) {
 			log := log.Named("price-deviation")
 			if len(e.orderCancelChan) > 0 {
 				log.Warn("shouldn't finish deal, orders replacing in progress",
@@ -541,10 +543,11 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 				return true, nil
 			}
 
+			pricePerDeal := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(deal.BenchmarkValue())))
 			log.Info("too much price deviation detected: closing deal",
 				zap.Uint64("benchmark", deal.BenchmarkValue()),
-				zap.String("actual_price", e.priceProvider.GetPrice().String()),
-				zap.String("current_price", deal.RestorePrice().String()))
+				zap.String("actual_price", pricePerDeal.String()),
+				zap.String("current_price", deal.GetPrice().Unwrap().String()))
 
 			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap(), antifraud.SkipBlacklisting); err != nil {
 				log.Warn("failed to finish deal", zap.Error(err))
