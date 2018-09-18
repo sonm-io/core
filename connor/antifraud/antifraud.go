@@ -158,7 +158,7 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 
 			watcher.Failure()
 		} else {
-			log.Debug("task quality is fit into required required value", logQualityMetrics...)
+			log.Debug("task quality fits into required value", logQualityMetrics...)
 			watcher.Success()
 		}
 	}
