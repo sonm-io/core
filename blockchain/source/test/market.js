@@ -31,6 +31,10 @@ const Market = artifacts.require('./Market.sol');
 const OracleUSD = artifacts.require('./OracleUSD.sol');
 const Blacklist = artifacts.require('./Blacklist.sol');
 const ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
+const Orders = artifacts.require('./Orders.sol');
+const Deals = artifacts.require('./Deals.sol');
+const ChangeRequests = artifacts.require('./ChangeRequests.sol');
+const Administratum = artifacts.require('./Administratum.sol');
 
 const ONE_MILLION_TOKEN = 1e6 * 1e18;
 
@@ -57,14 +61,29 @@ contract('Market', async (accounts) => {
         await oracle.setCurrentPrice(oraclePrice);
         blacklist = await Blacklist.new();
         profileRegistry = await ProfileRegistry.new();
+        administratum = await Administratum.new();
+        orders = await Orders.new();
+        deals = await Deals.new();
+        changeRequests = await ChangeRequests.new();
         market = await Market.new(
             token.address,
             blacklist.address,
             oracle.address,
             profileRegistry.address,
+            administratum.address,
+            orders.address,
+            deals.address,
+            changeRequests.address,
             benchmarkQuantity,
             netflagsQuantity,
+            {gasLimit: 30000000}
         );
+
+        await administratum.transferOwnership(market.address);
+        await orders.transferOwnership(market.address);
+        await deals.transferOwnership(market.address);
+        await changeRequests.transferOwnership(market.address);
+
         await blacklist.SetMarketAddress(market.address);
 
         await token.transfer(consumer, oraclePrice / 1e7, { from: accounts[0] });

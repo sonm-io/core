@@ -5,6 +5,10 @@ const Blacklist = artifacts.require('./Blacklist.sol');
 const SNM = artifacts.require('./SNM.sol');
 const OracleUSD = artifacts.require('./OracleUSD.sol');
 const ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
+const Orders = artifacts.require('./Orders.sol');
+const Deals = artifacts.require('./Deals.sol');
+const ChangeRequests = artifacts.require('./ChangeRequests.sol');
+const Administratum = artifacts.require('./Administratum.sol');
 
 contract('Blacklist', async function (accounts) {
     let market;
@@ -26,7 +30,21 @@ contract('Blacklist', async function (accounts) {
         oracle = await OracleUSD.new();
         pr = await ProfileRegistry.new();
         await blacklist.AddMaster(master, { from: owner });
-        market = await Market.new(token.address, blacklist.address, oracle.address, pr.address, 12, 3);
+        orders = await Orders.new();
+        deals = await Deals.new();
+        changeRequests = await ChangeRequests.new();
+
+        market = await Market.new(token.address,
+            blacklist.address,
+            oracle.address,
+            pr.address,
+            administratum.address,
+            orders.address,
+            deals.address,
+            changeRequests.address,
+            12,
+            3,
+            {gasLimit: 30000000});
     });
 
     it('test ACL', async function () {
