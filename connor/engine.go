@@ -332,7 +332,9 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 	defer activeDealsGauge.Dec()
 
 	dealID := deal.GetId().Unwrap().String()
-	log := e.log.Named("process-deal").With(zap.String("deal_id", dealID))
+	log := e.log.Named("process-deal").With(
+		zap.String("deal_id", dealID),
+		zap.String("supplier_id", deal.GetSupplierID().Unwrap().Hex()))
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -450,7 +452,7 @@ func (e *engine) startTaskOnce(ctx context.Context, log *zap.Logger, dealID *son
 	defer cancel()
 
 	env := applyEnvTemplate(e.cfg.Container.Env, dealID)
-	e.log.Info("starting task",
+	log.Info("starting task",
 		zap.String("deal_id", dealID.Unwrap().String()),
 		zap.Any("environment", env))
 
