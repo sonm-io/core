@@ -31,7 +31,7 @@ func (m *Reference) UnmarshalText(source []byte) error {
 	return m.Parse(string(source))
 }
 
-func (m *Reference) MarshalText() ([]byte, error) {
+func (m Reference) MarshalText() ([]byte, error) {
 	return []byte(m.String()), nil
 }
 
