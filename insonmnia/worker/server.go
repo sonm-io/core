@@ -1164,6 +1164,9 @@ func (m *Worker) createServer(logger *zap.Logger, authRouter *auth.AuthRouter) *
 		xgrpc.Credentials(m.creds),
 		xgrpc.AuthorizationInterceptor(authRouter),
 		xgrpc.VerifyInterceptor(),
+		xgrpc.RateLimitInterceptor(m.ctx, 100.0, map[string]float64{
+			"/sonm.WorkerManagement/Status": 20.0,
+		}),
 	)
 }
 
