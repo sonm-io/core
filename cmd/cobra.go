@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -14,6 +15,15 @@ import (
 type Runner func() error
 
 func NewCmd(name, appVersion string, cfg *string, version *bool, run Runner) *cobra.Command {
+	wrapped := func() error {
+		expandedCfg, err := homedir.Expand(*cfg)
+		if err != nil {
+			return fmt.Errorf("failed to parse config path: %v", err)
+		}
+		*cfg = expandedCfg
+		return run()
+	}
+
 	c := &cobra.Command{
 		Use: appName(name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -24,7 +34,7 @@ func NewCmd(name, appVersion string, cfg *string, version *bool, run Runner) *co
 			return checkRequiredFlags(cmd.PersistentFlags())
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := run(); err != nil {
+			if err := wrapped(); err != nil {
 				fmt.Println(capitalize(err.Error()))
 				os.Exit(1)
 			}
