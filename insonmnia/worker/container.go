@@ -3,11 +3,9 @@ package worker
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -33,7 +31,7 @@ type containerDescriptor struct {
 }
 
 func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.Reference().String())
+	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.String())
 
 	cont := containerDescriptor{
 		client:      dockerClient,
@@ -52,7 +50,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.S(ctx).Infof("start container with application, reference %s", d.Reference.Reference().String())
+	log.S(ctx).Infof("start container with application, reference %s", d.Reference.String())
 
 	cont := containerDescriptor{
 		client:      dockerClient,
@@ -75,7 +73,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 		ExposedPorts: exposedPorts,
 
-		Image: d.Reference.Reference().String(),
+		Image: d.Reference.String(),
 		// TODO: set actual name
 		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealId},
 		Env:     d.FormatEnv(),
@@ -105,13 +103,15 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		}
 	}
 
-	cleanup, err := tuners.Tune(ctx, &d, &hostConfig, &networkingConfig)
+	additionalNetworking := &network.NetworkingConfig{}
+	cleanup, err := tuners.Tune(ctx, &d, &hostConfig, additionalNetworking)
 	if err != nil {
 		log.G(ctx).Error("failed to tune container", zap.Error(err))
 		return nil, err
 	}
 	log.G(ctx).Debug("successfully tuned container")
 
+	log.G(ctx).Info("config", zap.Any("net", networkingConfig), zap.Any("host", hostConfig))
 	// create new container
 	// assign resulted containerid
 	// log all warnings
@@ -124,6 +124,14 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	if err != nil {
 		return nil, err
 	}
+
+	for net, endpointCfg := range additionalNetworking.EndpointsConfig {
+		log.S(ctx).Infof("connecting to %s network", net)
+		if err := cont.client.NetworkConnect(ctx, endpointCfg.NetworkID, resp.ID, endpointCfg); err != nil {
+			return nil, err
+		}
+	}
+
 	cont.ID = resp.ID
 	cont.log = log.S(ctx).With(zap.String("container_id", cont.ID))
 	cont.cleanup = cleanup
@@ -253,12 +261,7 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 	}
 	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
 
-	ref := c.description.Reference.Reference()
-	if _, ok := ref.(reference.Named); !ok {
-		return errors.New("can not upload image without name")
-	}
-
-	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference.Reference().(reference.Named)), tag)
+	newImg, err := c.description.Reference.WithTag(tag)
 	if err != nil {
 		c.log.Errorf("failed to add tag: %s", err)
 		return err

@@ -104,6 +104,10 @@ func (c *Config) validate() error {
 		return fmt.Errorf("market.price_marginality cannot be zero")
 	}
 
+	if err := c.AntiFraud.Validate(); err != nil {
+		return err
+	}
+
 	named, err := reference.ParseNormalizedNamed(c.Container.Image)
 	if err != nil {
 		return fmt.Errorf("cannot parse image name: %v", err)

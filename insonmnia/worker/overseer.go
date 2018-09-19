@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -38,7 +37,7 @@ const dieEvent = "die"
 // Description for a target application.
 type Description struct {
 	pb.Container
-	Reference    reference.Field
+	Reference    xdocker.Reference
 	Auth         string
 	Resources    *pb.AskPlanResources
 	CGroupParent string
@@ -474,10 +473,10 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	if err != nil {
 		return err
 	}
-	refStr := d.Reference.Reference().String()
+	refStr := d.Reference.String()
 	for _, summary := range summaries {
 		if summary.ID == refStr {
-			log.S(ctx).Infof("application image %s is already present", d.Reference.Reference().String())
+			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
 			return nil
 		}
 	}
@@ -605,6 +604,13 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 }
 
 func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
+	var isRunning bool
+	if info, err := o.client.ContainerInspect(ctx, containerID); err != nil {
+		return fmt.Errorf("failed to inspect container %s: %v", containerID, err)
+	} else {
+		isRunning = info.State.Status == "running"
+	}
+
 	o.mu.Lock()
 	descriptor, ok := o.containers[containerID]
 	delete(o.containers, containerID)
@@ -619,8 +625,10 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 		return fmt.Errorf("unknown container %s", containerID)
 	}
 	result := multierror.NewMultiError()
-	if err := descriptor.Kill(ctx); err != nil {
-		result = multierror.Append(result, err)
+	if isRunning {
+		if err := descriptor.Kill(ctx); err != nil {
+			result = multierror.Append(result, err)
+		}
 	}
 	//This is needed in case container is uploaded into external registry
 	if descriptor.description.CommitOnStop {

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/reference"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/util/xdocker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
@@ -30,7 +30,7 @@ func TestWhitelistSuperuser(t *testing.T) {
 	}
 
 	ctx := walletCtx(addr)
-	ref, err := reference.ParseAnyReference("docker.io/hello-world")
+	ref, err := xdocker.NewReference("docker.io/hello-world")
 	require.NoError(t, err)
 
 	allowed, _, err := w.Allowed(ctx, ref, "")
@@ -57,7 +57,7 @@ func TestWhitelistAllowed(t *testing.T) {
 	w := whitelist{}
 	w.fillFromJsonReader(ctx, reader)
 
-	ref, err := reference.ParseAnyReference("sonm/eth-claymore@sha256:b5f9a9e47fa319607ed339789ef6692d4937ae5910b86e0ab929d035849e491e")
+	ref, err := xdocker.NewReference("sonm/eth-claymore@sha256:b5f9a9e47fa319607ed339789ef6692d4937ae5910b86e0ab929d035849e491e")
 	require.NoError(t, err)
 
 	allowed, _, err := w.Allowed(ctx, ref, "")

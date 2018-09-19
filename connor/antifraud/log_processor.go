@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -31,7 +33,7 @@ type commonLogProcessor struct {
 	hashrateEWMA metrics.EWMA
 	startTime    time.Time
 
-	hashrate    float64
+	hashrate    *atomic.Float64
 	logParser   logParseFunc
 	historyFile *os.File
 }
@@ -47,9 +49,9 @@ func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientCon
 		taskID:       taskID,
 		logParser:    lp,
 		taskClient:   sonm.NewTaskManagementClient(conn),
-		hashrateEWMA: metrics.NewEWMA1(),
+		hashrateEWMA: metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
 		startTime:    time.Now(),
-		hashrate:     float64(deal.Benchmarks.GPUEthHashrate()),
+		hashrate:     atomic.NewFloat64(float64(deal.BenchmarkValue())),
 	}
 }
 
@@ -65,6 +67,9 @@ func (m *commonLogProcessor) TaskID() string {
 }
 
 func (m *commonLogProcessor) Run(ctx context.Context) error {
+	m.hashrateEWMA.Update(int64(m.hashrate.Load() * 5.))
+	m.hashrateEWMA.Tick()
+
 	go m.fetchLogs(ctx)
 	m.log.Info("starting task's warm-up")
 	timer := time.NewTimer(m.cfg.TaskWarmupDelay)
@@ -78,8 +83,8 @@ func (m *commonLogProcessor) Run(ctx context.Context) error {
 	m.log.Info("task is warmed-up")
 
 	// This should not be configured, as ticker in ewma is bound to 5 seconds
-	ewmaTick := time.NewTicker(5 * time.Second)
-	ewmaUpdate := time.NewTicker(1 * time.Second)
+	ewmaTick := util.NewImmediateTicker(5 * time.Second)
+	ewmaUpdate := util.NewImmediateTicker(1 * time.Second)
 
 	defer ewmaTick.Stop()
 	defer ewmaUpdate.Stop()
@@ -89,7 +94,7 @@ func (m *commonLogProcessor) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ewmaUpdate.C:
-			m.hashrateEWMA.Update(int64(m.hashrate))
+			m.hashrateEWMA.Update(int64(m.hashrate.Load()))
 		case <-ewmaTick.C:
 			m.hashrateEWMA.Tick()
 		}
@@ -115,7 +120,8 @@ func (m *commonLogProcessor) maybeOpenHistoryFile() error {
 
 func (m *commonLogProcessor) maybeSaveLogLine(line string) {
 	if m.historyFile != nil {
-		if _, err := m.historyFile.WriteString(line + "\n"); err != nil {
+		withTimestamp := fmt.Sprintf("%s: %s\n", time.Now().Format(time.RFC3339), line)
+		if _, err := m.historyFile.WriteString(withTimestamp); err != nil {
 			m.log.Warn("cannot write task log", zap.String("file", m.historyFile.Name()), zap.Error(err))
 		}
 	}
@@ -123,9 +129,10 @@ func (m *commonLogProcessor) maybeSaveLogLine(line string) {
 
 func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 	request := &sonm.TaskLogsRequest{
-		Type:   sonm.TaskLogsRequest_STDOUT,
+		Type:   sonm.TaskLogsRequest_BOTH,
 		Id:     m.taskID,
 		Follow: true,
+		Tail:   "1",
 		DealID: m.deal.Id,
 	}
 
@@ -137,6 +144,7 @@ func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 
 	retryTicker := util.NewImmediateTicker(m.cfg.TrackInterval)
 	defer retryTicker.Stop()
+	failureCount := 0
 
 	for {
 		select {
@@ -145,22 +153,24 @@ func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 		case <-retryTicker.C:
 		}
 
-		m.log.Debug("requesting logs")
+		m.log.Debug("requesting logs", zap.Int("count", failureCount))
 		cli, err := m.taskClient.Logs(ctx, request)
 		if err != nil {
-			m.hashrate = 0.
-			m.log.Warn("failed to fetch logs from the task")
+			m.hashrate.Store(0.)
+			m.log.Warn("failed to fetch logs from the task", zap.Error(err), zap.Int("count", failureCount))
 			continue
 		}
 
+		m.log.Debug("log reader client created", zap.Int("count", failureCount))
 		logReader := sonm.NewLogReader(cli)
 		reader, writer := io.Pipe()
 
 		go m.logParser(ctx, m, reader)
 
 		_, err = stdcopy.StdCopy(writer, writer, logReader)
-		m.log.Warn("stop reading logs for task", zap.Error(err))
+		m.log.Warn("stop reading logs for task", zap.Error(err), zap.Int("count", failureCount))
 		writer.Close()
+		failureCount++
 	}
 }
 
@@ -196,7 +206,7 @@ func claymoreLogParser(ctx context.Context, m *commonLogProcessor, reader io.Rea
 				return
 			}
 
-			m.hashrate = hashrate * 1e6
+			m.hashrate.Store(hashrate * 1e6)
 		}
 	}
 
@@ -233,7 +243,7 @@ func xmrigLogParser(ctx context.Context, m *commonLogProcessor, reader io.Reader
 				return
 			}
 
-			m.hashrate = hashrate
+			m.hashrate.Store(hashrate)
 		}
 	}
 }

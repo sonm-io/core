@@ -44,6 +44,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/xdocker"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -618,20 +619,20 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 	return nil
 }
 
-func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
+func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, xdocker.Reference, error) {
 	spec := request.GetSpec()
-	ref, err := reference.ParseAnyReference(spec.GetContainer().GetImage())
+	ref, err := xdocker.NewReference(spec.GetContainer().GetImage())
 	if err != nil {
-		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
+		return false, ref, fmt.Errorf("failed to parse reference: %s", err)
 	}
 
 	deal, err := m.salesman.Deal(request.GetDealID())
 	if err != nil {
-		return false, nil, err
+		return false, ref, err
 	}
 	level, err := m.eth.ProfileRegistry().GetProfileLevel(ctx, deal.GetConsumerID().Unwrap())
 	if err != nil {
-		return false, nil, err
+		return false, ref, err
 	}
 	if level < m.cfg.Whitelist.PrivilegedIdentityLevel {
 		return m.whitelist.Allowed(ctx, ref, spec.GetRegistry().Auth())
@@ -731,7 +732,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	var d = Description{
 		Container:      *request.Spec.Container,
-		Reference:      reference.AsField(ref),
+		Reference:      ref,
 		Auth:           spec.Registry.Auth(),
 		CGroupParent:   cgroup.Suffix(),
 		Resources:      spec.Resources,
@@ -843,11 +844,6 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	_, err := m.storage.Remove(containerInfo.TaskId)
-
-	if err != nil {
-		log.G(ctx).Warn("failed to delete cached container info", zap.Error(err))
-	}
 
 	return &pb.Empty{}, nil
 }
@@ -1019,7 +1015,7 @@ func (m *Worker) setupRunningContainers() error {
 	// Overseer maintains it's own instance of docker.Client
 	defer dockerClient.Close()
 
-	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{})
+	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{All: true})
 	if err != nil {
 		return err
 	}
@@ -1446,12 +1442,12 @@ func parseBenchmarkResult(data []byte) (map[string]*benchmarks.ResultJSON, error
 }
 
 func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
-	ref, err := reference.ParseNormalizedNamed(b.GetImage())
+	ref, err := xdocker.NewReference(b.GetImage())
 	if err != nil {
 		return Description{}, err
 	}
 	return Description{
-		Reference: reference.AsField(ref),
+		Reference: ref,
 		Container: pb.Container{Env: map[string]string{
 			benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		}},

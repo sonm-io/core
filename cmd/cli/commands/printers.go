@@ -211,7 +211,7 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 		}
 
 		w := tablewriter.NewWriter(cmd.OutOrStdout())
-		w.SetHeader([]string{"ID", "type", "price", "duration"})
+		w.SetHeader([]string{"ID", "type", "tag", "price", "duration"})
 		w.SetBorder(false)
 
 		for _, order := range orders {
@@ -225,6 +225,7 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 			w.Append([]string{
 				order.GetId().Unwrap().String(),
 				order.OrderType.String(),
+				string(order.GetTag()),
 				order.PricePerHour(),
 				duration,
 			})
@@ -567,6 +568,11 @@ func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
 		cmd.Printf("On SONM:     %s SNM\n", sideSNM)
 	} else {
 		showJSON(cmd, map[string]map[string]string{"balance": {
+			"eth_live": liveEth,
+			"snm_live": liveSNM,
+			"snm_side": sideSNM,
+			// TODO: Will be removed in the next
+			// minor version update #1499
 			"ethereum": liveSNM,
 			"sonm":     sideSNM,
 		}})

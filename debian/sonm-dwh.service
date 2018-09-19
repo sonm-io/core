@@ -1,5 +1,7 @@
 [Unit]
 Description=SONM DWH
+Wants=network-online.target
+After=network.target network-online.target
 
 
 [Service]
@@ -11,5 +13,4 @@ LimitNOFILE=65535
 
 
 [Install]
-Wants=network-online.target
-After=network.target network-online.target
+WantedBy=multi-user.target
