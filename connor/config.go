@@ -153,7 +153,6 @@ func (c *Config) getBaseBenchmarks() types.Benchmarks {
 			c.Market.Benchmarks["gpu-eth-hashrate"],
 			c.Market.Benchmarks["gpu-cash-hashrate"],
 			c.Market.Benchmarks["gpu-redshift"],
-			c.Market.Benchmarks["cpu-cryptonight"],
 		},
 	}
 }
