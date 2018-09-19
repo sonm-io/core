@@ -66,7 +66,7 @@ func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) 
 }
 
 func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth string) (*workerClient, io.Closer, error) {
-	addr := auth.NewAddrRaw(common.HexToAddress(eth), "")
+	addr := auth.NewETHAddr(common.HexToAddress(eth))
 	return re.workerCreator(ctx, &addr)
 }
 
@@ -93,21 +93,15 @@ func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, c
 	if err != nil {
 		return nil, err
 	}
+	nppGRPCDialer := npp.NewGRPCDialer(nppDialer)
+	nppGRPCDialer.RunCG(ctx)
 
 	workerFactory := func(ctx context.Context, addr *auth.Addr) (*workerClient, io.Closer, error) {
 		if addr == nil {
 			return nil, nil, fmt.Errorf("no address specified to dial worker")
 		}
-		conn, err := nppDialer.DialContext(ctx, *addr)
-		if err != nil {
-			return nil, nil, err
-		}
-		ethAddr, err := addr.ETH()
-		if err != nil {
-			return nil, nil, err
-		}
 
-		cc, err := xgrpc.NewClient(ctx, "-", auth.NewWalletAuthenticator(credentials, ethAddr), xgrpc.WithConn(conn))
+		cc, err := nppGRPCDialer.Connect(ctx, *addr, credentials)
 		if err != nil {
 			return nil, nil, err
 		}

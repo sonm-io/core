@@ -53,7 +53,7 @@ func (m *connTuple) unwrap() (net.Conn, error) {
 	return m.conn, m.err
 }
 
-func (m *connTuple) unwrapWithSource(source connSource) (net.Conn, connSource, error) {
+func (m *connTuple) unwrapWithSource(source ConnSource) (net.Conn, ConnSource, error) {
 	return m.conn, source, m.err
 }
 
@@ -241,11 +241,11 @@ func (m *Listener) AcceptContext(ctx context.Context) (net.Conn, error) {
 	m.log.Info("accepted peer", zap.Stringer("source", source), zap.Stringer("remote", conn.RemoteAddr()))
 
 	switch source {
-	case sourceDirectConnection:
+	case SourceDirectConnection:
 		m.metrics.NumConnectionsDirect.Inc()
-	case sourceNPPConnection:
+	case SourceNPPConnection:
 		m.metrics.NumConnectionsNAT.Inc()
-	case sourceRelayedConnection:
+	case SourceRelayedConnection:
 		m.metrics.NumConnectionsRelay.Inc()
 	default:
 		return nil, fmt.Errorf("unknown connection source")
@@ -256,12 +256,12 @@ func (m *Listener) AcceptContext(ctx context.Context) (net.Conn, error) {
 
 // Note: this function only listens for multiple channels and transforms the
 // result from a single-value to multiple values, due to weird Go type system.
-func (m *Listener) accept(ctx context.Context) (net.Conn, connSource, error) {
+func (m *Listener) accept(ctx context.Context) (net.Conn, ConnSource, error) {
 	// Act as a listener if there is no puncher specified.
 	// Check for acceptor listenerChannel, if there is a connection - return immediately.
 	select {
 	case conn := <-m.listenerChannel:
-		return conn.unwrapWithSource(sourceDirectConnection)
+		return conn.unwrapWithSource(SourceDirectConnection)
 	default:
 	}
 
@@ -271,7 +271,7 @@ func (m *Listener) accept(ctx context.Context) (net.Conn, connSource, error) {
 		case <-ctx.Done():
 			return nil, sourceError, ctx.Err()
 		case conn := <-m.listenerChannel:
-			return conn.unwrapWithSource(sourceDirectConnection)
+			return conn.unwrapWithSource(SourceDirectConnection)
 		case conn := <-m.nppChannel:
 			// In case of any rendezvous errors it's better to reconnect.
 			// Just in case.
@@ -279,10 +279,10 @@ func (m *Listener) accept(ctx context.Context) (net.Conn, connSource, error) {
 				m.puncher.Close()
 				m.puncher = nil
 			} else {
-				return conn.unwrapWithSource(sourceNPPConnection)
+				return conn.unwrapWithSource(SourceNPPConnection)
 			}
 		case conn := <-m.relayChannel:
-			return conn.unwrapWithSource(sourceRelayedConnection)
+			return conn.unwrapWithSource(SourceRelayedConnection)
 		}
 	}
 }

@@ -1,21 +1,21 @@
 package npp
 
-type connSource int
+type ConnSource int
 
 const (
-	sourceError connSource = iota
-	sourceDirectConnection
-	sourceNPPConnection
-	sourceRelayedConnection
+	sourceError ConnSource = iota
+	SourceDirectConnection
+	SourceNPPConnection
+	SourceRelayedConnection
 )
 
-func (m connSource) String() string {
+func (m ConnSource) String() string {
 	switch m {
-	case sourceDirectConnection:
+	case SourceDirectConnection:
 		return "direct"
-	case sourceNPPConnection:
+	case SourceNPPConnection:
 		return "NPP"
-	case sourceRelayedConnection:
+	case SourceRelayedConnection:
 		return "relay"
 	default:
 		return "unknown source"

@@ -26,12 +26,12 @@ type workerAPI struct {
 func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
+		addr := auth.NewETHAddr(crypto.PubkeyToAddress(h.remotes.key.PublicKey))
 		return &addr, nil
 	}
 	ctxAddrs, ok := md[util.WorkerAddressHeader]
 	if !ok {
-		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
+		addr := auth.NewETHAddr(crypto.PubkeyToAddress(h.remotes.key.PublicKey))
 		return &addr, nil
 	}
 	if len(ctxAddrs) != 1 {
@@ -56,11 +56,10 @@ func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 		return handler(ctx, req)
 	}
 
-	cli, cc, err := h.getClient(ctx)
+	cli, _, err := h.getClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to worker: %s", err)
 	}
-	defer cc.Close()
 
 	var (
 		t        = reflect.ValueOf(cli)

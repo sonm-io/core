@@ -63,6 +63,10 @@ func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
 // connected, any expiration of the context will not affect the
 // connection.
 func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, error) {
+	return m.DialContextNPP(ctx, addr)
+}
+
+func (m *Dialer) DialContextNPP(ctx context.Context, addr auth.Addr) (*NPPConn, error) {
 	now := time.Now()
 	metric := m.metricHandle(addr)
 	metric.NumAttempts.Inc()
@@ -70,7 +74,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 	log := m.log.With(zap.Stringer("remote_addr", addr))
 
-	conn, err := m.dialContextExt(ctx, addr, metric)
+	conn, err := m.dialContextNPP(ctx, addr, metric)
 	if err != nil {
 		log.Warn("failed to connect using NPP - all methods failed")
 		metric.NumFailed.Inc()
@@ -80,13 +84,13 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 	log = log.With(zap.Stringer("remote_peer", conn.RemoteAddr()))
 
 	switch conn.Source {
-	case sourceDirectConnection:
+	case SourceDirectConnection:
 		metric.UsingTCPDirectHistogram.Observe(conn.Duration.Seconds())
 		log.Debug("successfully connected using direct TCP")
-	case sourceNPPConnection:
+	case SourceNPPConnection:
 		metric.UsingNATHistogram.Observe(conn.Duration.Seconds())
 		log.Debug("successfully connected using NPP")
-	case sourceRelayedConnection:
+	case SourceRelayedConnection:
 		metric.UsingRelayHistogram.Observe(conn.Duration.Seconds())
 		log.Debug("successfully connected using Relay")
 	}
@@ -98,7 +102,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 	return conn, nil
 }
 
-func (m *Dialer) dialContextExt(ctx context.Context, addr auth.Addr, metric *dialMetrics) (*nppConn, error) {
+func (m *Dialer) dialContextNPP(ctx context.Context, addr auth.Addr, metric *dialMetrics) (*NPPConn, error) {
 	m.log.Debug("connecting to remote peer", zap.Stringer("remote_addr", addr))
 
 	if conn := m.dialDirect(ctx, addr); conn != nil {
@@ -118,7 +122,7 @@ func (m *Dialer) dialContextExt(ctx context.Context, addr auth.Addr, metric *dia
 }
 
 // Note, that this method acts as an optimization.
-func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) *nppConn {
+func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) *NPPConn {
 	now := time.Now()
 
 	log := m.log.With(zap.Stringer("remote_addr", addr))
@@ -137,10 +141,10 @@ func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) *nppConn {
 		return nil
 	}
 
-	return newDirectNPPConn(conn, time.Since(now))
+	return newDirectNPPConn(addr, conn, time.Since(now))
 }
 
-func (m *Dialer) dialNPP(ctx context.Context, addr common.Address) *nppConn {
+func (m *Dialer) dialNPP(ctx context.Context, addr common.Address) *NPPConn {
 	if m.puncherNew == nil {
 		return nil
 	}
@@ -173,7 +177,7 @@ func (m *Dialer) dialNPP(ctx context.Context, addr common.Address) *nppConn {
 	case conn := <-nppChannel:
 		err := conn.Error()
 		if err == nil {
-			return newPunchedNPPConn(conn.conn, time.Since(now))
+			return newPunchedNPPConn(addr, conn.conn, time.Since(now))
 		}
 
 		log.Warn("failed to connect using NPP", zap.Error(err))
@@ -185,7 +189,7 @@ func (m *Dialer) dialNPP(ctx context.Context, addr common.Address) *nppConn {
 	return nil
 }
 
-func (m *Dialer) dialRelayed(ctx context.Context, addr common.Address) (*nppConn, error) {
+func (m *Dialer) dialRelayed(ctx context.Context, addr common.Address) (*NPPConn, error) {
 	if m.relayDialer == nil {
 		return nil, fmt.Errorf("failed to connect using NPP: no Relay configured")
 	}
@@ -209,7 +213,7 @@ func (m *Dialer) dialRelayed(ctx context.Context, addr common.Address) (*nppConn
 			return nil, err
 		}
 
-		return newRelayedNPPConn(conn.conn, time.Since(now)), nil
+		return newRelayedNPPConn(addr, conn.conn, time.Since(now)), nil
 	case <-ctx.Done():
 		log.Warn("failed to connect using Relay", zap.Error(ctx.Err()))
 		go drainConnChannel(channel)
@@ -272,32 +276,36 @@ func (m *Dialer) metricHandle(addr auth.Addr) *dialMetrics {
 	return metric
 }
 
-type nppConn struct {
+type NPPConn struct {
 	net.Conn
-	Source   connSource
+	Addr     auth.Addr
+	Source   ConnSource
 	Duration time.Duration
 }
 
-func newDirectNPPConn(conn net.Conn, duration time.Duration) *nppConn {
-	return &nppConn{
+func newDirectNPPConn(addr auth.Addr, conn net.Conn, duration time.Duration) *NPPConn {
+	return &NPPConn{
+		Addr:     addr,
 		Conn:     conn,
-		Source:   sourceDirectConnection,
+		Source:   SourceDirectConnection,
 		Duration: duration,
 	}
 }
 
-func newPunchedNPPConn(conn net.Conn, duration time.Duration) *nppConn {
-	return &nppConn{
+func newPunchedNPPConn(addr common.Address, conn net.Conn, duration time.Duration) *NPPConn {
+	return &NPPConn{
+		Addr:     auth.NewETHAddr(addr),
 		Conn:     conn,
-		Source:   sourceNPPConnection,
+		Source:   SourceNPPConnection,
 		Duration: duration,
 	}
 }
 
-func newRelayedNPPConn(conn net.Conn, duration time.Duration) *nppConn {
-	return &nppConn{
+func newRelayedNPPConn(addr common.Address, conn net.Conn, duration time.Duration) *NPPConn {
+	return &NPPConn{
+		Addr:     auth.NewETHAddr(addr),
 		Conn:     conn,
-		Source:   sourceRelayedConnection,
+		Source:   SourceRelayedConnection,
 		Duration: duration,
 	}
 }

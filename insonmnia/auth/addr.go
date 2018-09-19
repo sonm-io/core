@@ -45,10 +45,10 @@ func NewAddr(addr string) (*Addr, error) {
 	}
 }
 
-func NewAddrRaw(eth common.Address, netAddr string) Addr {
+// NewETHAddr constructs a new unified address from the given ETH address.
+func NewETHAddr(addr common.Address) Addr {
 	return Addr{
-		eth:     &eth,
-		netAddr: netAddr,
+		eth: &addr,
 	}
 }
 
