@@ -119,6 +119,12 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	if err != nil {
 		return nil, err
 	}
+
+	cleanup, err = tuners.PostCreationTune(ctx, &d, cleanup, resp.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	for net, endpointCfg := range additionalNetworking.EndpointsConfig {
 		log.S(ctx).Infof("connecting to %s network", net)
 		if err := cont.client.NetworkConnect(ctx, endpointCfg.NetworkID, resp.ID, endpointCfg); err != nil {
