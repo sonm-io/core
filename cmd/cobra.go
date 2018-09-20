@@ -13,8 +13,10 @@ import (
 )
 
 var (
-	app = AppContext{
-		Name: path.Base(os.Args[0]),
+	appVersion string
+	app        = AppContext{
+		Name:    path.Base(os.Args[0]),
+		Version: appVersion,
 	}
 	showVersion bool
 )
