@@ -350,7 +350,7 @@ func (m *rateLimiter) runGC(ctx context.Context) {
 }
 
 func (m *rateLimiter) collect() {
-	RPH := 1.0 / 3600
+	const RPH = 1.0 / 3600
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
