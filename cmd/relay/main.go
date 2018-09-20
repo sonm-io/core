@@ -11,14 +11,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	cfgPath     string
-	versionFlag bool
-	appVersion  string
-)
-
-func start() error {
-	cfg, err := relay.NewServerConfig(cfgPath)
+func start(app cmd.AppContext) error {
+	cfg, err := relay.NewServerConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
@@ -61,5 +55,5 @@ func start() error {
 }
 
 func main() {
-	cmd.NewCmd("relay", appVersion, &cfgPath, &versionFlag, start).Execute()
+	cmd.NewCmd(start).Execute()
 }

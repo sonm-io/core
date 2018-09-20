@@ -11,18 +11,12 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var (
-	configFlag  string
-	versionFlag bool
-	appVersion  string
-)
-
 func main() {
-	cmd.NewCmd("optimus", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd(run).Execute()
 }
 
-func run() error {
-	cfg, err := optimus.LoadConfig(configFlag)
+func run(app cmd.AppContext) error {
+	cfg, err := optimus.LoadConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse config: %v", err)
 	}
@@ -51,7 +45,7 @@ func run() error {
 	}
 
 	ctx := ctxlog.WithLogger(context.Background(), log)
-	bot, err := optimus.NewOptimus(cfg, optimus.WithVersion(appVersion), optimus.WithLog(log.Sugar()))
+	bot, err := optimus.NewOptimus(cfg, optimus.WithVersion(app.Version), optimus.WithLog(log.Sugar()))
 	if err != nil {
 		return fmt.Errorf("failed to create Optimus: %v", err)
 	}

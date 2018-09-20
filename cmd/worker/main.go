@@ -17,20 +17,14 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	configFlag  string
-	versionFlag bool
-	appVersion  string
-)
-
 func main() {
-	cmd.NewCmd("worker", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd(run).Execute()
 }
 
-func run() error {
+func run(app cmd.AppContext) error {
 	ctx := context.Background()
 	waiter, ctx := errgroup.WithContext(ctx)
-	cfg, err := worker.NewConfig(configFlag)
+	cfg, err := worker.NewConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
@@ -62,7 +56,7 @@ func run() error {
 	})
 
 	w, err := worker.NewWorker(worker.WithConfig(cfg), worker.WithContext(ctx), worker.WithStateStorage(storage),
-		worker.WithVersion(appVersion))
+		worker.WithVersion(app.Version))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}

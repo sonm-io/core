@@ -72,7 +72,7 @@ ifeq ($(WITH_NL),true)
     NL_TAGS := nl
 endif
 
-LDFLAGS = -X main.appVersion=$(FULL_VERSION)
+LDFLAGS = -X cmd.app.Version=$(FULL_VERSION)
 
 .PHONY: fmt vet test
 
