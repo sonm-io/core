@@ -14,7 +14,7 @@ import (
 )
 
 // avoid using the mockgen because it cannot properly mock stream method
-// that are also declared in the proto/node.sonm.go
+// that are also declared in the proto/node.pb.go
 type blacklistClientMock struct{}
 
 func (blacklistClientMock) List(ctx context.Context, in *sonm.EthAddress, opts ...grpc.CallOption) (*sonm.BlacklistReply, error) {
