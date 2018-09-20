@@ -17,7 +17,7 @@ import (
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/metadata"
@@ -60,7 +60,7 @@ func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
 		return nil, fmt.Errorf("cannot create client connection: %v", err)
 	}
 
-	deals, err := dealCli.List(ctx, &pb.Count{Count: 0})
+	deals, err := dealCli.List(ctx, &sonm.Count{Count: 0})
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch deals list: %s", err)
 	}
@@ -126,7 +126,7 @@ var taskListCmd = &cobra.Command{
 				cmd.Printf("Deal %s (%d/%d):\n", dealID.String(), k+1, len(dealIDs))
 			}
 
-			list, err := node.List(timeoutCtx, &pb.TaskListRequest{DealID: pb.NewBigInt(dealID)})
+			list, err := node.List(timeoutCtx, &sonm.TaskListRequest{DealID: sonm.NewBigInt(dealID)})
 			if err != nil {
 				ShowError(cmd, "cannot get task list for deal", err)
 			} else {
@@ -159,12 +159,12 @@ var taskStartCmd = &cobra.Command{
 			return fmt.Errorf("cannot load task definition: %v", err)
 		}
 
-		bigDealID, err := pb.NewBigIntFromString(dealID)
+		bigDealID, err := sonm.NewBigIntFromString(dealID)
 		if err != nil {
 			return err
 		}
 
-		request := &pb.StartTaskRequest{
+		request := &sonm.StartTaskRequest{
 			DealID: bigDealID,
 			Spec:   spec,
 		}
@@ -192,13 +192,13 @@ var taskStatusCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := pb.NewBigIntFromString(args[0])
+		dealID, err := sonm.NewBigIntFromString(args[0])
 		if err != nil {
 			return err
 		}
 
 		taskID := args[1]
-		req := &pb.TaskID{
+		req := &sonm.TaskID{
 			Id:     taskID,
 			DealID: dealID,
 		}
@@ -226,15 +226,15 @@ var taskJoinNetworkCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := pb.NewBigIntFromString(args[0])
+		dealID, err := sonm.NewBigIntFromString(args[0])
 		if err != nil {
 			return err
 		}
 
 		taskID := args[1]
 		netID := args[2]
-		spec, err := node.JoinNetwork(ctx, &pb.JoinNetworkRequest{
-			TaskID: &pb.TaskID{
+		spec, err := node.JoinNetwork(ctx, &sonm.JoinNetworkRequest{
+			TaskID: &sonm.TaskID{
 				Id:     taskID,
 				DealID: dealID,
 			},
@@ -263,16 +263,16 @@ func (m *logWriter) Write(p []byte) (n int, err error) {
 	return m.writer.Write(p)
 }
 
-func parseType(logType string) (pb.TaskLogsRequest_Type, error) {
+func parseType(logType string) (sonm.TaskLogsRequest_Type, error) {
 	if len(logType) == 0 {
-		return pb.TaskLogsRequest_BOTH, nil
+		return sonm.TaskLogsRequest_BOTH, nil
 	}
 	key := strings.ToUpper(logType)
-	t, ok := pb.TaskLogsRequest_Type_value[key]
+	t, ok := sonm.TaskLogsRequest_Type_value[key]
 	if !ok {
-		return pb.TaskLogsRequest_Type(0), fmt.Errorf("invalid log type %s", logType)
+		return sonm.TaskLogsRequest_Type(0), fmt.Errorf("invalid log type %s", logType)
 	}
-	return pb.TaskLogsRequest_Type(t), nil
+	return sonm.TaskLogsRequest_Type(t), nil
 }
 
 var taskLogsCmd = &cobra.Command{
@@ -304,10 +304,10 @@ var taskLogsCmd = &cobra.Command{
 			return fmt.Errorf("failed to parse log type: %v", err)
 		}
 
-		req := &pb.TaskLogsRequest{
+		req := &sonm.TaskLogsRequest{
 			Type:          logType,
 			Id:            args[1],
-			DealID:        pb.NewBigInt(dealID),
+			DealID:        sonm.NewBigInt(dealID),
 			Since:         since,
 			AddTimestamps: addTimestamps,
 			Follow:        follow,
@@ -320,7 +320,7 @@ var taskLogsCmd = &cobra.Command{
 			return fmt.Errorf("cannot get task logs: %v", err)
 		}
 
-		reader := pb.NewLogReader(logClient)
+		reader := sonm.NewLogReader(logClient)
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.OutOrStderr()
 		if prependStream {
@@ -349,12 +349,12 @@ var taskStopCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := pb.NewBigIntFromString(args[0])
+		dealID, err := sonm.NewBigIntFromString(args[0])
 		if err != nil {
 			return nil
 		}
 
-		req := &pb.TaskID{
+		req := &sonm.TaskID{
 			Id:     args[1],
 			DealID: dealID,
 		}
@@ -400,7 +400,7 @@ var taskPullCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		req := &pb.PullTaskRequest{
+		req := &sonm.PullTaskRequest{
 			DealId: dealID,
 			TaskId: taskID,
 		}
@@ -536,7 +536,7 @@ var taskPushCmd = &cobra.Command{
 
 				if n > 0 {
 					bytesRemaining = int64(n)
-					client.Send(&pb.Chunk{Chunk: buf[:n]})
+					client.Send(&sonm.Chunk{Chunk: buf[:n]})
 				}
 			}
 

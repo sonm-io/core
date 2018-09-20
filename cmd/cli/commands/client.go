@@ -3,7 +3,7 @@ package commands
 import (
 	"context"
 
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/xgrpc"
 	"google.golang.org/grpc"
 )
@@ -15,74 +15,74 @@ func newClientConn(ctx context.Context) (*grpc.ClientConn, error) {
 	return xgrpc.NewClient(ctx, nodeAddress(), creds)
 }
 
-func newWorkerManagementClient(ctx context.Context) (pb.WorkerManagementClient, error) {
+func newWorkerManagementClient(ctx context.Context) (sonm.WorkerManagementClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewWorkerManagementClient(cc), nil
+	return sonm.NewWorkerManagementClient(cc), nil
 }
 
-func newMasterManagementClient(ctx context.Context) (pb.MasterManagementClient, error) {
+func newMasterManagementClient(ctx context.Context) (sonm.MasterManagementClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewMasterManagementClient(cc), nil
+	return sonm.NewMasterManagementClient(cc), nil
 }
 
-func newMarketClient(ctx context.Context) (pb.MarketClient, error) {
+func newMarketClient(ctx context.Context) (sonm.MarketClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewMarketClient(cc), nil
+	return sonm.NewMarketClient(cc), nil
 }
 
-func newDealsClient(ctx context.Context) (pb.DealManagementClient, error) {
+func newDealsClient(ctx context.Context) (sonm.DealManagementClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewDealManagementClient(cc), nil
+	return sonm.NewDealManagementClient(cc), nil
 }
 
-func newTaskClient(ctx context.Context) (pb.TaskManagementClient, error) {
+func newTaskClient(ctx context.Context) (sonm.TaskManagementClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewTaskManagementClient(cc), nil
+	return sonm.NewTaskManagementClient(cc), nil
 }
 
-func newTokenManagementClient(ctx context.Context) (pb.TokenManagementClient, error) {
+func newTokenManagementClient(ctx context.Context) (sonm.TokenManagementClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewTokenManagementClient(cc), nil
+	return sonm.NewTokenManagementClient(cc), nil
 }
 
-func newBlacklistClient(ctx context.Context) (pb.BlacklistClient, error) {
+func newBlacklistClient(ctx context.Context) (sonm.BlacklistClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewBlacklistClient(cc), nil
+	return sonm.NewBlacklistClient(cc), nil
 }
 
-func newProfilesClient(ctx context.Context) (pb.ProfilesClient, error) {
+func newProfilesClient(ctx context.Context) (sonm.ProfilesClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewProfilesClient(cc), nil
+	return sonm.NewProfilesClient(cc), nil
 }

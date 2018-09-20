@@ -11,7 +11,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -25,22 +24,22 @@ func testCtx() context.Context {
 }
 
 type testDealInfoSupplier struct {
-	Deal *pb.Deal
+	Deal *sonm.Deal
 }
 
-func (m *testDealInfoSupplier) GetDealInfo(ctx context.Context, id *sonm.ID) (*pb.DealInfoReply, error) {
-	return &pb.DealInfoReply{
+func (m *testDealInfoSupplier) GetDealInfo(ctx context.Context, id *sonm.ID) (*sonm.DealInfoReply, error) {
+	return &sonm.DealInfoReply{
 		Deal: m.Deal,
 	}, nil
 }
 
 func makeDealInfoSupplier(t *testing.T, buyerId string, dealID string) DealInfoSupplier {
-	id, err := pb.NewBigIntFromString(dealID)
+	id, err := sonm.NewBigIntFromString(dealID)
 	require.NoError(t, err)
 	return &testDealInfoSupplier{
 		Deal: &sonm.Deal{
 			Id:         id,
-			ConsumerID: pb.NewEthAddress(common.HexToAddress(buyerId)),
+			ConsumerID: sonm.NewEthAddress(common.HexToAddress(buyerId)),
 		},
 	}
 }
@@ -58,7 +57,7 @@ func TestContextDealMetaData(t *testing.T) {
 
 func startTaskDealExtractor() DealExtractor {
 	return newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-		return structs.DealID(request.(*pb.StartTaskRequest).GetDealID().Unwrap().String()), nil
+		return structs.DealID(request.(*sonm.StartTaskRequest).GetDealID().Unwrap().String()), nil
 	})
 }
 
@@ -68,7 +67,7 @@ func TestDealAuthorization(t *testing.T) {
 	})
 
 	request := &sonm.StartTaskRequest{
-		DealID: pb.NewBigIntFromInt(66),
+		DealID: sonm.NewBigIntFromInt(66),
 	}
 
 	extractor := startTaskDealExtractor()
@@ -83,7 +82,7 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	})
 
 	request := &sonm.StartTaskRequest{
-		DealID: pb.NewBigIntFromInt(66),
+		DealID: sonm.NewBigIntFromInt(66),
 	}
 
 	extractor := startTaskDealExtractor()
@@ -102,7 +101,7 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	}))
 
 	request := &sonm.StartTaskRequest{
-		DealID: pb.NewBigIntFromInt(66),
+		DealID: sonm.NewBigIntFromInt(66),
 	}
 
 	extractor := startTaskDealExtractor()

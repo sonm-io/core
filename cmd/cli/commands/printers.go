@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/olekukonko/tablewriter"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
 	"github.com/spf13/cobra"
@@ -51,7 +51,7 @@ func (p printerFlags) WarningSuppressed() bool {
 	return int(p)&suppressWarnings == 1
 }
 
-func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
+func printTaskStatus(cmd *cobra.Command, id string, taskStatus *sonm.TaskStatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("ID: %s\r\n", id)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
@@ -108,7 +108,7 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 	}
 }
 
-func printNetworkSpec(cmd *cobra.Command, spec *pb.NetworkSpec) {
+func printNetworkSpec(cmd *cobra.Command, spec *sonm.NetworkSpec) {
 	out, err := yaml.Marshal(spec)
 	if err != nil {
 		cmd.Printf("%s", err)
@@ -117,7 +117,7 @@ func printNetworkSpec(cmd *cobra.Command, spec *pb.NetworkSpec) {
 	}
 }
 
-func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskStatusReply) {
+func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*sonm.TaskStatusReply) {
 	if isSimpleFormat() {
 		if len(tasksMap) == 0 {
 			cmd.Printf("No active tasks\r\n")
@@ -131,7 +131,7 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskStatusR
 	}
 }
 
-func printWorkerStatus(cmd *cobra.Command, stat *pb.StatusReply) {
+func printWorkerStatus(cmd *cobra.Command, stat *sonm.StatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("Uptime:            %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
 		cmd.Printf("Version:           %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
@@ -152,7 +152,7 @@ func printWorkerStatus(cmd *cobra.Command, stat *pb.StatusReply) {
 	}
 }
 
-func printBenchmarkGroup(cmd *cobra.Command, benchmarks map[uint64]*pb.Benchmark) {
+func printBenchmarkGroup(cmd *cobra.Command, benchmarks map[uint64]*sonm.Benchmark) {
 	cmd.Println("  Benchmarks:")
 	for _, bn := range benchmarks {
 		cmd.Printf("    %s: %v\r\n", bn.Code, bn.Result)
@@ -160,7 +160,7 @@ func printBenchmarkGroup(cmd *cobra.Command, benchmarks map[uint64]*pb.Benchmark
 	cmd.Println()
 }
 
-func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
+func printDeviceList(cmd *cobra.Command, dev *sonm.DevicesReply) {
 	if isSimpleFormat() {
 		cpu := dev.GetCPU().GetDevice()
 		cmd.Printf("CPU: %d cores at %d sockets\r\n", cpu.GetCores(), cpu.GetSockets())
@@ -203,7 +203,7 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 	}
 }
 
-func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
+func printOrdersList(cmd *cobra.Command, orders []*sonm.Order) {
 	if isSimpleFormat() {
 		if len(orders) == 0 {
 			cmd.Println("No orders found")
@@ -238,7 +238,7 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 	}
 }
 
-func printOrderDetails(cmd Printer, order *pb.Order) {
+func printOrderDetails(cmd Printer, order *sonm.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:              %s\r\n", order.Id)
 		if !order.GetDealID().IsZero() {
@@ -284,7 +284,7 @@ func printOrderDetails(cmd Printer, order *pb.Order) {
 }
 
 // TODO: Breaking issue #1225.
-func typeEraseWithFieldMap(plan *pb.AskPlan, mapping map[string]func(v interface{}) interface{}) yaml.MapSlice {
+func typeEraseWithFieldMap(plan *sonm.AskPlan, mapping map[string]func(v interface{}) interface{}) yaml.MapSlice {
 	v := reflect.Indirect(reflect.ValueOf(plan))
 	ty := v.Type()
 
@@ -310,7 +310,7 @@ func typeEraseWithFieldMap(plan *pb.AskPlan, mapping map[string]func(v interface
 	return values
 }
 
-func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
+func printAskList(cmd *cobra.Command, slots *sonm.AskPlansReply) {
 	if isSimpleFormat() {
 		plans := map[string]yaml.MapSlice{}
 		for k, v := range slots.GetAskPlans() {
@@ -347,7 +347,7 @@ func printVersion(cmd *cobra.Command, v string) {
 	}
 }
 
-func getDealCounterpartyString(d *pb.Deal) string {
+func getDealCounterpartyString(d *sonm.Deal) string {
 	addr, _ := keystore.GetDefaultAddress()
 	if d.GetConsumerID().Unwrap() == addr {
 		return d.GetSupplierID().Unwrap().Hex()
@@ -356,7 +356,7 @@ func getDealCounterpartyString(d *pb.Deal) string {
 	}
 }
 
-func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
+func printDealsList(cmd *cobra.Command, deals []*sonm.Deal) {
 	if isSimpleFormat() {
 		if len(deals) == 0 {
 			cmd.Println("No deals found")
@@ -394,16 +394,16 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 }
 
 type ExtendedDealInfo struct {
-	*pb.DealInfoReply
-	ChangeRequests *pb.DealChangeRequestsReply `json:"changeRequests"`
-	Ask            *pb.Order                   `json:"ask"`
-	Bid            *pb.Order                   `json:"bid"`
+	*sonm.DealInfoReply
+	ChangeRequests *sonm.DealChangeRequestsReply `json:"changeRequests"`
+	Ask            *sonm.Order                   `json:"ask"`
+	Bid            *sonm.Order                   `json:"bid"`
 }
 
 func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlags) {
 	if isSimpleFormat() {
 		deal := info.GetDeal()
-		isClosed := deal.GetStatus() == pb.DealStatus_DEAL_CLOSED
+		isClosed := deal.GetStatus() == sonm.DealStatus_DEAL_CLOSED
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()
 		dealDuration := end.Sub(start)
@@ -518,7 +518,7 @@ func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlag
 	}
 }
 
-func printErrorById(cmd *cobra.Command, errors *pb.ErrorByID) {
+func printErrorById(cmd *cobra.Command, errors *sonm.ErrorByID) {
 	if isSimpleFormat() {
 		for _, err := range errors.GetResponse() {
 			status := "OK"
@@ -540,7 +540,7 @@ func printID(cmd *cobra.Command, id string) {
 	}
 }
 
-func printTaskStart(cmd *cobra.Command, start *pb.StartTaskReply) {
+func printTaskStart(cmd *cobra.Command, start *sonm.StartTaskReply) {
 	if isSimpleFormat() {
 		cmd.Printf("Task ID:    %s\r\n", start.Id)
 
@@ -558,7 +558,7 @@ func printTaskStart(cmd *cobra.Command, start *pb.StartTaskReply) {
 	}
 }
 
-func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
+func printBalanceInfo(cmd *cobra.Command, reply *sonm.BalanceReply) {
 	sideSNM := reply.GetSideBalance().ToPriceString()
 	liveSNM := reply.GetLiveBalance().ToPriceString()
 	liveEth := reply.GetLiveEthBalance().ToPriceString()
@@ -579,7 +579,7 @@ func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
 	}
 }
 
-func printMarketAllowance(cmd *cobra.Command, reply *pb.BigInt) {
+func printMarketAllowance(cmd *cobra.Command, reply *sonm.BigInt) {
 	if isSimpleFormat() {
 		allowance := big.NewFloat(0.0).SetPrec(256).SetInt(reply.Unwrap())
 		allowance = allowance.Quo(allowance, big.NewFloat(1e18))
@@ -589,7 +589,7 @@ func printMarketAllowance(cmd *cobra.Command, reply *pb.BigInt) {
 	}
 }
 
-func printBlacklist(cmd *cobra.Command, list *pb.BlacklistReply) {
+func printBlacklist(cmd *cobra.Command, list *sonm.BlacklistReply) {
 	if isSimpleFormat() {
 		if len(list.GetAddresses()) == 0 {
 			cmd.Println("Blacklist is empty")
@@ -605,14 +605,14 @@ func printBlacklist(cmd *cobra.Command, list *pb.BlacklistReply) {
 	}
 }
 
-func printWorkersList(cmd *cobra.Command, list *pb.WorkerListReply) {
+func printWorkersList(cmd *cobra.Command, list *sonm.WorkerListReply) {
 	if isSimpleFormat() {
 		if len(list.GetWorkers()) == 0 {
 			cmd.Println("No workers for current master")
 			return
 		}
 
-		var confirmed, notConfirmed []*pb.DWHWorker
+		var confirmed, notConfirmed []*sonm.DWHWorker
 		for _, w := range list.GetWorkers() {
 			if w.GetConfirmed() {
 				confirmed = append(confirmed, w)
@@ -639,9 +639,9 @@ func printWorkersList(cmd *cobra.Command, list *pb.WorkerListReply) {
 	}
 }
 
-func printProfileInfo(cmd *cobra.Command, p *pb.Profile) {
+func printProfileInfo(cmd *cobra.Command, p *sonm.Profile) {
 	if isSimpleFormat() {
-		level := pb.IdentityLevel(int32(p.GetIdentityLevel()))
+		level := sonm.IdentityLevel(int32(p.GetIdentityLevel()))
 		cmd.Printf("User ID: %s (%s)\r\n", p.GetUserID().Unwrap().Hex(), level.String())
 		if len(p.GetName()) > 0 {
 			cmd.Printf("Name: %s\r\n", p.GetName())
@@ -652,7 +652,7 @@ func printProfileInfo(cmd *cobra.Command, p *pb.Profile) {
 		cmd.Printf("Active orders: %d Bids, %d Asks\r\n", p.GetActiveBids(), p.GetActiveAsks())
 
 		if len(p.GetCertificates()) > 0 {
-			var certs []*pb.Certificate
+			var certs []*sonm.Certificate
 			if err := json.Unmarshal([]byte(p.GetCertificates()), &certs); err == nil {
 				cmd.Println("  Certificates:")
 				for _, cert := range certs {

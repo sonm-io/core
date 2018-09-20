@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/metadata"
@@ -17,7 +17,7 @@ import (
 
 var (
 	workerAddressFlag string
-	worker            pb.WorkerManagementClient
+	worker            sonm.WorkerManagementClient
 	workerCtx         context.Context
 	workerCancel      context.CancelFunc
 )
@@ -88,7 +88,7 @@ var workerStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show worker status",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		status, err := worker.Status(workerCtx, &pb.Empty{})
+		status, err := worker.Status(workerCtx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("cannot get worker status: %v", err)
 		}
@@ -139,7 +139,7 @@ var workerScheduleMaintenanceCmd = &cobra.Command{
 			timePoint = timePoint.Add(duration)
 		}
 
-		if _, err := worker.ScheduleMaintenance(workerCtx, &pb.Timestamp{Seconds: timePoint.Unix()}); err != nil {
+		if _, err := worker.ScheduleMaintenance(workerCtx, &sonm.Timestamp{Seconds: timePoint.Unix()}); err != nil {
 			return fmt.Errorf("failed to schedule maintenance: %v", err)
 		}
 
@@ -152,7 +152,7 @@ var workerNextMaintenanceCmd = &cobra.Command{
 	Use:   "next-maintenance",
 	Short: "Print next scheduled maintenance",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		next, err := worker.NextMaintenance(workerCtx, &pb.Empty{})
+		next, err := worker.NextMaintenance(workerCtx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("failed to get next maintenance: %v", err)
 		}
@@ -224,7 +224,7 @@ var workerDebugStateCmd = &cobra.Command{
 	Use:   "debug-state",
 	Short: "Provide some useful worker debugging info",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		reply, err := worker.DebugState(workerCtx, &pb.Empty{})
+		reply, err := worker.DebugState(workerCtx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("failed to get debug state: %v", err)
 		}

@@ -40,7 +40,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/multierror"
@@ -84,21 +84,21 @@ func (m *overseerView) ContainerInfo(id string) (*ContainerInfo, bool) {
 	return m.worker.GetContainerInfo(id)
 }
 
-func (m *overseerView) ConsumerIdentityLevel(ctx context.Context, id string) (pb.IdentityLevel, error) {
+func (m *overseerView) ConsumerIdentityLevel(ctx context.Context, id string) (sonm.IdentityLevel, error) {
 	plan, err := m.worker.AskPlanByTaskID(id)
 	if err != nil {
-		return pb.IdentityLevel_UNKNOWN, err
+		return sonm.IdentityLevel_UNKNOWN, err
 	}
 
 	deal, err := m.worker.salesman.Deal(plan.GetDealID())
 	if err != nil {
-		return pb.IdentityLevel_UNKNOWN, err
+		return sonm.IdentityLevel_UNKNOWN, err
 	}
 
 	return m.worker.eth.ProfileRegistry().GetProfileLevel(ctx, deal.GetConsumerID().Unwrap())
 }
 
-func (m *overseerView) ExecIdentity() pb.IdentityLevel {
+func (m *overseerView) ExecIdentity() sonm.IdentityLevel {
 	return m.worker.cfg.SSH.Identity
 }
 
@@ -333,7 +333,7 @@ func (m *Worker) setupAuthorization() error {
 		auth.Allow(taskAPIPrefix+"StopTask").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"JoinNetwork").With(newDealAuthorization(m.ctx, m, newFromNamedTaskDealExtractor(m, "TaskID"))),
 		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*pb.StartTaskRequest).GetDealID().Unwrap().String()), nil
+			return structs.DealID(request.(*sonm.StartTaskRequest).GetDealID().Unwrap().String()), nil
 		}))),
 		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"PushTask").With(newAllOfAuth(
@@ -341,10 +341,10 @@ func (m *Worker) setupAuthorization() error {
 			newKYCAuthorization(m.ctx, m.cfg.Whitelist.PrivilegedIdentityLevel, m.eth.ProfileRegistry())),
 		),
 		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*pb.PullTaskRequest).DealId), nil
+			return structs.DealID(request.(*sonm.PullTaskRequest).DealId), nil
 		}))),
 		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*pb.ID).GetId()), nil
+			return structs.DealID(request.(*sonm.ID).GetId()), nil
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
@@ -393,13 +393,13 @@ func (m *Worker) setupHardware() error {
 	return nil
 }
 
-func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
+func (m *Worker) listenDeals(dealsCh <-chan *sonm.Deal) {
 	for {
 		select {
 		case <-m.ctx.Done():
 			return
 		case deal := <-dealsCh:
-			if deal.Status == pb.DealStatus_DEAL_CLOSED {
+			if deal.Status == sonm.DealStatus_DEAL_CLOSED {
 				if err := m.cancelDealTasks(deal.GetId()); err != nil {
 					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s: %s", deal.GetId().Unwrap().String(), err)
 				}
@@ -408,7 +408,7 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 	}
 }
 
-func (m *Worker) cancelDealTasks(dealID *pb.BigInt) error {
+func (m *Worker) cancelDealTasks(dealID *sonm.BigInt) error {
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
@@ -438,10 +438,10 @@ func (m *Worker) cancelDealTasks(dealID *pb.BigInt) error {
 type runningContainerInfo struct {
 	Description Description   `json:"description,omitempty"`
 	Cinfo       ContainerInfo `json:"cinfo,omitempty"`
-	Spec        pb.TaskSpec   `json:"spec,omitempty"`
+	Spec        sonm.TaskSpec `json:"spec,omitempty"`
 }
 
-func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description, spec pb.TaskSpec) {
+func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description, spec sonm.TaskSpec) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -461,12 +461,12 @@ func (m *Worker) GetContainerInfo(id string) (*ContainerInfo, bool) {
 	return info, ok
 }
 
-func (m *Worker) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
+func (m *Worker) Devices(ctx context.Context, request *sonm.Empty) (*sonm.DevicesReply, error) {
 	return m.hardware.IntoProto(), nil
 }
 
 // Status returns internal worker statistic
-func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, error) {
+func (m *Worker) Status(ctx context.Context, _ *sonm.Empty) (*sonm.StatusReply, error) {
 	uptime := uint64(time.Now().Sub(m.startTime).Seconds())
 
 	rendezvousStatus := "not connected"
@@ -477,20 +477,20 @@ func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, erro
 		}
 	}
 
-	var adminAddr *pb.EthAddress
+	var adminAddr *sonm.EthAddress
 	if m.cfg.Admin != nil {
-		adminAddr = pb.NewEthAddress(*m.cfg.Admin)
+		adminAddr = sonm.NewEthAddress(*m.cfg.Admin)
 	}
 
-	reply := &pb.StatusReply{
+	reply := &sonm.StatusReply{
 		Uptime:              uptime,
 		Version:             m.version,
 		Platform:            util.GetPlatformName(),
 		EthAddr:             m.ethAddr().Hex(),
-		TaskCount:           uint32(len(m.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
+		TaskCount:           uint32(len(m.CollectTasksStatuses(sonm.TaskStatusReply_RUNNING))),
 		DWHStatus:           m.cfg.Endpoint,
 		RendezvousStatus:    rendezvousStatus,
-		Master:              pb.NewEthAddress(m.cfg.Master),
+		Master:              sonm.NewEthAddress(m.cfg.Master),
 		Admin:               adminAddr,
 		IsMasterConfirmed:   m.isMasterConfirmed,
 		IsBenchmarkFinished: m.isBenchmarkFinished,
@@ -502,7 +502,7 @@ func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, erro
 // FreeDevices provides information about unallocated resources
 // that can be turned into ask-plans.
 // Deprecated: no longer usable
-func (m *Worker) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
+func (m *Worker) FreeDevices(ctx context.Context, request *sonm.Empty) (*sonm.DevicesReply, error) {
 	resources, err := m.resources.GetFree()
 	if err != nil {
 		return nil, err
@@ -516,7 +516,7 @@ func (m *Worker) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.Device
 	return freeHardware.IntoProto(), nil
 }
 
-func (m *Worker) setStatus(status *pb.TaskStatusReply, id string) {
+func (m *Worker) setStatus(status *sonm.TaskStatusReply, id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -526,24 +526,24 @@ func (m *Worker) setStatus(status *pb.TaskStatusReply, id string) {
 	}
 
 	m.containers[id].status = status.GetStatus()
-	if status.Status == pb.TaskStatusReply_BROKEN || status.Status == pb.TaskStatusReply_FINISHED {
+	if status.Status == sonm.TaskStatusReply_BROKEN || status.Status == sonm.TaskStatusReply_FINISHED {
 		m.resources.ReleaseTask(id)
 	}
 }
 
-func (m *Worker) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
+func (m *Worker) listenForStatus(statusListener chan sonm.TaskStatusReply_Status, id string) {
 	select {
 	case newStatus, ok := <-statusListener:
 		if !ok {
 			return
 		}
-		m.setStatus(&pb.TaskStatusReply{Status: newStatus}, id)
+		m.setStatus(&sonm.TaskStatusReply{Status: newStatus}, id)
 	case <-m.ctx.Done():
 		return
 	}
 }
 
-func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
+func (m *Worker) PushTask(stream sonm.Worker_PushTaskServer) error {
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
 		return err
 	}
@@ -564,14 +564,14 @@ func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
 	return nil
 }
 
-func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTaskServer) error {
+func (m *Worker) PullTask(request *sonm.PullTaskRequest, stream sonm.Worker_PullTaskServer) error {
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PullTask"), request); err != nil {
 		return err
 	}
 
 	ctx := log.WithLogger(m.ctx, log.G(m.ctx).With(zap.String("request", "pull task"), zap.String("id", uuid.New())))
 
-	task, err := m.TaskStatus(ctx, &pb.ID{Id: request.GetTaskId()})
+	task, err := m.TaskStatus(ctx, &sonm.ID{Id: request.GetTaskId()})
 	if err != nil {
 		log.G(m.ctx).Warn("could not fetch task history by deal", zap.Error(err))
 		return err
@@ -611,7 +611,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 				return err
 			}
 		}
-		if err := stream.Send(&pb.Chunk{Chunk: buf[:n]}); err != nil {
+		if err := stream.Send(&sonm.Chunk{Chunk: buf[:n]}); err != nil {
 			return err
 		}
 	}
@@ -619,7 +619,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 	return nil
 }
 
-func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, xdocker.Reference, error) {
+func (m *Worker) taskAllowed(ctx context.Context, request *sonm.StartTaskRequest) (bool, xdocker.Reference, error) {
 	spec := request.GetSpec()
 	ref, err := xdocker.NewReference(spec.GetContainer().GetImage())
 	if err != nil {
@@ -641,7 +641,7 @@ func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) 
 	return true, ref, nil
 }
 
-func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
+func (m *Worker) StartTask(ctx context.Context, request *sonm.StartTaskRequest) (*sonm.StartTaskReply, error) {
 	allowed, ref, err := m.taskAllowed(ctx, request)
 	if err != nil {
 		return nil, err
@@ -681,17 +681,17 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 	if spec.GetResources() == nil {
-		spec.Resources = &pb.AskPlanResources{}
+		spec.Resources = &sonm.AskPlanResources{}
 	}
 	if spec.GetResources().GetGPU() == nil {
 		spec.Resources.GPU = ask.Resources.GPU
 	}
 
-	hasher := &pb.AskPlanHasher{AskPlanResources: ask.GetResources()}
+	hasher := &sonm.AskPlanHasher{AskPlanResources: ask.GetResources()}
 	err = spec.GetResources().GetGPU().Normalize(hasher)
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
+		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources: %s", err)
 	}
 
@@ -713,19 +713,19 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	networks, err := structs.NewNetworkSpecs(spec.Container.Networks)
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
+		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification: %s", err)
 	}
 	gpuids, err := m.hardware.GPUIDs(spec.GetResources().GetGPU())
 	if err != nil {
 		log.G(ctx).Error("failed to fetch GPU IDs ", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
+		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs: %s", err)
 	}
 
 	if len(spec.GetContainer().GetExpose()) > 0 {
 		if !ask.GetResources().GetNetwork().GetNetFlags().GetIncoming() {
-			m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
+			m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, taskID)
 			return nil, fmt.Errorf("incoming network is required due to explicit `expose` settings, but not allowed for `%s` deal", dealID.Unwrap())
 		}
 	}
@@ -746,21 +746,21 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
 
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, taskID)
+	m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_SPOOLING}, taskID)
 	log.G(m.ctx).Info("spooling an image")
 	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
+		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 	log.G(m.ctx).Info("spooled an image")
 
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, taskID)
+	m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_SPAWNING}, taskID)
 	log.G(m.ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
+		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
@@ -773,9 +773,9 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	containerInfo.TaskId = taskID
 	containerInfo.AskID = ask.ID
 
-	var reply = pb.StartTaskReply{
+	var reply = sonm.StartTaskReply{
 		Id:         taskID,
-		PortMap:    make(map[string]*pb.Endpoints, 0),
+		PortMap:    make(map[string]*sonm.Endpoints, 0),
 		NetworkIDs: containerInfo.NetworkIDs,
 	}
 
@@ -784,7 +784,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 			continue
 		}
 
-		var socketAddrs []*pb.SocketAddr
+		var socketAddrs []*sonm.SocketAddr
 		var pubPortBindings []nat.PortBinding
 
 		for _, portBinding := range portBindings {
@@ -796,7 +796,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 			}
 
 			for _, publicIP := range m.publicIPs {
-				socketAddrs = append(socketAddrs, &pb.SocketAddr{
+				socketAddrs = append(socketAddrs, &sonm.SocketAddr{
 					Addr: publicIP,
 					Port: uint32(hostPortInt),
 				})
@@ -807,7 +807,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 		containerInfo.Ports[internalPort] = pubPortBindings
 
-		reply.PortMap[string(internalPort)] = &pb.Endpoints{Endpoints: socketAddrs}
+		reply.PortMap[string(internalPort)] = &sonm.Endpoints{Endpoints: socketAddrs}
 	}
 
 	m.saveContainerInfo(taskID, containerInfo, d, *spec)
@@ -815,7 +815,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	go m.listenForStatus(statusListener, taskID)
 
 	deal, err := m.salesman.Deal(dealID)
-	if err != nil || deal.Status != pb.DealStatus_DEAL_ACCEPTED {
+	if err != nil || deal.Status != sonm.DealStatus_DEAL_ACCEPTED {
 		log.G(m.ctx).Warn("deal was closed before task was spawned")
 		if err := m.cancelDealTasks(dealID); err != nil {
 			log.S(m.ctx).Errorf("failed to drop tasks of closed deals: %s", err)
@@ -827,7 +827,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 }
 
 // StopTask request forces to kill container
-func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+func (m *Worker) StopTask(ctx context.Context, request *sonm.ID) (*sonm.Empty, error) {
 	m.mu.Lock()
 	containerInfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
@@ -838,22 +838,22 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 
 	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_BROKEN}, request.Id)
 
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
+	m.setStatus(&sonm.TaskStatusReply{Status: sonm.TaskStatusReply_FINISHED}, request.Id)
 
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (m *Worker) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
-	return &pb.TaskListReply{Info: m.CollectTasksStatuses()}, nil
+func (m *Worker) Tasks(ctx context.Context, request *sonm.Empty) (*sonm.TaskListReply, error) {
+	return &sonm.TaskListReply{Info: m.CollectTasksStatuses()}, nil
 }
 
-func (m *Worker) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[string]*pb.TaskStatusReply {
-	result := map[string]*pb.TaskStatusReply{}
+func (m *Worker) CollectTasksStatuses(statuses ...sonm.TaskStatusReply_Status) map[string]*sonm.TaskStatusReply {
+	result := map[string]*sonm.TaskStatusReply{}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -873,7 +873,7 @@ func (m *Worker) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map
 }
 
 // TaskLogs returns logs from container
-func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogsServer) error {
+func (m *Worker) TaskLogs(request *sonm.TaskLogsRequest, server sonm.Worker_TaskLogsServer) error {
 	if err := m.eventAuthorization.Authorize(server.Context(), auth.Event(taskAPIPrefix+"TaskLogs"), request); err != nil {
 		return err
 	}
@@ -883,8 +883,8 @@ func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogs
 		return status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 	opts := types.ContainerLogsOptions{
-		ShowStdout: request.Type == pb.TaskLogsRequest_STDOUT || request.Type == pb.TaskLogsRequest_BOTH,
-		ShowStderr: request.Type == pb.TaskLogsRequest_STDERR || request.Type == pb.TaskLogsRequest_BOTH,
+		ShowStdout: request.Type == sonm.TaskLogsRequest_STDOUT || request.Type == sonm.TaskLogsRequest_BOTH,
+		ShowStderr: request.Type == sonm.TaskLogsRequest_STDERR || request.Type == sonm.TaskLogsRequest_BOTH,
 		Since:      request.Since,
 		Timestamps: request.AddTimestamps,
 		Follow:     request.Follow,
@@ -900,7 +900,7 @@ func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogs
 	for {
 		readCnt, err := reader.Read(buffer)
 		if readCnt != 0 {
-			server.Send(&pb.TaskLogsChunk{Data: buffer[:readCnt]})
+			server.Send(&sonm.TaskLogsChunk{Data: buffer[:readCnt]})
 		}
 		if err == io.EOF {
 			return nil
@@ -912,12 +912,12 @@ func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogs
 }
 
 //TODO: proper request
-func (m *Worker) JoinNetwork(ctx context.Context, request *pb.WorkerJoinNetworkRequest) (*pb.NetworkSpec, error) {
+func (m *Worker) JoinNetwork(ctx context.Context, request *sonm.WorkerJoinNetworkRequest) (*sonm.NetworkSpec, error) {
 	spec, err := m.plugins.JoinNetwork(request.NetworkID)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.NetworkSpec{
+	return &sonm.NetworkSpec{
 		Type:    spec.Type,
 		Options: spec.Options,
 		Subnet:  spec.Subnet,
@@ -925,7 +925,7 @@ func (m *Worker) JoinNetwork(ctx context.Context, request *pb.WorkerJoinNetworkR
 	}, nil
 }
 
-func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
+func (m *Worker) TaskStatus(ctx context.Context, req *sonm.ID) (*sonm.TaskStatusReply, error) {
 	log.G(m.ctx).Info("starting TaskDetails status server")
 
 	info, ok := m.GetContainerInfo(req.GetId())
@@ -934,9 +934,9 @@ func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 	}
 
 	var metric ContainerMetrics
-	var resources *pb.AskPlanResources
+	var resources *sonm.AskPlanResources
 	// If a container has been stoped, ovs.Info has no metrics for such container
-	if info.status == pb.TaskStatusReply_RUNNING {
+	if info.status == sonm.TaskStatusReply_RUNNING {
 		metrics, err := m.ovs.Info(ctx)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "cannot get container metrics: %s", err.Error())
@@ -1020,7 +1020,7 @@ func (m *Worker) setupRunningContainers() error {
 		return err
 	}
 
-	var closedDeals = map[string]*pb.Deal{}
+	var closedDeals = map[string]*sonm.Deal{}
 	for _, container := range containers {
 		var info runningContainerInfo
 
@@ -1052,7 +1052,7 @@ func (m *Worker) setupRunningContainers() error {
 				return fmt.Errorf("failed to get deal %v status: %v", info.Description.DealId, err)
 			}
 
-			if deal.Status == pb.DealStatus_DEAL_CLOSED {
+			if deal.Status == sonm.DealStatus_DEAL_CLOSED {
 				log.G(m.ctx).Info("found task assigned to closed deal, going to cancel it",
 					zap.String("deal_id", info.Description.DealId), zap.String("task_id", info.Cinfo.TaskId))
 				closedDeals[deal.Id.Unwrap().String()] = deal
@@ -1061,13 +1061,13 @@ func (m *Worker) setupRunningContainers() error {
 			// TODO: Match our proto status constants with docker's statuses
 			switch contJson.State.Status {
 			case "created", "paused", "restarting", "removing":
-				info.Cinfo.status = pb.TaskStatusReply_UNKNOWN
+				info.Cinfo.status = sonm.TaskStatusReply_UNKNOWN
 			case "running":
-				info.Cinfo.status = pb.TaskStatusReply_RUNNING
+				info.Cinfo.status = sonm.TaskStatusReply_RUNNING
 			case "exited":
-				info.Cinfo.status = pb.TaskStatusReply_FINISHED
+				info.Cinfo.status = sonm.TaskStatusReply_FINISHED
 			case "dead":
-				info.Cinfo.status = pb.TaskStatusReply_BROKEN
+				info.Cinfo.status = sonm.TaskStatusReply_BROKEN
 			}
 
 			m.containers[info.Cinfo.TaskId] = &info.Cinfo
@@ -1106,8 +1106,8 @@ func (m *Worker) setupServer() error {
 	logger := log.GetLogger(m.ctx)
 	m.externalGrpc = m.createServer(logger, m.eventAuthorization)
 
-	pb.RegisterWorkerServer(m.externalGrpc, m)
-	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
+	sonm.RegisterWorkerServer(m.externalGrpc, m)
+	sonm.RegisterWorkerManagementServer(m.externalGrpc, m)
 	grpc_prometheus.Register(m.externalGrpc)
 
 	if m.cfg.Debug != nil {
@@ -1139,7 +1139,7 @@ func (m *Worker) setupServer() error {
 func (m *Worker) setupStatusServer() error {
 	logger := log.GetLogger(m.ctx)
 	m.externalGrpc = m.createServer(logger, newStatusAuthorization(m.ctx))
-	pb.RegisterWorkerManagementServer(m.externalGrpc, m)
+	sonm.RegisterWorkerManagementServer(m.externalGrpc, m)
 
 	lis, err := net.Listen("tcp", m.cfg.Endpoint)
 	if err != nil {
@@ -1179,7 +1179,7 @@ type DeviceKeyer interface {
 	StorageKey() string
 }
 
-func benchKey(bench *pb.Benchmark, device interface{}) string {
+func benchKey(bench *sonm.Benchmark, device interface{}) string {
 	return deviceKey(device) + "/benchmarks/" + fmt.Sprintf("%x", structhash.Md5(bench, 1))
 }
 
@@ -1191,7 +1191,7 @@ func deviceKey(device interface{}) string {
 	}
 }
 
-func (m *Worker) getCachedValue(bench *pb.Benchmark, device interface{}) (uint64, error) {
+func (m *Worker) getCachedValue(bench *sonm.Benchmark, device interface{}) (uint64, error) {
 	var hash string
 	if dev, ok := device.(BenchmarkHasher); ok {
 		hash = dev.HardwareHash()
@@ -1229,15 +1229,15 @@ func (m *Worker) dropCachedValue(benchID uint64) error {
 	if benchID >= uint64(len(benches)) {
 		return fmt.Errorf("benchmark with id %d not found", benchID)
 	}
-	drop := func(bench *pb.Benchmark, device interface{}) error {
+	drop := func(bench *sonm.Benchmark, device interface{}) error {
 		_, err := m.storage.Remove(benchKey(bench, device))
 		return err
 	}
 	bench := benches[benchID]
 	switch bench.GetType() {
-	case pb.DeviceType_DEV_CPU:
+	case sonm.DeviceType_DEV_CPU:
 		return drop(bench, m.hardware.CPU.Device)
-	case pb.DeviceType_DEV_GPU:
+	case sonm.DeviceType_DEV_GPU:
 		multi := multierror.NewMultiError()
 		for _, dev := range m.hardware.GPU {
 			if err := drop(bench, dev.Device); err != nil {
@@ -1245,20 +1245,20 @@ func (m *Worker) dropCachedValue(benchID uint64) error {
 			}
 		}
 		return multi.ErrorOrNil()
-	case pb.DeviceType_DEV_RAM:
+	case sonm.DeviceType_DEV_RAM:
 		return drop(bench, m.hardware.RAM.Device)
-	case pb.DeviceType_DEV_STORAGE:
+	case sonm.DeviceType_DEV_STORAGE:
 		return drop(bench, m.hardware.Storage.Device)
-	case pb.DeviceType_DEV_NETWORK_IN:
+	case sonm.DeviceType_DEV_NETWORK_IN:
 		return drop(bench, m.hardware.Network)
-	case pb.DeviceType_DEV_NETWORK_OUT:
+	case sonm.DeviceType_DEV_NETWORK_OUT:
 		return drop(bench, m.hardware.Network)
 	default:
 		return fmt.Errorf("unknown device %d", bench.GetType())
 	}
 }
 
-func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64, error) {
+func (m *Worker) getBenchValue(bench *sonm.Benchmark, device interface{}) (uint64, error) {
 	if bench.GetID() == benchmarks.CPUCores {
 		return uint64(m.hardware.CPU.Device.Cores), nil
 	}
@@ -1272,7 +1272,7 @@ func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64,
 		//GPU count is always 1 for each GPU device.
 		return uint64(1), nil
 	}
-	gpuDevice, isGpu := device.(*pb.GPUDevice)
+	gpuDevice, isGpu := device.(*sonm.GPUDevice)
 	if bench.GetID() == benchmarks.GPUMem {
 		if !isGpu {
 			return uint64(0), fmt.Errorf("invalid device for GPUMem benchmark")
@@ -1314,32 +1314,32 @@ func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64,
 	}
 }
 
-func (m *Worker) setBenchmark(bench *pb.Benchmark, device interface{}, benchMap map[uint64]*pb.Benchmark) error {
+func (m *Worker) setBenchmark(bench *sonm.Benchmark, device interface{}, benchMap map[uint64]*sonm.Benchmark) error {
 	value, err := m.getBenchValue(bench, device)
 	if err != nil {
 		return err
 	}
 
-	clone := proto.Clone(bench).(*pb.Benchmark)
+	clone := proto.Clone(bench).(*sonm.Benchmark)
 	clone.Result = value
 	benchMap[bench.GetID()] = clone
 	return nil
 }
 
-func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
+func (m *Worker) runBenchmark(bench *sonm.Benchmark) error {
 	log.S(m.ctx).Debugf("processing benchmark %s(%d)", bench.GetCode(), bench.GetID())
 	switch bench.GetType() {
-	case pb.DeviceType_DEV_CPU:
+	case sonm.DeviceType_DEV_CPU:
 		return m.setBenchmark(bench, m.hardware.CPU.Device, m.hardware.CPU.Benchmarks)
-	case pb.DeviceType_DEV_RAM:
+	case sonm.DeviceType_DEV_RAM:
 		return m.setBenchmark(bench, m.hardware.RAM.Device, m.hardware.RAM.Benchmarks)
-	case pb.DeviceType_DEV_STORAGE:
+	case sonm.DeviceType_DEV_STORAGE:
 		return m.setBenchmark(bench, m.hardware.Storage.Device, m.hardware.Storage.Benchmarks)
-	case pb.DeviceType_DEV_NETWORK_IN:
+	case sonm.DeviceType_DEV_NETWORK_IN:
 		return m.setBenchmark(bench, m.hardware.Network, m.hardware.Network.BenchmarksIn)
-	case pb.DeviceType_DEV_NETWORK_OUT:
+	case sonm.DeviceType_DEV_NETWORK_OUT:
 		return m.setBenchmark(bench, m.hardware.Network, m.hardware.Network.BenchmarksOut)
-	case pb.DeviceType_DEV_GPU:
+	case sonm.DeviceType_DEV_GPU:
 		//TODO: use context to prevent useless benchmarking in case of error
 		group := errgroup.Group{}
 		for _, dev := range m.hardware.GPU {
@@ -1375,7 +1375,7 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 
 	select {
 	case s := <-statusChan:
-		if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
+		if s == sonm.TaskStatusReply_FINISHED || s == sonm.TaskStatusReply_BROKEN {
 			log.S(m.ctx).Debugf("benchmark container %s finished", statusReply.ID)
 			logOpts := types.ContainerLogsOptions{
 				ShowStdout: true,
@@ -1411,7 +1411,7 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 	}
 }
 
-func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*benchmarks.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainer(ben *sonm.Benchmark, des Description) (*benchmarks.ResultJSON, error) {
 	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("benchmark", ben))
 	res, err := m.execBenchmarkContainerWithResults(des)
 	if err != nil {
@@ -1444,24 +1444,24 @@ func parseBenchmarkResult(data []byte) (map[string]*benchmarks.ResultJSON, error
 	return v.Results, nil
 }
 
-func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
+func getDescriptionForBenchmark(b *sonm.Benchmark) (Description, error) {
 	ref, err := xdocker.NewReference(b.GetImage())
 	if err != nil {
 		return Description{}, err
 	}
 	return Description{
 		Reference: ref,
-		Container: pb.Container{Env: map[string]string{
+		Container: sonm.Container{Env: map[string]string{
 			benchmarks.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		}},
 	}, nil
 }
 
-func (m *Worker) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
-	return &pb.AskPlansReply{AskPlans: m.salesman.AskPlans()}, nil
+func (m *Worker) AskPlans(ctx context.Context, _ *sonm.Empty) (*sonm.AskPlansReply, error) {
+	return &sonm.AskPlansReply{AskPlans: m.salesman.AskPlans()}, nil
 }
 
-func (m *Worker) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
+func (m *Worker) CreateAskPlan(ctx context.Context, request *sonm.AskPlan) (*sonm.ID, error) {
 	if len(request.GetID()) != 0 || !request.GetOrderID().IsZero() || !request.GetDealID().IsZero() {
 		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id is not supported")
 	}
@@ -1473,17 +1473,17 @@ func (m *Worker) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID
 		return nil, err
 	}
 
-	return &pb.ID{Id: id}, nil
+	return &sonm.ID{Id: id}, nil
 }
 
-func (m *Worker) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+func (m *Worker) RemoveAskPlan(ctx context.Context, request *sonm.ID) (*sonm.Empty, error) {
 	if err := m.salesman.RemoveAskPlan(request.GetId()); err != nil {
 		return nil, err
 	}
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
+func (m *Worker) PurgeAskPlans(ctx context.Context, _ *sonm.Empty) (*sonm.Empty, error) {
 	plans := m.salesman.AskPlans()
 
 	result := multierror.NewMultiError()
@@ -1496,47 +1496,47 @@ func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, err
 		return nil, result.ErrorOrNil()
 	}
 
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *pb.Timestamp) (*pb.Empty, error) {
+func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *sonm.Timestamp) (*sonm.Empty, error) {
 	if err := m.salesman.ScheduleMaintenance(timestamp.Unix()); err != nil {
 		return nil, err
 	}
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (m *Worker) NextMaintenance(ctx context.Context, _ *pb.Empty) (*pb.Timestamp, error) {
+func (m *Worker) NextMaintenance(ctx context.Context, _ *sonm.Empty) (*sonm.Timestamp, error) {
 	ts := m.salesman.NextMaintenance()
-	return &pb.Timestamp{
+	return &sonm.Timestamp{
 		Seconds: ts.Unix(),
 	}, nil
 }
 
-func (m *Worker) DebugState(ctx context.Context, _ *pb.Empty) (*pb.DebugStateReply, error) {
-	return &pb.DebugStateReply{
+func (m *Worker) DebugState(ctx context.Context, _ *sonm.Empty) (*sonm.DebugStateReply, error) {
+	return &sonm.DebugStateReply{
 		SchedulerData: m.resources.DebugDump(),
 		SalesmanData:  m.salesman.DebugDump(),
 	}, nil
 }
 
-func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
-	dealID, err := pb.NewBigIntFromString(id.Id)
+func (m *Worker) GetDealInfo(ctx context.Context, id *sonm.ID) (*sonm.DealInfoReply, error) {
+	dealID, err := sonm.NewBigIntFromString(id.Id)
 	if err != nil {
 		return nil, err
 	}
 	return m.getDealInfo(dealID)
 }
 
-func (m *Worker) RemoveBenchmark(ctx context.Context, id *pb.NumericID) (*pb.Empty, error) {
+func (m *Worker) RemoveBenchmark(ctx context.Context, id *sonm.NumericID) (*sonm.Empty, error) {
 	err := m.dropCachedValue(id.Id)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (m *Worker) PurgeBenchmarks(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
+func (m *Worker) PurgeBenchmarks(ctx context.Context, _ *sonm.Empty) (*sonm.Empty, error) {
 	multi := multierror.NewMultiError()
 	list := m.benchmarks.ByID()
 	for id := range list {
@@ -1544,10 +1544,10 @@ func (m *Worker) PurgeBenchmarks(ctx context.Context, _ *pb.Empty) (*pb.Empty, e
 			multi = multierror.Append(multi, err)
 		}
 	}
-	return &pb.Empty{}, multi.ErrorOrNil()
+	return &sonm.Empty{}, multi.ErrorOrNil()
 }
 
-func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
+func (m *Worker) getDealInfo(dealID *sonm.BigInt) (*sonm.DealInfoReply, error) {
 	deal, err := m.salesman.Deal(dealID)
 	if err != nil {
 		return nil, err
@@ -1559,8 +1559,8 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	}
 	resources := ask.GetResources()
 
-	running := map[string]*pb.TaskStatusReply{}
-	completed := map[string]*pb.TaskStatusReply{}
+	running := map[string]*sonm.TaskStatusReply{}
+	completed := map[string]*sonm.TaskStatusReply{}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1571,9 +1571,9 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 			task := c.IntoProto(m.ctx)
 
 			// task is running or preparing to start
-			if c.status == pb.TaskStatusReply_SPOOLING ||
-				c.status == pb.TaskStatusReply_SPAWNING ||
-				c.status == pb.TaskStatusReply_RUNNING {
+			if c.status == sonm.TaskStatusReply_SPOOLING ||
+				c.status == sonm.TaskStatusReply_SPAWNING ||
+				c.status == sonm.TaskStatusReply_RUNNING {
 				running[id] = task
 			} else {
 				completed[id] = task
@@ -1581,7 +1581,7 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 		}
 	}
 
-	reply := &pb.DealInfoReply{
+	reply := &sonm.DealInfoReply{
 		Deal:      deal,
 		Running:   running,
 		Completed: completed,
@@ -1594,7 +1594,7 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	return reply, nil
 }
 
-func (m *Worker) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
+func (m *Worker) AskPlanByTaskID(taskID string) (*sonm.AskPlan, error) {
 	planID, err := m.resources.AskPlanIDByTaskID(taskID)
 	if err != nil {
 		return nil, err

@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/dwh"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,10 +21,10 @@ type dealsAPI struct {
 	log     *zap.SugaredLogger
 }
 
-func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, error) {
-	addr := pb.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey))
-	filter := &pb.DealsRequest{
-		Status: pb.DealStatus_DEAL_ACCEPTED,
+func (d *dealsAPI) List(ctx context.Context, req *sonm.Count) (*sonm.DealsReply, error) {
+	addr := sonm.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey))
+	filter := &sonm.DealsRequest{
+		Status: sonm.DealStatus_DEAL_ACCEPTED,
 		Limit:  req.GetCount(),
 	}
 
@@ -41,7 +41,7 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 		return nil, fmt.Errorf("could not get deals from DWH: %s", err)
 	}
 
-	reply := &pb.DealsReply{Deal: []*pb.Deal{}}
+	reply := &sonm.DealsReply{Deal: []*sonm.Deal{}}
 	for _, deal := range dealsBySupplier.GetDeals() {
 		reply.Deal = append(reply.Deal, deal.Deal)
 	}
@@ -53,13 +53,13 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 	return reply, nil
 }
 
-func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply, error) {
+func (d *dealsAPI) Status(ctx context.Context, id *sonm.BigInt) (*sonm.DealInfoReply, error) {
 	deal, err := d.remotes.eth.Market().GetDealInfo(ctx, id.Unwrap())
 	if err != nil {
 		return nil, fmt.Errorf("could not get deal info from blockchain: %s", err)
 	}
 
-	reply := &pb.DealInfoReply{Deal: deal}
+	reply := &sonm.DealInfoReply{Deal: deal}
 
 	// try to extract extra info for deal if current user is consumer
 	if deal.GetConsumerID().Unwrap().Big().Cmp(crypto.PubkeyToAddress(d.remotes.key.PublicKey).Big()) == 0 {
@@ -72,7 +72,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply
 			d.log.Debug("try to obtain deal info from the worker")
 			defer closer.Close()
 
-			info, err := worker.GetDealInfo(workerCtx, &pb.ID{Id: dealID})
+			info, err := worker.GetDealInfo(workerCtx, &sonm.ID{Id: dealID})
 			if err == nil {
 				return info, nil
 			}
@@ -82,26 +82,26 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply
 	return reply, nil
 }
 
-func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.Empty, error) {
+func (d *dealsAPI) Finish(ctx context.Context, req *sonm.DealFinishRequest) (*sonm.Empty, error) {
 	if err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, req.GetId().Unwrap(), req.GetBlacklistType()); err != nil {
 		return nil, fmt.Errorf("could not close deal in blockchain: %s", err)
 	}
 
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (d *dealsAPI) FinishDeals(ctx context.Context, req *pb.DealsFinishRequest) (*pb.ErrorByID, error) {
+func (d *dealsAPI) FinishDeals(ctx context.Context, req *sonm.DealsFinishRequest) (*sonm.ErrorByID, error) {
 	return d.finishDeals(ctx, req.GetDealInfo())
 }
 
-func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishRequest) (*pb.ErrorByID, error) {
+func (d *dealsAPI) finishDeals(ctx context.Context, deals []*sonm.DealFinishRequest) (*sonm.ErrorByID, error) {
 	concurrency := purgeConcurrency
 	if len(deals) < concurrency {
 		concurrency = len(deals)
 	}
 
-	status := pb.NewTSErrorByID()
-	ch := make(chan *pb.DealFinishRequest)
+	status := sonm.NewTSErrorByID()
+	ch := make(chan *sonm.DealFinishRequest)
 	wg := sync.WaitGroup{}
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
@@ -127,24 +127,24 @@ func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishReques
 	return status.Unwrap(), nil
 }
 
-func (d *dealsAPI) PurgeDeals(ctx context.Context, req *pb.DealsPurgeRequest) (*pb.ErrorByID, error) {
-	deals, err := d.remotes.dwh.GetDeals(ctx, &pb.DealsRequest{
-		Status:     pb.DealStatus_DEAL_ACCEPTED,
-		ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey)),
+func (d *dealsAPI) PurgeDeals(ctx context.Context, req *sonm.DealsPurgeRequest) (*sonm.ErrorByID, error) {
+	deals, err := d.remotes.dwh.GetDeals(ctx, &sonm.DealsRequest{
+		Status:     sonm.DealStatus_DEAL_ACCEPTED,
+		ConsumerID: sonm.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey)),
 		Limit:      dwh.MaxLimit,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch deals from DWH: %s", err)
 	}
 
-	dealInfo := make([]*pb.DealFinishRequest, 0, len(deals.GetDeals()))
+	dealInfo := make([]*sonm.DealFinishRequest, 0, len(deals.GetDeals()))
 	for _, deal := range deals.GetDeals() {
-		dealInfo = append(dealInfo, &pb.DealFinishRequest{Id: deal.GetDeal().GetId(), BlacklistType: req.GetBlacklistType()})
+		dealInfo = append(dealInfo, &sonm.DealFinishRequest{Id: deal.GetDeal().GetId(), BlacklistType: req.GetBlacklistType()})
 	}
 	return d.finishDeals(ctx, dealInfo)
 }
 
-func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal, error) {
+func (d *dealsAPI) Open(ctx context.Context, req *sonm.OpenDealRequest) (*sonm.Deal, error) {
 	ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch ask order: %s", err)
@@ -168,7 +168,7 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 	return deal, nil
 }
 
-func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.DealInfoReply, error) {
+func (d *dealsAPI) QuickBuy(ctx context.Context, req *sonm.QuickBuyRequest) (*sonm.DealInfoReply, error) {
 	ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch ask order for duration lookup: %s", err)
@@ -200,30 +200,30 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.D
 	supplierAddr, err := auth.NewAddr(deal.GetSupplierID().Unwrap().Hex())
 	if err != nil {
 		d.log.Debugw("cannot create auth.Addr from supplier addr", zap.Error(err))
-		return &pb.DealInfoReply{Deal: deal}, nil
+		return &sonm.DealInfoReply{Deal: deal}, nil
 	}
 
 	cli, closer, err := d.remotes.workerCreator(ctx, supplierAddr)
 	if err != nil {
 		d.log.Debugw("cannot create worker client", zap.Error(err))
-		return &pb.DealInfoReply{Deal: deal}, nil
+		return &sonm.DealInfoReply{Deal: deal}, nil
 	}
 	defer closer.Close()
 
-	workerDeal, err := cli.GetDealInfo(ctx, &pb.ID{Id: deal.GetId().Unwrap().String()})
+	workerDeal, err := cli.GetDealInfo(ctx, &sonm.ID{Id: deal.GetId().Unwrap().String()})
 	if err != nil {
 		d.log.Debugw("cannot get deal from worker", zap.Error(err))
-		return &pb.DealInfoReply{Deal: deal}, nil
+		return &sonm.DealInfoReply{Deal: deal}, nil
 	}
 
 	return workerDeal, nil
 }
 
-func (d *dealsAPI) ChangeRequestsList(ctx context.Context, id *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
+func (d *dealsAPI) ChangeRequestsList(ctx context.Context, id *sonm.BigInt) (*sonm.DealChangeRequestsReply, error) {
 	return d.remotes.dwh.GetDealChangeRequests(ctx, id)
 }
 
-func (d *dealsAPI) CreateChangeRequest(ctx context.Context, req *pb.DealChangeRequest) (*pb.BigInt, error) {
+func (d *dealsAPI) CreateChangeRequest(ctx context.Context, req *sonm.DealChangeRequest) (*sonm.BigInt, error) {
 	deal, err := d.remotes.eth.Market().GetDealInfo(ctx, req.GetDealID().Unwrap())
 	if err != nil {
 		return nil, err
@@ -250,16 +250,16 @@ func (d *dealsAPI) CreateChangeRequest(ctx context.Context, req *pb.DealChangeRe
 		return nil, fmt.Errorf("cannot create change request: %v", err)
 	}
 
-	return pb.NewBigInt(id), nil
+	return sonm.NewBigInt(id), nil
 }
 
-func (d *dealsAPI) ApproveChangeRequest(ctx context.Context, id *pb.BigInt) (*pb.Empty, error) {
+func (d *dealsAPI) ApproveChangeRequest(ctx context.Context, id *sonm.BigInt) (*sonm.Empty, error) {
 	req, err := d.remotes.eth.Market().GetDealChangeRequestInfo(ctx, id.Unwrap())
 	if err != nil {
 		return nil, fmt.Errorf("cannot get change request by id: %v", err)
 	}
 
-	matchingRequest := &pb.DealChangeRequest{
+	matchingRequest := &sonm.DealChangeRequest{
 		DealID:      req.GetDealID(),
 		Duration:    req.GetDuration(),
 		RequestType: invertOrderType(req.RequestType),
@@ -271,26 +271,26 @@ func (d *dealsAPI) ApproveChangeRequest(ctx context.Context, id *pb.BigInt) (*pb
 		return nil, fmt.Errorf("cannot approve change request: %v", err)
 	}
 
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (d *dealsAPI) CancelChangeRequest(ctx context.Context, id *pb.BigInt) (*pb.Empty, error) {
+func (d *dealsAPI) CancelChangeRequest(ctx context.Context, id *sonm.BigInt) (*sonm.Empty, error) {
 	if err := d.remotes.eth.Market().CancelChangeRequest(ctx, d.remotes.key, id.Unwrap()); err != nil {
 		return nil, fmt.Errorf("could not cancel change request: %v", err)
 	}
 
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func invertOrderType(s pb.OrderType) pb.OrderType {
-	if s == pb.OrderType_ASK {
-		return pb.OrderType_BID
+func invertOrderType(s sonm.OrderType) sonm.OrderType {
+	if s == sonm.OrderType_ASK {
+		return sonm.OrderType_BID
 	} else {
-		return pb.OrderType_ASK
+		return sonm.OrderType_ASK
 	}
 }
 
-func newDealsAPI(opts *remoteOptions) pb.DealManagementServer {
+func newDealsAPI(opts *remoteOptions) sonm.DealManagementServer {
 	return &dealsAPI{
 		remotes: opts,
 		log:     opts.log,

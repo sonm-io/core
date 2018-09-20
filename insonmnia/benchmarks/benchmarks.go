@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/noxiouz/zapctx/ctxlog"
-	pb "github.com/sonm-io/core/proto"
+	sonm "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -32,15 +32,15 @@ const (
 type BenchList interface {
 	// Max returns the maximum benchmark ID in the list.
 	Max() uint64
-	ByID() []*pb.Benchmark
-	MapByDeviceType() map[pb.DeviceType][]*pb.Benchmark
-	MapByCode() map[string]*pb.Benchmark
+	ByID() []*sonm.Benchmark
+	MapByDeviceType() map[sonm.DeviceType][]*sonm.Benchmark
+	MapByCode() map[string]*sonm.Benchmark
 }
 
 type benchmarkList struct {
-	byCode map[string]*pb.Benchmark
-	byType map[pb.DeviceType][]*pb.Benchmark
-	byID   []*pb.Benchmark
+	byCode map[string]*sonm.Benchmark
+	byType map[sonm.DeviceType][]*sonm.Benchmark
+	byID   []*sonm.Benchmark
 }
 
 func (bl *benchmarkList) load(ctx context.Context, s string) error {
@@ -88,7 +88,7 @@ func (bl *benchmarkList) loadFile(ctx context.Context, path string) (io.ReadClos
 }
 
 func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) error {
-	data := make(map[string]*pb.Benchmark)
+	data := make(map[string]*sonm.Benchmark)
 	decoder := json.NewDecoder(reader)
 	if err := decoder.Decode(&data); err != nil {
 		return fmt.Errorf("cannot decode JSON response: %v", err)
@@ -100,7 +100,7 @@ func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) 
 			max = bench.ID
 		}
 	}
-	bl.byID = make([]*pb.Benchmark, max+1)
+	bl.byID = make([]*sonm.Benchmark, max+1)
 	for _, bench := range data {
 
 		if bench.ID >= uint64(len(bl.byID)) {
@@ -121,7 +121,7 @@ func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) 
 		if ok {
 			bl.byType[key] = append(bl.byType[key], bench)
 		} else {
-			bl.byType[key] = []*pb.Benchmark{bench}
+			bl.byType[key] = []*sonm.Benchmark{bench}
 		}
 	}
 
@@ -132,7 +132,7 @@ func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) 
 // NewBenchmarksList returns benchmark list from external storage.
 func NewBenchmarksList(ctx context.Context, cfg Config) (BenchList, error) {
 	ls := &benchmarkList{
-		byType: make(map[pb.DeviceType][]*pb.Benchmark),
+		byType: make(map[sonm.DeviceType][]*sonm.Benchmark),
 	}
 
 	if len(cfg.URL) == 0 {
@@ -158,15 +158,15 @@ func (bl *benchmarkList) Max() uint64 {
 	return max
 }
 
-func (bl *benchmarkList) ByID() []*pb.Benchmark {
+func (bl *benchmarkList) ByID() []*sonm.Benchmark {
 	return bl.byID
 }
 
-func (bl *benchmarkList) MapByDeviceType() map[pb.DeviceType][]*pb.Benchmark {
+func (bl *benchmarkList) MapByDeviceType() map[sonm.DeviceType][]*sonm.Benchmark {
 	return bl.byType
 }
 
-func (bl *benchmarkList) MapByCode() map[string]*pb.Benchmark {
+func (bl *benchmarkList) MapByCode() map[string]*sonm.Benchmark {
 	return bl.byCode
 }
 

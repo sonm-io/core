@@ -5,7 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
@@ -53,7 +53,7 @@ var masterListCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		list, err := mm.WorkersList(ctx, pb.NewEthAddress(master))
+		list, err := mm.WorkersList(ctx, sonm.NewEthAddress(master))
 		if err != nil {
 			return fmt.Errorf("cannot get workers list: %v", err)
 		}
@@ -80,7 +80,7 @@ var masterConfirmCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid address specified: %v", err)
 		}
-		worker := pb.NewEthAddress(addr)
+		worker := sonm.NewEthAddress(addr)
 		_, err = mm.WorkerConfirm(ctx, worker)
 		if err != nil {
 			return fmt.Errorf("cannot approve Worker's request: %v", err)
@@ -100,9 +100,9 @@ func masterRemove(master common.Address, worker common.Address) error {
 		return fmt.Errorf("cannot create client connection: %v", err)
 	}
 
-	_, err = mm.WorkerRemove(ctx, &pb.WorkerRemoveRequest{
-		Master: pb.NewEthAddress(master),
-		Worker: pb.NewEthAddress(worker),
+	_, err = mm.WorkerRemove(ctx, &sonm.WorkerRemoveRequest{
+		Master: sonm.NewEthAddress(master),
+		Worker: sonm.NewEthAddress(worker),
 	})
 	if err != nil {
 		return fmt.Errorf("cannot drop master-worker relationship: %v", err)

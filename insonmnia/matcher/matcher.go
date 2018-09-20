@@ -11,7 +11,6 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
@@ -142,7 +141,7 @@ func (m *matcher) checkIfOrderExists(ctx context.Context, id *big.Int) error {
 
 func (m *matcher) getMatchingOrders(ctx context.Context, id *big.Int) ([]*sonm.Order, error) {
 	dwhReply, err := m.cfg.DWH.GetMatchingOrders(ctx, &sonm.MatchingOrdersRequest{
-		Id:    pb.NewBigInt(id),
+		Id:    sonm.NewBigInt(id),
 		Limit: m.cfg.QueryLimit,
 	})
 

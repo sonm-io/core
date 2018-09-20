@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +24,7 @@ var workerPurgeBenchmarksCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Remove all benchmarks from cache to rebenchmark on next worker restart",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := worker.PurgeBenchmarks(workerCtx, &pb.Empty{})
+		_, err := worker.PurgeBenchmarks(workerCtx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("failed to purge benchmark cache: %v", err)
 		}
@@ -44,7 +44,7 @@ var workerRemoveBenchmarksCmd = &cobra.Command{
 			return fmt.Errorf("failed to parse benchmark id: %v", err)
 		}
 
-		if _, err := worker.RemoveBenchmark(workerCtx, &pb.NumericID{Id: id}); err != nil {
+		if _, err := worker.RemoveBenchmark(workerCtx, &sonm.NumericID{Id: id}); err != nil {
 			return fmt.Errorf("failed to get debug state: %v", err)
 		}
 
