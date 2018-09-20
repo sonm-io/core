@@ -278,6 +278,7 @@ func printOrderDetails(cmd Printer, order *pb.Order) {
 		cmd.Printf("  GPU Ethash           %d\r\n", b.GPUEthHashrate())
 		cmd.Printf("  GPU Equihash         %d\r\n", b.GPUCashHashrate())
 		cmd.Printf("  GPU Redshift         %d\r\n", b.GPURedshift())
+		cmd.Printf("  CPU Cryptonight      %d\r\n", b.CPUCryptonight())
 	} else {
 		showJSON(cmd, order)
 	}
