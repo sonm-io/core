@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags/zap"
@@ -17,6 +19,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/opentracing/basictracer-go"
 	"github.com/opentracing/opentracing-go"
+	"github.com/rcrowley/go-metrics"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -309,4 +312,134 @@ func (m *requestLoggingWrappedStream) RecvMsg(msg interface{}) error {
 	executeRequestLogging(m.Context(), msg, m.fullMethod, m.log, m.truncate)
 
 	return err
+}
+
+type rateLimiter struct {
+	// Constants.
+	defaultLimit  float64
+	preciseLimits map[string]float64
+
+	mu           sync.Mutex
+	currentRates map[common.Address]metrics.Meter
+}
+
+func newRateLimiter(ctx context.Context, defaultLimit float64, preciseLimits map[string]float64) *rateLimiter {
+	m := &rateLimiter{
+		defaultLimit:  defaultLimit,
+		preciseLimits: preciseLimits,
+		currentRates:  map[common.Address]metrics.Meter{},
+	}
+
+	go m.runGC(ctx)
+
+	return m
+}
+
+func (m *rateLimiter) runGC(ctx context.Context) {
+	timer := time.NewTicker(5 * time.Minute)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			m.collect()
+		}
+	}
+}
+
+func (m *rateLimiter) collect() {
+	RPH := 1.0 / 3600
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for addr, meter := range m.currentRates {
+		if meter.Count() == 0 {
+			continue
+		}
+
+		if meter.Rate1() < RPH {
+			delete(m.currentRates, addr)
+		}
+	}
+}
+
+func (m *rateLimiter) LimitFor(method string) float64 {
+	limit, ok := m.preciseLimits[method]
+	if !ok {
+		return m.defaultLimit
+	}
+	return limit
+}
+
+func (m *rateLimiter) MeterFor(addr common.Address) metrics.Meter {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	meter, ok := m.currentRates[addr]
+	if !ok {
+		meter = metrics.NewMeter()
+		m.currentRates[addr] = meter
+	}
+
+	return meter
+}
+
+func (m *rateLimiter) CheckFor(ctx context.Context, method string) error {
+	addr, err := auth.ExtractWalletFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	meter := m.MeterFor(*addr)
+	currentRate := meter.Rate1()
+	thresholdRate := m.LimitFor(method)
+	if currentRate >= thresholdRate {
+		return status.Errorf(codes.Unavailable, "rate limit reached for %s: %f RPS, while the threshold is %f", addr.Hex(), currentRate, thresholdRate)
+	}
+
+	meter.Mark(1)
+	return nil
+}
+
+// RateLimitInterceptor is an option that enables requests rate limit for
+// specified methods.
+//
+// The context is required, because internally a garbage collector is run to
+// periodically collect records for addresses that are inactive for a long
+// time.
+//
+// Rates are counted as exponentially-weighted averaged at one-minutes.
+//
+// Methods that are not listed in the "preciseLimits" argument will have no rate
+// limitations.
+func RateLimitInterceptor(ctx context.Context, defaultLimit float64, preciseLimits map[string]float64) ServerOption {
+	rateLimiter := newRateLimiter(ctx, defaultLimit, preciseLimits)
+
+	return func(o *options) {
+		o.interceptors.u = append(o.interceptors.u, rateLimitUnaryInterceptor(rateLimiter))
+		o.interceptors.s = append(o.interceptors.s, rateLimitStreamInterceptor(rateLimiter))
+	}
+}
+
+func rateLimitUnaryInterceptor(rateLimiter *rateLimiter) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		if err := rateLimiter.CheckFor(ctx, info.FullMethod); err != nil {
+			return nil, err
+		}
+
+		return handler(ctx, req)
+	}
+}
+
+func rateLimitStreamInterceptor(rateLimiter *rateLimiter) grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if err := rateLimiter.CheckFor(ss.Context(), info.FullMethod); err != nil {
+			return err
+		}
+
+		return handler(srv, ss)
+	}
 }
