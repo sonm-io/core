@@ -12,18 +12,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	appVersion  string
-	configFlag  string
-	versionFlag bool
-)
-
 func main() {
-	cmd.NewCmd("connor", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd(run).Execute()
 }
 
-func run() error {
-	cfg, err := connor.NewConfig(configFlag)
+func run(app cmd.AppContext) error {
+	cfg, err := connor.NewConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}

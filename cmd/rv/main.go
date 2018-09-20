@@ -12,14 +12,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	cfgPath     string
-	versionFlag bool
-	appVersion  string
-)
-
-func start() error {
-	cfg, err := rendezvous.NewServerConfig(cfgPath)
+func start(app cmd.AppContext) error {
+	cfg, err := rendezvous.NewServerConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
@@ -64,5 +58,5 @@ func start() error {
 }
 
 func main() {
-	cmd.NewCmd("rendezvous", appVersion, &cfgPath, &versionFlag, start).Execute()
+	cmd.NewCmd(start).Execute()
 }

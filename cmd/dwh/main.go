@@ -16,18 +16,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	configFlag  string
-	versionFlag bool
-	appVersion  string
-)
-
 func main() {
-	cmd.NewCmd("dwh", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd(run).Execute()
 }
 
-func run() error {
-	cfg, err := dwh.NewDWHConfig(configFlag)
+func run(app cmd.AppContext) error {
+	cfg, err := dwh.NewDWHConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}

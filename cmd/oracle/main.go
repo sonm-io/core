@@ -10,18 +10,12 @@ import (
 	"github.com/sonm-io/core/insonmnia/oracle"
 )
 
-var (
-	configFlag  string
-	versionFlag bool
-	appVersion  string
-)
-
 func main() {
-	cmd.NewCmd("oracle", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd(run).Execute()
 }
 
-func run() error {
-	cfg, err := oracle.NewConfig(configFlag)
+func run(app cmd.AppContext) error {
+	cfg, err := oracle.NewConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
