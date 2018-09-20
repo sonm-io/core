@@ -877,7 +877,6 @@ func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogs
 	if err := m.eventAuthorization.Authorize(server.Context(), auth.Event(taskAPIPrefix+"TaskLogs"), request); err != nil {
 		return err
 	}
-	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	containerInfo, ok := m.GetContainerInfo(request.Id)
 	if !ok {
 		return status.Errorf(codes.NotFound, "no job with id %s", request.Id)
