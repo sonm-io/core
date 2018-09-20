@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/tap"
 )
 
 const (
@@ -421,6 +422,24 @@ func RateLimitInterceptor(ctx context.Context, defaultLimit float64, preciseLimi
 	return func(o *options) {
 		o.interceptors.u = append(o.interceptors.u, rateLimitUnaryInterceptor(rateLimiter))
 		o.interceptors.s = append(o.interceptors.s, rateLimitStreamInterceptor(rateLimiter))
+	}
+}
+
+func RateLimitInTapHandle(ctx context.Context, defaultLimit float64, preciseLimits map[string]float64) ServerOption {
+	return func(o *options) {
+		o.options = append(o.options, grpc.InTapHandle(rateLimitInTapHandle(ctx, defaultLimit, preciseLimits)))
+	}
+}
+
+func rateLimitInTapHandle(ctx context.Context, defaultLimit float64, preciseLimits map[string]float64) tap.ServerInHandle {
+	rateLimiter := newRateLimiter(ctx, defaultLimit, preciseLimits)
+
+	return func(ctx context.Context, info *tap.Info) (context.Context, error) {
+		if err := rateLimiter.CheckFor(ctx, info.FullMethodName); err != nil {
+			return nil, err
+		}
+
+		return ctx, nil
 	}
 }
 
