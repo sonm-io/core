@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
-	pb "github.com/sonm-io/core/proto"
+	sonm "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
@@ -60,14 +60,14 @@ type ContractRegistry interface {
 type ProfileRegistryAPI interface {
 	AddValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address, level int8) (*types.Transaction, error)
 	RemoveValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address) (*types.Transaction, error)
-	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
+	GetValidator(ctx context.Context, validatorID common.Address) (*sonm.Validator, error)
 	GetValidatorLevel(ctx context.Context, validatorID common.Address) (int8, error)
 	CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, attributeType *big.Int, value []byte) (*types.Transaction, error)
 	RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error
-	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
+	GetCertificate(ctx context.Context, certificateID *big.Int) (*sonm.Certificate, error)
 	GetAttributeCount(ctx context.Context, owner common.Address, attributeType *big.Int) (*big.Int, error)
 	GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error)
-	GetProfileLevel(ctx context.Context, owner common.Address) (pb.IdentityLevel, error)
+	GetProfileLevel(ctx context.Context, owner common.Address) (sonm.IdentityLevel, error)
 }
 
 type EventsAPI interface {
@@ -78,22 +78,22 @@ type EventsAPI interface {
 }
 
 type MarketAPI interface {
-	QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int, duration uint64) (*pb.Deal, error)
-	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (*pb.Deal, error)
-	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklistType pb.BlacklistType) error
-	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
+	QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int, duration uint64) (*sonm.Deal, error)
+	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (*sonm.Deal, error)
+	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklistType sonm.BlacklistType) error
+	GetDealInfo(ctx context.Context, dealID *big.Int) (*sonm.Deal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
-	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error)
+	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *sonm.Order) (*sonm.Order, error)
 	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error
-	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error)
+	GetOrderInfo(ctx context.Context, orderID *big.Int) (*sonm.Order, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
 	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) error
 	RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error
 	ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) error
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) error
 	GetMaster(ctx context.Context, slave common.Address) (common.Address, error)
-	GetDealChangeRequestInfo(ctx context.Context, id *big.Int) (*pb.DealChangeRequest, error)
-	CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, request *pb.DealChangeRequest) (*big.Int, error)
+	GetDealChangeRequestInfo(ctx context.Context, id *big.Int) (*sonm.DealChangeRequest, error)
+	CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, request *sonm.DealChangeRequest) (*big.Int, error)
 	CancelChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error
 	GetNumBenchmarks(ctx context.Context) (uint64, error)
 }
@@ -601,7 +601,7 @@ func (api *BasicMarketAPI) checkAllowance(ctx context.Context, key *ecdsa.Privat
 	return nil
 }
 
-func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int, duration uint64) (*pb.Deal, error) {
+func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int, duration uint64) (*sonm.Deal, error) {
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return nil, err
 	}
@@ -614,7 +614,7 @@ func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, 
 	return api.extractOpenDealData(ctx, tx)
 }
 
-func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) (*pb.Deal, error) {
+func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) (*sonm.Deal, error) {
 	opts := api.opts.getTxOpts(ctx, key, openDealGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.OpenDeal(opts, askID, bidID)
@@ -626,7 +626,7 @@ func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 	return api.extractOpenDealData(ctx, tx)
 }
 
-func (api *BasicMarketAPI) extractOpenDealData(ctx context.Context, tx *types.Transaction) (*pb.Deal, error) {
+func (api *BasicMarketAPI) extractOpenDealData(ctx context.Context, tx *types.Transaction) (*sonm.Deal, error) {
 	logs, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, DealOpenedTopic)
 	if err != nil {
 		return nil, err
@@ -640,7 +640,7 @@ func (api *BasicMarketAPI) extractOpenDealData(ctx context.Context, tx *types.Tr
 	return api.GetDealInfo(ctx, id)
 }
 
-func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklistType pb.BlacklistType) error {
+func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklistType sonm.BlacklistType) error {
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return err
 	}
@@ -659,7 +659,7 @@ func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey,
 	return nil
 }
 
-func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error) {
+func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*sonm.Deal, error) {
 	deal1, err := api.marketContract.GetDealInfo(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
@@ -679,27 +679,27 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 		return nil, fmt.Errorf("deal fetching inconsistency for deal %s", dealID.String())
 	}
 
-	benchmarks, err := pb.NewBenchmarks(deal1.Benchmarks)
+	benchmarks, err := sonm.NewBenchmarks(deal1.Benchmarks)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.Deal{
-		Id:             pb.NewBigInt(dealID),
+	return &sonm.Deal{
+		Id:             sonm.NewBigInt(dealID),
 		Benchmarks:     benchmarks,
-		SupplierID:     pb.NewEthAddress(deal1.SupplierID),
-		ConsumerID:     pb.NewEthAddress(deal1.ConsumerID),
-		MasterID:       pb.NewEthAddress(deal1.MasterID),
-		AskID:          pb.NewBigInt(deal1.AskID),
-		BidID:          pb.NewBigInt(deal1.BidID),
+		SupplierID:     sonm.NewEthAddress(deal1.SupplierID),
+		ConsumerID:     sonm.NewEthAddress(deal1.ConsumerID),
+		MasterID:       sonm.NewEthAddress(deal1.MasterID),
+		AskID:          sonm.NewBigInt(deal1.AskID),
+		BidID:          sonm.NewBigInt(deal1.BidID),
 		Duration:       deal2.Duration.Uint64(),
-		Price:          pb.NewBigInt(deal2.Price),
-		StartTime:      &pb.Timestamp{Seconds: deal1.StartTime.Int64()},
-		EndTime:        &pb.Timestamp{Seconds: deal2.EndTime.Int64()},
-		Status:         pb.DealStatus(deal2.Status),
-		BlockedBalance: pb.NewBigInt(deal2.BlockedBalance),
-		TotalPayout:    pb.NewBigInt(deal2.TotalPayout),
-		LastBillTS:     &pb.Timestamp{Seconds: deal2.LastBillTS.Int64()},
+		Price:          sonm.NewBigInt(deal2.Price),
+		StartTime:      &sonm.Timestamp{Seconds: deal1.StartTime.Int64()},
+		EndTime:        &sonm.Timestamp{Seconds: deal2.EndTime.Int64()},
+		Status:         sonm.DealStatus(deal2.Status),
+		BlockedBalance: sonm.NewBigInt(deal2.BlockedBalance),
+		TotalPayout:    sonm.NewBigInt(deal2.TotalPayout),
+		LastBillTS:     &sonm.Timestamp{Seconds: deal2.LastBillTS.Int64()},
 	}, nil
 }
 
@@ -707,7 +707,7 @@ func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error)
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error) {
+func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *sonm.Order) (*sonm.Order, error) {
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return nil, err
 	}
@@ -761,14 +761,14 @@ func (api *BasicMarketAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKe
 	return nil
 }
 
-func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error) {
+func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*sonm.Order, error) {
 	order1, err := api.marketContract.GetOrderInfo(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
 	}
 
 	noAuthor := order1.Author.Big().Cmp(big.NewInt(0)) == 0
-	noType := pb.OrderType(order1.OrderType) == pb.OrderType_ANY
+	noType := sonm.OrderType(order1.OrderType) == sonm.OrderType_ANY
 
 	if noAuthor && noType {
 		return nil, fmt.Errorf("no order with id = %s", orderID.String())
@@ -782,28 +782,28 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 		return nil, fmt.Errorf("order fetching inconsistency for order %s", orderID.String())
 	}
 
-	netflags := pb.NetFlagsFromBoolSlice(order1.Netflags[:])
+	netflags := sonm.NetFlagsFromBoolSlice(order1.Netflags[:])
 
-	benchmarks, err := pb.NewBenchmarks(order1.Benchmarks)
+	benchmarks, err := sonm.NewBenchmarks(order1.Benchmarks)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.Order{
-		Id:             pb.NewBigInt(orderID),
-		DealID:         pb.NewBigInt(order2.DealID),
-		OrderType:      pb.OrderType(order1.OrderType),
-		OrderStatus:    pb.OrderStatus(order2.OrderStatus),
-		AuthorID:       pb.NewEthAddress(order1.Author),
-		CounterpartyID: pb.NewEthAddress(order1.Counterparty),
+	return &sonm.Order{
+		Id:             sonm.NewBigInt(orderID),
+		DealID:         sonm.NewBigInt(order2.DealID),
+		OrderType:      sonm.OrderType(order1.OrderType),
+		OrderStatus:    sonm.OrderStatus(order2.OrderStatus),
+		AuthorID:       sonm.NewEthAddress(order1.Author),
+		CounterpartyID: sonm.NewEthAddress(order1.Counterparty),
 		Duration:       order1.Duration.Uint64(),
-		Price:          pb.NewBigInt(order1.Price),
+		Price:          sonm.NewBigInt(order1.Price),
 		Netflags:       netflags,
-		IdentityLevel:  pb.IdentityLevel(order1.IdentityLevel),
+		IdentityLevel:  sonm.IdentityLevel(order1.IdentityLevel),
 		Blacklist:      order1.Blacklist.String(),
 		Tag:            order1.Tag[:],
 		Benchmarks:     benchmarks,
-		FrozenSum:      pb.NewBigInt(order1.FrozenSum),
+		FrozenSum:      sonm.NewBigInt(order1.FrozenSum),
 	}, nil
 }
 
@@ -882,23 +882,23 @@ func (api *BasicMarketAPI) GetMaster(ctx context.Context, slave common.Address) 
 	return api.marketContract.GetMaster(getCallOptions(ctx), slave)
 }
 
-func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, changeRequestID *big.Int) (*pb.DealChangeRequest, error) {
+func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, changeRequestID *big.Int) (*sonm.DealChangeRequest, error) {
 	changeRequest, err := api.marketContract.GetChangeRequestInfo(getCallOptions(ctx), changeRequestID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.DealChangeRequest{
-		Id:          pb.NewBigInt(changeRequestID),
-		DealID:      pb.NewBigInt(changeRequest.DealID),
-		RequestType: pb.OrderType(changeRequest.RequestType),
+	return &sonm.DealChangeRequest{
+		Id:          sonm.NewBigInt(changeRequestID),
+		DealID:      sonm.NewBigInt(changeRequest.DealID),
+		RequestType: sonm.OrderType(changeRequest.RequestType),
 		Duration:    changeRequest.Duration.Uint64(),
-		Price:       pb.NewBigInt(changeRequest.Price),
-		Status:      pb.ChangeRequestStatus(changeRequest.Status),
+		Price:       sonm.NewBigInt(changeRequest.Price),
+		Status:      sonm.ChangeRequestStatus(changeRequest.Status),
 	}, nil
 }
 
-func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, req *pb.DealChangeRequest) (*big.Int, error) {
+func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, req *sonm.DealChangeRequest) (*big.Int, error) {
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return nil, err
 	}
@@ -1015,36 +1015,36 @@ func (api *ProfileRegistry) GetAttributeValue(ctx context.Context, owner common.
 	return api.profileRegistryContract.GetAttributeValue(getCallOptions(ctx), owner, attributeType)
 }
 
-func (api *ProfileRegistry) GetProfileLevel(ctx context.Context, owner common.Address) (pb.IdentityLevel, error) {
+func (api *ProfileRegistry) GetProfileLevel(ctx context.Context, owner common.Address) (sonm.IdentityLevel, error) {
 	lev, err := api.profileRegistryContract.GetProfileLevel(getCallOptions(ctx), owner)
 	if err != nil {
-		return pb.IdentityLevel_UNKNOWN, fmt.Errorf("failed to get profile level: %s", err)
+		return sonm.IdentityLevel_UNKNOWN, fmt.Errorf("failed to get profile level: %s", err)
 	}
-	return pb.IdentityLevel(lev), err
+	return sonm.IdentityLevel(lev), err
 }
 
-func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
+func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common.Address) (*sonm.Validator, error) {
 	level, err := api.profileRegistryContract.GetValidatorLevel(getCallOptions(ctx), validatorID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.Validator{
-		Id:    pb.NewEthAddress(validatorID),
+	return &sonm.Validator{
+		Id:    sonm.NewEthAddress(validatorID),
 		Level: uint64(level),
 	}, nil
 }
 
-func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error) {
+func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *big.Int) (*sonm.Certificate, error) {
 	validatorID, ownerID, attribute, value, err := api.profileRegistryContract.GetCertificate(getCallOptions(ctx), certificateID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.Certificate{
-		Id:          pb.NewBigInt(certificateID),
-		ValidatorID: pb.NewEthAddress(validatorID),
-		OwnerID:     pb.NewEthAddress(ownerID),
+	return &sonm.Certificate{
+		Id:          sonm.NewBigInt(certificateID),
+		ValidatorID: sonm.NewEthAddress(validatorID),
+		OwnerID:     sonm.NewEthAddress(ownerID),
 		Attribute:   attribute.Uint64(),
 		Value:       value,
 	}, nil

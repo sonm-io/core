@@ -7,7 +7,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 )
 
 func testGetDeals(t *testing.T) {
@@ -19,7 +19,7 @@ func testGetDeals(t *testing.T) {
 
 	// Test TEXT columns.
 	{
-		request := &pb.DealsRequest{SupplierID: pb.NewEthAddress(byAddress)}
+		request := &sonm.DealsRequest{SupplierID: sonm.NewEthAddress(byAddress)}
 		reply, err := testDWH.GetDeals(testDWH.ctx, request)
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
@@ -40,8 +40,8 @@ func testGetDeals(t *testing.T) {
 	}
 	// Test INTEGER columns.
 	{
-		request := &pb.DealsRequest{
-			Duration: &pb.MaxMinUint64{Min: byMinDuration},
+		request := &sonm.DealsRequest{
+			Duration: &sonm.MaxMinUint64{Min: byMinDuration},
 		}
 		reply, err := testDWH.GetDeals(testDWH.ctx, request)
 		if err != nil {
@@ -55,8 +55,8 @@ func testGetDeals(t *testing.T) {
 	}
 	// Test TEXT columns which should be treated as INTEGERS.
 	{
-		request := &pb.DealsRequest{
-			Price: &pb.MaxMinBig{Min: pb.NewBigInt(byMinPrice)},
+		request := &sonm.DealsRequest{
+			Price: &sonm.MaxMinBig{Min: sonm.NewBigInt(byMinPrice)},
 		}
 		reply, err := testDWH.GetDeals(testDWH.ctx, request)
 		if err != nil {
@@ -100,7 +100,7 @@ func testGetOrders(t *testing.T) {
 	)
 	// Test TEXT columns.
 	{
-		request := &pb.OrdersRequest{DealID: pb.NewBigInt(byDealID)}
+		request := &sonm.OrdersRequest{DealID: sonm.NewBigInt(byDealID)}
 		orders, _, err := testDWH.storage.GetOrders(newSimpleConn(testDWH.db), request)
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
@@ -119,9 +119,9 @@ func testGetOrders(t *testing.T) {
 	}
 	// Test INTEGER columns.
 	{
-		request := &pb.OrdersRequest{
-			Duration:   &pb.MaxMinUint64{Min: byMinDuration},
-			Benchmarks: map[uint64]*pb.MaxMinUint64{0: {Min: byMinBenchmark}},
+		request := &sonm.OrdersRequest{
+			Duration:   &sonm.MaxMinUint64{Min: byMinDuration},
+			Benchmarks: map[uint64]*sonm.MaxMinUint64{0: {Min: byMinBenchmark}},
 		}
 		orders, _, err := testDWH.storage.GetOrders(newSimpleConn(testDWH.db), request)
 		if err != nil {
@@ -140,9 +140,9 @@ func testGetOrders(t *testing.T) {
 	}
 	// Test TEXT columns which should be treated as INTEGERS.
 	{
-		request := &pb.OrdersRequest{
-			Type:  pb.OrderType_ASK,
-			Price: &pb.MaxMinBig{Min: pb.NewBigInt(byMinPrice)},
+		request := &sonm.OrdersRequest{
+			Type:  sonm.OrderType_ASK,
+			Price: &sonm.MaxMinBig{Min: sonm.NewBigInt(byMinPrice)},
 		}
 		orders, _, err := testDWH.storage.GetOrders(newSimpleConn(testDWH.db), request)
 		if err != nil {
@@ -164,7 +164,7 @@ func testGetOrders(t *testing.T) {
 
 func testGetMatchingOrders(t *testing.T) {
 	var byID = big.NewInt(20201)
-	request := &pb.MatchingOrdersRequest{Id: pb.NewBigInt(byID)}
+	request := &sonm.MatchingOrdersRequest{Id: sonm.NewBigInt(byID)}
 	orders, _, err := testDWH.storage.GetMatchingOrders(newSimpleConn(testDWH.db), request)
 	if err != nil {
 		t.Errorf("Request `%+v` failed: GetMatchingOrders failed: %s", request, err)
@@ -190,8 +190,8 @@ func testGetOrderDetails(t *testing.T) {
 }
 
 func testGetDealChangeRequests(t *testing.T) {
-	changeRequests, err := testDWH.GetChangeRequests(context.Background(), &pb.ChangeRequestsRequest{
-		DealID: pb.NewBigIntFromInt(40400),
+	changeRequests, err := testDWH.GetChangeRequests(context.Background(), &sonm.ChangeRequestsRequest{
+		DealID: sonm.NewBigIntFromInt(40400),
 	})
 	if err != nil {
 		t.Error(err)
@@ -204,12 +204,12 @@ func testGetDealChangeRequests(t *testing.T) {
 }
 
 func testGetProfiles(t *testing.T) {
-	var request = &pb.ProfilesRequest{
+	var request = &sonm.ProfilesRequest{
 		Identifier: "sortedProfile",
-		Sortings: []*pb.SortingOption{
+		Sortings: []*sonm.SortingOption{
 			{
 				Field: "UserID",
-				Order: pb.SortingOrder_Asc,
+				Order: sonm.SortingOrder_Asc,
 			},
 		},
 	}
@@ -227,12 +227,12 @@ func testGetProfiles(t *testing.T) {
 			request, common.HexToAddress("0x20").Hex(), profiles[0].UserID.Unwrap().Hex())
 		return
 	}
-	request = &pb.ProfilesRequest{
+	request = &sonm.ProfilesRequest{
 		Identifier: "sortedProfile",
-		Sortings: []*pb.SortingOption{
+		Sortings: []*sonm.SortingOption{
 			{
 				Field: "UserID",
-				Order: pb.SortingOrder_Desc,
+				Order: sonm.SortingOrder_Desc,
 			},
 		},
 	}
@@ -250,16 +250,16 @@ func testGetProfiles(t *testing.T) {
 			request, common.HexToAddress("0x21").Hex(), profiles[0].UserID.Unwrap().Hex())
 		return
 	}
-	request = &pb.ProfilesRequest{
+	request = &sonm.ProfilesRequest{
 		Identifier: "sortedProfile",
-		Sortings: []*pb.SortingOption{
+		Sortings: []*sonm.SortingOption{
 			{
 				Field: "IdentityLevel",
-				Order: pb.SortingOrder_Asc,
+				Order: sonm.SortingOrder_Asc,
 			},
 			{
 				Field: "UserID",
-				Order: pb.SortingOrder_Asc,
+				Order: sonm.SortingOrder_Asc,
 			},
 		},
 	}
@@ -282,10 +282,10 @@ func testGetProfiles(t *testing.T) {
 			request, common.HexToAddress("0x28").Hex(), profiles[1].UserID.Unwrap().Hex())
 		return
 	}
-	request = &pb.ProfilesRequest{
-		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
-			Option:  pb.BlacklistOption_OnlyMatching,
+	request = &sonm.ProfilesRequest{
+		BlacklistQuery: &sonm.BlacklistQuery{
+			OwnerID: sonm.NewEthAddress(common.HexToAddress("0xE")),
+			Option:  sonm.BlacklistOption_OnlyMatching,
 		},
 	}
 	profiles, _, err = testDWH.storage.GetProfiles(newSimpleConn(testDWH.db), request)
@@ -297,10 +297,10 @@ func testGetProfiles(t *testing.T) {
 		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 1, len(profiles))
 		return
 	}
-	request = &pb.ProfilesRequest{
-		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
-			Option:  pb.BlacklistOption_WithoutMatching,
+	request = &sonm.ProfilesRequest{
+		BlacklistQuery: &sonm.BlacklistQuery{
+			OwnerID: sonm.NewEthAddress(common.HexToAddress("0xE")),
+			Option:  sonm.BlacklistOption_WithoutMatching,
 		},
 	}
 	profiles, _, err = testDWH.storage.GetProfiles(newSimpleConn(testDWH.db), request)
@@ -312,10 +312,10 @@ func testGetProfiles(t *testing.T) {
 		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 3, len(profiles))
 		return
 	}
-	profiles, _, err = testDWH.storage.GetProfiles(newSimpleConn(testDWH.db), &pb.ProfilesRequest{
-		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
-			Option:  pb.BlacklistOption_IncludeAndMark,
+	profiles, _, err = testDWH.storage.GetProfiles(newSimpleConn(testDWH.db), &sonm.ProfilesRequest{
+		BlacklistQuery: &sonm.BlacklistQuery{
+			OwnerID: sonm.NewEthAddress(common.HexToAddress("0xE")),
+			Option:  sonm.BlacklistOption_IncludeAndMark,
 		},
 	})
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	bch "github.com/sonm-io/core/blockchain"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,63 +23,63 @@ func testDWH_L1Processor(t *testing.T) {
 		commonID             = big.NewInt(0xDEADBEEF)
 		commonEventTS uint64 = 5
 	)
-	benchmarks, err := pb.NewBenchmarks([]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
+	benchmarks, err := sonm.NewBenchmarks([]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
 	require.NoError(t, err)
-	deal := &pb.Deal{
-		Id:             pb.NewBigInt(commonID),
+	deal := &sonm.Deal{
+		Id:             sonm.NewBigInt(commonID),
 		Benchmarks:     benchmarks,
-		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
-		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
-		MasterID:       pb.NewEthAddress(common.HexToAddress("0xCC")),
-		AskID:          pb.NewBigIntFromInt(20200),
-		BidID:          pb.NewBigIntFromInt(30300),
+		SupplierID:     sonm.NewEthAddress(common.HexToAddress("0xAA")),
+		ConsumerID:     sonm.NewEthAddress(common.HexToAddress("0xBB")),
+		MasterID:       sonm.NewEthAddress(common.HexToAddress("0xCC")),
+		AskID:          sonm.NewBigIntFromInt(20200),
+		BidID:          sonm.NewBigIntFromInt(30300),
 		Duration:       10020,
-		Price:          pb.NewBigInt(big.NewInt(20010)),
-		StartTime:      &pb.Timestamp{Seconds: 30010},
-		EndTime:        &pb.Timestamp{Seconds: 40010},
-		Status:         pb.DealStatus_DEAL_ACCEPTED,
-		BlockedBalance: pb.NewBigInt(big.NewInt(50010)),
-		TotalPayout:    pb.NewBigInt(big.NewInt(0)),
-		LastBillTS:     &pb.Timestamp{Seconds: int64(commonEventTS)},
+		Price:          sonm.NewBigInt(big.NewInt(20010)),
+		StartTime:      &sonm.Timestamp{Seconds: 30010},
+		EndTime:        &sonm.Timestamp{Seconds: 40010},
+		Status:         sonm.DealStatus_DEAL_ACCEPTED,
+		BlockedBalance: sonm.NewBigInt(big.NewInt(50010)),
+		TotalPayout:    sonm.NewBigInt(big.NewInt(0)),
+		LastBillTS:     &sonm.Timestamp{Seconds: int64(commonEventTS)},
 	}
 	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
-	order := &pb.Order{
-		Id:             pb.NewBigInt(commonID),
-		DealID:         pb.NewBigIntFromInt(0),
-		OrderType:      pb.OrderType_ASK,
-		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       pb.NewEthAddress(common.HexToAddress("0xD")),
-		CounterpartyID: pb.NewEthAddress(common.HexToAddress("0x0")),
+	order := &sonm.Order{
+		Id:             sonm.NewBigInt(commonID),
+		DealID:         sonm.NewBigIntFromInt(0),
+		OrderType:      sonm.OrderType_ASK,
+		OrderStatus:    sonm.OrderStatus_ORDER_ACTIVE,
+		AuthorID:       sonm.NewEthAddress(common.HexToAddress("0xD")),
+		CounterpartyID: sonm.NewEthAddress(common.HexToAddress("0x0")),
 		Duration:       10020,
-		Price:          pb.NewBigInt(big.NewInt(20010)),
-		Netflags:       &pb.NetFlags{Flags: uint64(7)},
-		IdentityLevel:  pb.IdentityLevel_ANONYMOUS,
+		Price:          sonm.NewBigInt(big.NewInt(20010)),
+		Netflags:       &sonm.NetFlags{Flags: uint64(7)},
+		IdentityLevel:  sonm.IdentityLevel_ANONYMOUS,
 		Blacklist:      "blacklist",
 		Tag:            []byte{0, 1},
 		Benchmarks:     benchmarks,
-		FrozenSum:      pb.NewBigInt(big.NewInt(30010)),
+		FrozenSum:      sonm.NewBigInt(big.NewInt(30010)),
 	}
 	mockMarket.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
-	changeRequest := &pb.DealChangeRequest{
-		Id:          pb.NewBigIntFromInt(0),
-		DealID:      pb.NewBigInt(commonID),
-		RequestType: pb.OrderType_ASK,
+	changeRequest := &sonm.DealChangeRequest{
+		Id:          sonm.NewBigIntFromInt(0),
+		DealID:      sonm.NewBigInt(commonID),
+		RequestType: sonm.OrderType_ASK,
 		Duration:    10020,
-		Price:       pb.NewBigInt(big.NewInt(20010)),
-		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
+		Price:       sonm.NewBigInt(big.NewInt(20010)),
+		Status:      sonm.ChangeRequestStatus_REQUEST_CREATED,
 	}
 	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
 	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(uint64(12), nil)
-	validator := &pb.Validator{
-		Id:    pb.NewEthAddress(common.HexToAddress("0xC")),
+	validator := &sonm.Validator{
+		Id:    sonm.NewEthAddress(common.HexToAddress("0xC")),
 		Level: 3,
 	}
 	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
 	mockProfiles.EXPECT().GetValidatorLevel(gomock.Any(), gomock.Any()).AnyTimes().Return(int8(0), nil)
-	mockProfiles.EXPECT().GetProfileLevel(gomock.Any(), gomock.Any()).AnyTimes().Return(pb.IdentityLevel_ANONYMOUS, nil)
-	cert := &pb.Certificate{
-		ValidatorID:   pb.NewEthAddress(common.HexToAddress("0xC")),
-		OwnerID:       pb.NewEthAddress(common.HexToAddress("0xD")),
+	mockProfiles.EXPECT().GetProfileLevel(gomock.Any(), gomock.Any()).AnyTimes().Return(sonm.IdentityLevel_ANONYMOUS, nil)
+	cert := &sonm.Certificate{
+		ValidatorID:   sonm.NewEthAddress(common.HexToAddress("0xC")),
+		OwnerID:       sonm.NewEthAddress(common.HexToAddress("0xD")),
 		Attribute:     CertificateName,
 		IdentityLevel: 1,
 		Value:         []byte("User Name"),
@@ -166,7 +166,7 @@ func testOrderPlaced(p *L1Processor, commonEventTS uint64, commonID *big.Int) er
 	return nil
 }
 
-func testDealOpened(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
+func testDealOpened(p *L1Processor, deal *sonm.Deal, commonID *big.Int) error {
 	if err := p.onDealOpened(commonID); err != nil {
 		return fmt.Errorf("onDealOpened failed: %v", err)
 	}
@@ -180,7 +180,7 @@ func testDealOpened(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 	}
 	// Secondly, check that a DealCondition was created.
 	if dealConditions, _, err := p.storage.GetDealConditions(
-		newSimpleConn(p.db), &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
+		newSimpleConn(p.db), &sonm.DealConditionsRequest{DealID: sonm.NewBigInt(commonID)}); err != nil {
 		return fmt.Errorf("getDealConditions failed: %v", err)
 	} else {
 		if dealConditions[0].Duration != 10020 {
@@ -190,12 +190,12 @@ func testDealOpened(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 	return nil
 }
 
-func testValidatorCreatedUpdated(p *L1Processor, validator *pb.Validator) error {
+func testValidatorCreatedUpdated(p *L1Processor, validator *sonm.Validator) error {
 	// Check that a Validator entry is added after ValidatorCreated event.
 	if err := p.onValidatorCreated(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
 		return fmt.Errorf("onValidatorCreated failed: %v", err)
 	}
-	if validators, _, err := p.storage.GetValidators(newSimpleConn(p.db), &pb.ValidatorsRequest{}); err != nil {
+	if validators, _, err := p.storage.GetValidators(newSimpleConn(p.db), &sonm.ValidatorsRequest{}); err != nil {
 		return fmt.Errorf("getValidators failed: %v", err)
 	} else {
 		if len(validators) != 1 {
@@ -211,7 +211,7 @@ func testValidatorCreatedUpdated(p *L1Processor, validator *pb.Validator) error 
 	if err := p.onValidatorDeleted(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
 		return fmt.Errorf("onValidatorDeleted failed: %v", err)
 	}
-	if validators, _, err := p.storage.GetValidators(newSimpleConn(p.db), &pb.ValidatorsRequest{}); err != nil {
+	if validators, _, err := p.storage.GetValidators(newSimpleConn(p.db), &sonm.ValidatorsRequest{}); err != nil {
 		return fmt.Errorf("getValidators failed: %v", err)
 	} else {
 		if len(validators) != 1 {
@@ -225,7 +225,7 @@ func testValidatorCreatedUpdated(p *L1Processor, validator *pb.Validator) error 
 	return nil
 }
 
-func testCertificateCreated(p *L1Processor, certificate *pb.Certificate, commonID *big.Int) error {
+func testCertificateCreated(p *L1Processor, certificate *sonm.Certificate, commonID *big.Int) error {
 	// Check that a Certificate entry is created after CertificateCreated event. We create a special certificate,
 	// `Name`, that will be recorded directly into profile. There's two such certificate types: `Name` and `Country`.
 	if err := p.onCertificateCreated(commonID); err != nil {
@@ -246,8 +246,8 @@ func testCertificateCreated(p *L1Processor, certificate *pb.Certificate, commonI
 	// After a certificate is created, corresponding profile must be updated (with the value from certificate, in
 	// this case with a name). (N.B.: a profile update will also update all orders and deals that reference this
 	// profile, which will be checked below.)
-	if profiles, _, err := p.storage.GetProfiles(newSimpleConn(p.db), &pb.ProfilesRequest{
-		Sortings: []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Asc}},
+	if profiles, _, err := p.storage.GetProfiles(newSimpleConn(p.db), &sonm.ProfilesRequest{
+		Sortings: []*sonm.SortingOption{{Field: "Id", Order: sonm.SortingOrder_Asc}},
 	}); err != nil {
 		return fmt.Errorf("failed to getProfiles: %s", err)
 	} else {
@@ -267,7 +267,7 @@ func testCertificateCreated(p *L1Processor, certificate *pb.Certificate, commonI
 	if err := p.onCertificateCreated(commonID); err != nil {
 		return fmt.Errorf("onCertificateCreated failed: %v", err)
 	}
-	if profiles, _, err := p.storage.GetProfiles(newSimpleConn(p.db), &pb.ProfilesRequest{}); err != nil {
+	if profiles, _, err := p.storage.GetProfiles(newSimpleConn(p.db), &sonm.ProfilesRequest{}); err != nil {
 		return fmt.Errorf("getProfiles failed: %v", err)
 	} else {
 		if len(profiles) != 5 {
@@ -284,7 +284,7 @@ func testCertificateCreated(p *L1Processor, certificate *pb.Certificate, commonI
 		}
 
 		// All certificates (not only `Name` and `Country`) must be stored as JSON inside a profile entry.
-		var certificates []*pb.Certificate
+		var certificates []*sonm.Certificate
 		if err := json.Unmarshal([]byte(profiles[4].Certificates), &certificates); err != nil {
 			return fmt.Errorf("(CertificateCreated) Failed to unmarshal Profile.Certificates: %s", err)
 		} else {
@@ -314,7 +314,7 @@ func testCertificateCreated(p *L1Processor, certificate *pb.Certificate, commonI
 	return nil
 }
 
-func testCertificateUpdated(p *L1Processor, cert *pb.Certificate) error {
+func testCertificateUpdated(p *L1Processor, cert *sonm.Certificate) error {
 	if err := p.onCertificateUpdated(cert.Id.Unwrap()); err != nil {
 		return fmt.Errorf("(CertificateUpdated) %v", err)
 	}
@@ -324,18 +324,18 @@ func testCertificateUpdated(p *L1Processor, cert *pb.Certificate) error {
 		return err
 	}
 
-	if profile.IdentityLevel != uint64(pb.IdentityLevel_ANONYMOUS) {
+	if profile.IdentityLevel != uint64(sonm.IdentityLevel_ANONYMOUS) {
 		return fmt.Errorf("(CertificateUpdated) Expected %d, got %d (Profile.IdentityLevel)",
-			pb.IdentityLevel_ANONYMOUS, profile.IdentityLevel)
+			sonm.IdentityLevel_ANONYMOUS, profile.IdentityLevel)
 	}
 
 	return nil
 }
 
-func testOrderUpdated(p *L1Processor, order *pb.Order, commonID *big.Int) error {
+func testOrderUpdated(p *L1Processor, order *sonm.Order, commonID *big.Int) error {
 	// Check that if order is updated, it is deleted. Order should be deleted because its DealID is not set
 	// (this means that is has become inactive due to a cancellation and not a match).
-	order.OrderStatus = pb.OrderStatus_ORDER_INACTIVE
+	order.OrderStatus = sonm.OrderStatus_ORDER_INACTIVE
 	if err := p.onOrderUpdated(commonID); err != nil {
 		return fmt.Errorf("onOrderUpdated failed: %v", err)
 	}
@@ -344,14 +344,14 @@ func testOrderUpdated(p *L1Processor, order *pb.Order, commonID *big.Int) error 
 		return fmt.Errorf("GetOrderByID failed: %v", err)
 	}
 
-	if dwhOrder.Order.OrderStatus != pb.OrderStatus_ORDER_INACTIVE {
+	if dwhOrder.Order.OrderStatus != sonm.OrderStatus_ORDER_INACTIVE {
 		return errors.New("order was not deactivated")
 	}
 
 	return nil
 }
 
-func testDealUpdated(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
+func testDealUpdated(p *L1Processor, deal *sonm.Deal, commonID *big.Int) error {
 	deal.Duration += 1
 	// Test onDealUpdated event handling.
 	if err := p.onDealUpdated(commonID); err != nil {
@@ -367,9 +367,9 @@ func testDealUpdated(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 	return nil
 }
 
-func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealChangeRequest, commonEventTS uint64, commonID *big.Int) error {
+func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *sonm.DealChangeRequest, commonEventTS uint64, commonID *big.Int) error {
 	// Test creating an ASK DealChangeRequest.
-	changeRequest.Id = pb.NewBigIntFromInt(1)
+	changeRequest.Id = sonm.NewBigIntFromInt(1)
 	changeRequest.Duration = 10021
 	if err := p.onDealChangeRequestSent(commonEventTS, big.NewInt(1)); err != nil {
 		return fmt.Errorf("onDealChangeRequestSent (2) failed: %v", err)
@@ -381,18 +381,18 @@ func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealCha
 			return fmt.Errorf("expected %d, got %d (DealChangeRequest.Duration)", 10021, changeRequest.Duration)
 		}
 	}
-	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(0)); err == nil {
+	if _, err := getDealChangeRequest(testL1Processor, sonm.NewBigIntFromInt(0)); err == nil {
 		return errors.New("getDealChangeRequest returned a DealChangeRequest that should have been deleted")
 	}
 	// Check that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
-	changeRequest.Id = pb.NewBigIntFromInt(1)
-	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_ACCEPTED
+	changeRequest.Id = sonm.NewBigIntFromInt(1)
+	changeRequest.Status = sonm.ChangeRequestStatus_REQUEST_ACCEPTED
 	if err := p.onDealChangeRequestUpdated(commonEventTS, big.NewInt(1)); err != nil {
 		return fmt.Errorf("onDealChangeRequestUpdated failed: %v", err)
 	}
 	// Also test that a new DealCondition was created, and the old one was updated.
 	if dealConditions, _, err := p.storage.GetDealConditions(
-		newSimpleConn(p.db), &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
+		newSimpleConn(p.db), &sonm.DealConditionsRequest{DealID: sonm.NewBigInt(commonID)}); err != nil {
 		return fmt.Errorf("failed to GetDealConditions: %s", err)
 	} else {
 		if len(dealConditions) != 2 {
@@ -425,7 +425,7 @@ func testBilled(p *L1Processor, commonEventTS uint64, commonID *big.Int) error {
 		return fmt.Errorf("onBilled failed: %v", err)
 	}
 	if dealConditions, _, err := p.storage.GetDealConditions(
-		newSimpleConn(p.db), &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
+		newSimpleConn(p.db), &sonm.DealConditionsRequest{DealID: sonm.NewBigInt(commonID)}); err != nil {
 		return fmt.Errorf("failed to GetDealDetails: %s", err)
 	} else {
 		if len(dealConditions) != 2 {
@@ -450,9 +450,9 @@ func testBilled(p *L1Processor, commonEventTS uint64, commonID *big.Int) error {
 	return nil
 }
 
-func testDealClosed(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
+func testDealClosed(p *L1Processor, deal *sonm.Deal, commonID *big.Int) error {
 	// Check that when a Deal's status is updated to CLOSED, Deal and its DealConditions are deleted.
-	deal.Status = pb.DealStatus_DEAL_CLOSED
+	deal.Status = sonm.DealStatus_DEAL_CLOSED
 	// Test onDealUpdated event handling.
 	if err := p.onDealUpdated(commonID); err != nil {
 		return fmt.Errorf("onDealUpdated failed: %v", err)
@@ -462,7 +462,7 @@ func testDealClosed(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 		return fmt.Errorf("GetDealByID failed: %v", err)
 	}
 
-	if dwhDeal.Deal.Status != pb.DealStatus_DEAL_CLOSED {
+	if dwhDeal.Deal.Status != sonm.DealStatus_DEAL_CLOSED {
 		return errors.New("failed to deactivate closed deal")
 	}
 
@@ -474,7 +474,7 @@ func testWorkerAnnouncedConfirmedRemoved(p *L1Processor) error {
 	if err := p.onWorkerAnnounced(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return fmt.Errorf("onWorkerAnnounced failed: %v", err)
 	}
-	if workers, _, err := p.storage.GetWorkers(newSimpleConn(p.db), &pb.WorkersRequest{}); err != nil {
+	if workers, _, err := p.storage.GetWorkers(newSimpleConn(p.db), &sonm.WorkersRequest{}); err != nil {
 		return fmt.Errorf("getWorkers failed: %v", err)
 	} else {
 		if len(workers) != 1 {
@@ -489,7 +489,7 @@ func testWorkerAnnouncedConfirmedRemoved(p *L1Processor) error {
 	if err := p.onWorkerConfirmed(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return fmt.Errorf("onWorkerConfirmed failed: %v", err)
 	}
-	if workers, _, err := p.storage.GetWorkers(newSimpleConn(p.db), &pb.WorkersRequest{}); err != nil {
+	if workers, _, err := p.storage.GetWorkers(newSimpleConn(p.db), &sonm.WorkersRequest{}); err != nil {
 		return fmt.Errorf("getWorkers failed: %v", err)
 	} else {
 		if len(workers) != 1 {
@@ -504,7 +504,7 @@ func testWorkerAnnouncedConfirmedRemoved(p *L1Processor) error {
 	if err := p.onWorkerRemoved(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return fmt.Errorf("onWorkerRemoved failed: %v", err)
 	}
-	if workers, _, err := p.storage.GetWorkers(newSimpleConn(p.db), &pb.WorkersRequest{}); err != nil {
+	if workers, _, err := p.storage.GetWorkers(newSimpleConn(p.db), &sonm.WorkersRequest{}); err != nil {
 		return fmt.Errorf("getWorkers failed: %v", err)
 	} else {
 		if len(workers) != 0 {
@@ -520,7 +520,7 @@ func testBlacklistAddedRemoved(p *L1Processor) error {
 		return fmt.Errorf("onAddedToBlacklist failed: %v", err)
 	}
 	if blacklistReply, err := p.storage.GetBlacklist(
-		newSimpleConn(p.db), &pb.BlacklistRequest{UserID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
+		newSimpleConn(p.db), &sonm.BlacklistRequest{UserID: sonm.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		return fmt.Errorf("getBlacklist failed: %v", err)
 	} else {
 		if blacklistReply.OwnerID.Unwrap().Hex() != common.HexToAddress("0xC").Hex() {
@@ -533,7 +533,7 @@ func testBlacklistAddedRemoved(p *L1Processor) error {
 		return fmt.Errorf("onRemovedFromBlacklist failed: %v", err)
 	}
 	if repl, err := p.storage.GetBlacklist(
-		newSimpleConn(p.db), &pb.BlacklistRequest{UserID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
+		newSimpleConn(p.db), &sonm.BlacklistRequest{UserID: sonm.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		return fmt.Errorf("getBlacklist (2) failed: %v", err)
 	} else {
 		if len(repl.Addresses) > 0 {
@@ -543,7 +543,7 @@ func testBlacklistAddedRemoved(p *L1Processor) error {
 	return nil
 }
 
-func getDealChangeRequest(p *L1Processor, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
+func getDealChangeRequest(p *L1Processor, changeRequestID *sonm.BigInt) (*sonm.DealChangeRequest, error) {
 	rows, err := p.storage.builder().Select("*").From("DealChangeRequests").
 		Where("Id = ?", changeRequestID.Unwrap().String()).RunWith(p.db).Query()
 	if err != nil {
@@ -558,14 +558,14 @@ func getDealChangeRequest(p *L1Processor, changeRequestID *pb.BigInt) (*pb.DealC
 	return p.storage.decodeDealChangeRequest(rows)
 }
 
-func getCertificates(p *L1Processor) ([]*pb.Certificate, error) {
+func getCertificates(p *L1Processor) ([]*sonm.Certificate, error) {
 	rows, err := p.storage.builder().Select("*").From("Certificates").RunWith(p.db).Query()
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %s", err)
 	}
 	defer rows.Close()
 
-	var out []*pb.Certificate
+	var out []*sonm.Certificate
 	for rows.Next() {
 		if certificate, err := p.storage.decodeCertificate(rows); err != nil {
 			return nil, fmt.Errorf("failed to decodeCertificate: %v", err)

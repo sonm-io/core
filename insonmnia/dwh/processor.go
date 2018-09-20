@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
@@ -311,14 +311,14 @@ func (m *L1Processor) onDealOpened(dealID *big.Int) error {
 	}
 
 	err = m.storage.InsertDealCondition(conn,
-		&pb.DealCondition{
+		&sonm.DealCondition{
 			SupplierID:  deal.SupplierID,
 			ConsumerID:  deal.ConsumerID,
 			MasterID:    deal.MasterID,
 			Duration:    deal.Duration,
 			Price:       deal.Price,
 			StartTime:   deal.StartTime,
-			EndTime:     &pb.Timestamp{},
+			EndTime:     &sonm.Timestamp{},
 			TotalPayout: deal.TotalPayout,
 			DealID:      deal.Id,
 		},
@@ -361,7 +361,7 @@ func (m *L1Processor) onDealChangeRequestSent(eventTS uint64, changeRequestID *b
 	}
 	defer conn.Finish()
 
-	changeRequest.CreatedTS = &pb.Timestamp{Seconds: int64(eventTS)}
+	changeRequest.CreatedTS = &sonm.Timestamp{Seconds: int64(eventTS)}
 	if err := m.storage.InsertDealChangeRequest(conn, changeRequest); err != nil {
 		return fmt.Errorf("failed to InsertDealChangeRequest (%s): %v", changeRequest.Id.Unwrap().String(), err)
 	}
@@ -381,7 +381,7 @@ func (m *L1Processor) onDealChangeRequestUpdated(eventTS uint64, changeRequestID
 	}
 	defer conn.Finish()
 
-	if changeRequest.Status == pb.ChangeRequestStatus_REQUEST_ACCEPTED {
+	if changeRequest.Status == sonm.ChangeRequestStatus_REQUEST_ACCEPTED {
 		deal, err := m.storage.GetDealByID(conn, changeRequest.DealID.Unwrap())
 		if err != nil {
 			return fmt.Errorf("failed to storage.GetDealByID: %v", err)
@@ -398,15 +398,15 @@ func (m *L1Processor) onDealChangeRequestUpdated(eventTS uint64, changeRequestID
 		}
 
 		err = m.storage.InsertDealCondition(conn,
-			&pb.DealCondition{
+			&sonm.DealCondition{
 				SupplierID:  deal.GetDeal().SupplierID,
 				ConsumerID:  deal.GetDeal().ConsumerID,
 				MasterID:    deal.GetDeal().MasterID,
 				Duration:    changeRequest.Duration,
 				Price:       changeRequest.Price,
-				StartTime:   &pb.Timestamp{Seconds: int64(eventTS)},
-				EndTime:     &pb.Timestamp{},
-				TotalPayout: pb.NewBigIntFromInt(0),
+				StartTime:   &sonm.Timestamp{Seconds: int64(eventTS)},
+				EndTime:     &sonm.Timestamp{},
+				TotalPayout: sonm.NewBigIntFromInt(0),
 				DealID:      deal.GetDeal().Id,
 			},
 		)
@@ -433,7 +433,7 @@ func (m *L1Processor) onBilled(eventTS uint64, dealID, payedAmount *big.Int) err
 		return fmt.Errorf("failed to updateDealPayout: %v", err)
 	}
 
-	dealConditions, _, err := m.storage.GetDealConditions(conn, &pb.DealConditionsRequest{DealID: pb.NewBigInt(dealID)})
+	dealConditions, _, err := m.storage.GetDealConditions(conn, &sonm.DealConditionsRequest{DealID: sonm.NewBigInt(dealID)})
 	if err != nil {
 		return fmt.Errorf("failed to GetDealConditions (last): %v", err)
 	}
@@ -483,7 +483,7 @@ func (m *L1Processor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	defer conn.Finish()
 
 	var userID common.Address
-	if order.OrderType == pb.OrderType_ASK {
+	if order.OrderType == sonm.OrderType_ASK {
 		// For Ask orders, try to get this Author's masterID, use AuthorID if not found.
 		userID, err = m.storage.GetMasterByWorker(conn, order.GetAuthorID().Unwrap())
 		if err != nil {
@@ -497,11 +497,11 @@ func (m *L1Processor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 
 	profile, err := m.storage.GetProfileByID(conn, userID)
 	if err != nil {
-		certificates, _ := json.Marshal([]*pb.Certificate{})
-		profile = &pb.Profile{
+		certificates, _ := json.Marshal([]*sonm.Certificate{})
+		profile = &sonm.Profile{
 			UserID:        order.AuthorID,
 			Certificates:  string(certificates),
-			IdentityLevel: uint64(pb.IdentityLevel_ANONYMOUS),
+			IdentityLevel: uint64(sonm.IdentityLevel_ANONYMOUS),
 		}
 	} else {
 		if err := m.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
@@ -510,17 +510,17 @@ func (m *L1Processor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	}
 
 	if order.DealID == nil {
-		order.DealID = pb.NewBigIntFromInt(0)
+		order.DealID = sonm.NewBigIntFromInt(0)
 	}
 
-	err = m.storage.InsertOrder(conn, &pb.DWHOrder{
-		CreatedTS:            &pb.Timestamp{Seconds: int64(eventTS)},
+	err = m.storage.InsertOrder(conn, &sonm.DWHOrder{
+		CreatedTS:            &sonm.Timestamp{Seconds: int64(eventTS)},
 		CreatorIdentityLevel: profile.IdentityLevel,
 		CreatorName:          profile.Name,
 		CreatorCountry:       profile.Country,
 		CreatorCertificates:  []byte(profile.Certificates),
-		MasterID:             pb.NewEthAddress(userID),
-		Order: &pb.Order{
+		MasterID:             sonm.NewEthAddress(userID),
+		Order: &sonm.Order{
 			Id:             order.Id,
 			DealID:         order.DealID,
 			OrderType:      order.OrderType,
@@ -565,7 +565,7 @@ func (m *L1Processor) onOrderUpdated(orderID *big.Int) error {
 	}
 
 	var userID common.Address
-	if marketOrder.OrderType == pb.OrderType_ASK {
+	if marketOrder.OrderType == sonm.OrderType_ASK {
 		userID = dwhOrder.GetMasterID().Unwrap()
 	} else {
 		userID = marketOrder.GetAuthorID().Unwrap()
@@ -704,17 +704,17 @@ func (m *L1Processor) onCertificateCreated(certificateID *big.Int) error {
 	return nil
 }
 
-func (m *L1Processor) updateProfile(conn queryConn, cert *pb.Certificate) error {
-	_, activeAsks, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
-		Type:      pb.OrderType_ASK,
+func (m *L1Processor) updateProfile(conn queryConn, cert *sonm.Certificate) error {
+	_, activeAsks, err := m.storage.GetOrders(conn, &sonm.OrdersRequest{
+		Type:      sonm.OrderType_ASK,
 		MasterID:  cert.OwnerID,
 		WithCount: true})
 	if err != nil {
 		return fmt.Errorf("failed to get active ASKs count: %v", err)
 	}
 
-	_, activeBids, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
-		Type:      pb.OrderType_BID,
+	_, activeBids, err := m.storage.GetOrders(conn, &sonm.OrdersRequest{
+		Type:      sonm.OrderType_BID,
 		MasterID:  cert.OwnerID,
 		WithCount: true})
 	if err != nil {
@@ -723,8 +723,8 @@ func (m *L1Processor) updateProfile(conn queryConn, cert *pb.Certificate) error 
 
 	profile, err := m.storage.GetProfileByID(conn, cert.OwnerID.Unwrap())
 	if err != nil {
-		certBytes, _ := json.Marshal([]*pb.Certificate{cert})
-		profile = &pb.Profile{
+		certBytes, _ := json.Marshal([]*sonm.Certificate{cert})
+		profile = &sonm.Profile{
 			UserID:        cert.OwnerID,
 			Certificates:  string(certBytes),
 			ActiveAsks:    activeAsks,
@@ -779,9 +779,9 @@ func (m *L1Processor) updateEntitiesByProfile(conn queryConn, userID common.Addr
 	return nil
 }
 
-func (m *L1Processor) updateProfileStats(conn queryConn, orderType pb.OrderType, userID common.Address, update int) error {
+func (m *L1Processor) updateProfileStats(conn queryConn, orderType sonm.OrderType, userID common.Address, update int) error {
 	var field string
-	if orderType == pb.OrderType_ASK {
+	if orderType == sonm.OrderType_ASK {
 		field = "ActiveAsks"
 	} else {
 		field = "ActiveBids"
@@ -906,8 +906,8 @@ func (m *L1Processor) insertLastEvent(event *blockchain.Event) error {
 	return nil
 }
 
-func (m *L1Processor) updateDealConditionEndTime(conn queryConn, dealID *pb.BigInt, eventTS uint64) error {
-	dealConditions, _, err := m.storage.GetDealConditions(conn, &pb.DealConditionsRequest{DealID: dealID})
+func (m *L1Processor) updateDealConditionEndTime(conn queryConn, dealID *sonm.BigInt, eventTS uint64) error {
+	dealConditions, _, err := m.storage.GetDealConditions(conn, &sonm.DealConditionsRequest{DealID: dealID})
 	if err != nil {
 		return fmt.Errorf("failed to getDealConditions: %v", err)
 	}

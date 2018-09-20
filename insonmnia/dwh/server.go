@@ -16,7 +16,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -127,7 +127,7 @@ func (m *DWH) serveGRPC() error {
 			xgrpc.DefaultTraceInterceptor(),
 			xgrpc.UnaryServerInterceptor(m.unaryInterceptor),
 		)
-		pb.RegisterDWHServer(m.grpc, m)
+		sonm.RegisterDWHServer(m.grpc, m)
 		grpc_prometheus.Register(m.grpc)
 
 		lis, err := net.Listen("tcp", m.cfg.GRPCListenAddr)
@@ -157,7 +157,7 @@ func (m *DWH) serveHTTP() error {
 
 		srv := rest.NewServer(options...)
 
-		err = srv.RegisterService((*pb.DWHServer)(nil), m)
+		err = srv.RegisterService((*sonm.DWHServer)(nil), m)
 		if err != nil {
 			return nil, fmt.Errorf("failed to RegisterService: %v", err)
 		}
@@ -210,7 +210,7 @@ func (m *DWH) unaryInterceptor(ctx context.Context, req interface{}, info *grpc.
 	return handler(ctx, req)
 }
 
-func (m *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {
+func (m *DWH) GetDeals(ctx context.Context, request *sonm.DealsRequest) (*sonm.DWHDealsReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -220,10 +220,10 @@ func (m *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 		return nil, status.Error(codes.NotFound, "failed to GetDeals")
 	}
 
-	return &pb.DWHDealsReply{Deals: deals, Count: count}, nil
+	return &sonm.DWHDealsReply{Deals: deals, Count: count}, nil
 }
 
-func (m *DWH) GetDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDeal, error) {
+func (m *DWH) GetDealDetails(ctx context.Context, request *sonm.BigInt) (*sonm.DWHDeal, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -236,7 +236,7 @@ func (m *DWH) GetDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDe
 	return out, nil
 }
 
-func (m *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsRequest) (*pb.DealConditionsReply, error) {
+func (m *DWH) GetDealConditions(ctx context.Context, request *sonm.DealConditionsRequest) (*sonm.DealConditionsReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -246,10 +246,10 @@ func (m *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsR
 		return nil, status.Error(codes.NotFound, "failed to GetDealConditions")
 	}
 
-	return &pb.DealConditionsReply{Conditions: dealConditions, Count: count}, nil
+	return &sonm.DealConditionsReply{Conditions: dealConditions, Count: count}, nil
 }
 
-func (m *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWHOrdersReply, error) {
+func (m *DWH) GetOrders(ctx context.Context, request *sonm.OrdersRequest) (*sonm.DWHOrdersReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -259,10 +259,10 @@ func (m *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 		return nil, status.Error(codes.NotFound, "failed to GetOrders")
 	}
 
-	return &pb.DWHOrdersReply{Orders: orders, Count: count}, nil
+	return &sonm.DWHOrdersReply{Orders: orders, Count: count}, nil
 }
 
-func (m *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersRequest) (*pb.DWHOrdersReply, error) {
+func (m *DWH) GetMatchingOrders(ctx context.Context, request *sonm.MatchingOrdersRequest) (*sonm.DWHOrdersReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -272,10 +272,10 @@ func (m *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		return nil, status.Error(codes.NotFound, "failed to GetMatchingOrders")
 	}
 
-	return &pb.DWHOrdersReply{Orders: orders, Count: count}, nil
+	return &sonm.DWHOrdersReply{Orders: orders, Count: count}, nil
 }
 
-func (m *DWH) GetOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHOrder, error) {
+func (m *DWH) GetOrderDetails(ctx context.Context, request *sonm.BigInt) (*sonm.DWHOrder, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -288,7 +288,7 @@ func (m *DWH) GetOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHO
 	return out, nil
 }
 
-func (m *DWH) GetProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb.ProfilesReply, error) {
+func (m *DWH) GetProfiles(ctx context.Context, request *sonm.ProfilesRequest) (*sonm.ProfilesReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -298,10 +298,10 @@ func (m *DWH) GetProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		return nil, status.Error(codes.NotFound, "failed to GetProfiles")
 	}
 
-	return &pb.ProfilesReply{Profiles: profiles, Count: count}, nil
+	return &sonm.ProfilesReply{Profiles: profiles, Count: count}, nil
 }
 
-func (m *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profile, error) {
+func (m *DWH) GetProfileInfo(ctx context.Context, request *sonm.EthID) (*sonm.Profile, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -326,7 +326,7 @@ func (m *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profil
 	return out, nil
 }
 
-func (m *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
+func (m *DWH) GetBlacklist(ctx context.Context, request *sonm.BlacklistRequest) (*sonm.BlacklistReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -339,7 +339,7 @@ func (m *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 	return out, nil
 }
 
-func (m *DWH) GetBlacklistsContainingUser(ctx context.Context, r *pb.BlacklistRequest) (*pb.BlacklistsContainingUserReply, error) {
+func (m *DWH) GetBlacklistsContainingUser(ctx context.Context, r *sonm.BlacklistRequest) (*sonm.BlacklistsContainingUserReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -352,7 +352,7 @@ func (m *DWH) GetBlacklistsContainingUser(ctx context.Context, r *pb.BlacklistRe
 	return out, nil
 }
 
-func (m *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) (*pb.ValidatorsReply, error) {
+func (m *DWH) GetValidators(ctx context.Context, request *sonm.ValidatorsRequest) (*sonm.ValidatorsReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -362,17 +362,17 @@ func (m *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 		return nil, status.Error(codes.NotFound, "failed to GetValidators")
 	}
 
-	return &pb.ValidatorsReply{Validators: validators, Count: count}, nil
+	return &sonm.ValidatorsReply{Validators: validators, Count: count}, nil
 }
 
-func (m *DWH) GetDealChangeRequests(ctx context.Context, dealID *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
-	return m.GetChangeRequests(ctx, &pb.ChangeRequestsRequest{
+func (m *DWH) GetDealChangeRequests(ctx context.Context, dealID *sonm.BigInt) (*sonm.DealChangeRequestsReply, error) {
+	return m.GetChangeRequests(ctx, &sonm.ChangeRequestsRequest{
 		DealID:     dealID,
 		OnlyActive: true,
 	})
 }
 
-func (m *DWH) GetChangeRequests(ctx context.Context, request *pb.ChangeRequestsRequest) (*pb.DealChangeRequestsReply, error) {
+func (m *DWH) GetChangeRequests(ctx context.Context, request *sonm.ChangeRequestsRequest) (*sonm.DealChangeRequestsReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -382,12 +382,12 @@ func (m *DWH) GetChangeRequests(ctx context.Context, request *pb.ChangeRequestsR
 		return nil, status.Error(codes.NotFound, "failed to GetDealChangeRequests")
 	}
 
-	return &pb.DealChangeRequestsReply{
+	return &sonm.DealChangeRequestsReply{
 		Requests: out,
 	}, nil
 }
 
-func (m *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.WorkersReply, error) {
+func (m *DWH) GetWorkers(ctx context.Context, request *sonm.WorkersRequest) (*sonm.WorkersReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -397,5 +397,5 @@ func (m *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 		return nil, status.Error(codes.NotFound, "failed to GetWorkers")
 	}
 
-	return &pb.WorkersReply{Workers: workers, Count: count}, nil
+	return &sonm.WorkersReply{Workers: workers, Count: count}, nil
 }

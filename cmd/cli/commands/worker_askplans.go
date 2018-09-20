@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +26,7 @@ var askPlanListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show current ask plans",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		asks, err := worker.AskPlans(workerCtx, &pb.Empty{})
+		asks, err := worker.AskPlans(workerCtx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("cannot get Ask Orders from Worker: %v", err)
 		}
@@ -42,7 +42,7 @@ var askPlanCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		planPath := args[0]
-		plan := &pb.AskPlan{}
+		plan := &sonm.AskPlan{}
 
 		if err := task_config.LoadFromFile(planPath, plan); err != nil {
 			return fmt.Errorf("cannot load AskPlan definition: %v", err)
@@ -63,7 +63,7 @@ var askPlanRemoveCmd = &cobra.Command{
 	Short: "Remove plan by",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := worker.RemoveAskPlan(workerCtx, &pb.ID{Id: args[0]})
+		_, err := worker.RemoveAskPlan(workerCtx, &sonm.ID{Id: args[0]})
 		if err != nil {
 			return fmt.Errorf("cannot remove AskOrder: %v", err)
 		}
@@ -77,7 +77,7 @@ var askPlanPurgeCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Purge all exiting ask-plans on worker",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := worker.PurgeAskPlans(workerCtx, &pb.Empty{})
+		_, err := worker.PurgeAskPlans(workerCtx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("cannot purge ask plans: %v", err)
 		}

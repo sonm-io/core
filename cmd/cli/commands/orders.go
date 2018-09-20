@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +42,7 @@ var orderListCmd = &cobra.Command{
 			return fmt.Errorf("сannot create client connection: %v", err)
 		}
 
-		req := &pb.Count{Count: ordersSearchLimit}
+		req := &sonm.Count{Count: ordersSearchLimit}
 		reply, err := market.GetOrders(ctx, req)
 		if err != nil {
 			return fmt.Errorf("cannot receive orders from marketplace: %v", err)
@@ -67,7 +67,7 @@ var orderStatusCmd = &cobra.Command{
 		}
 
 		orderID := args[0]
-		order, err := market.GetOrderByID(ctx, &pb.ID{Id: orderID})
+		order, err := market.GetOrderByID(ctx, &sonm.ID{Id: orderID})
 		if err != nil {
 			return fmt.Errorf("cannot get order by ID: %v", err)
 		}
@@ -91,7 +91,7 @@ var orderCreateCmd = &cobra.Command{
 		}
 
 		path := args[0]
-		bid := &pb.BidOrder{}
+		bid := &sonm.BidOrder{}
 		if err := task_config.LoadFromFile(path, bid); err != nil {
 			return fmt.Errorf("cannot load order definition: %v", err)
 		}
@@ -119,15 +119,15 @@ var orderCancelCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		request := &pb.OrderIDs{
-			Ids: make([]*pb.BigInt, 0, len(args)),
+		request := &sonm.OrderIDs{
+			Ids: make([]*sonm.BigInt, 0, len(args)),
 		}
 		ids, err := argsToBigInts(args)
 		if err != nil {
 			return fmt.Errorf("failed to parse parameters to order ids: %v", err)
 		}
 		for _, id := range ids {
-			request.Ids = append(request.Ids, pb.NewBigInt(id))
+			request.Ids = append(request.Ids, sonm.NewBigInt(id))
 		}
 
 		status, err := market.CancelOrders(ctx, request)
@@ -152,7 +152,7 @@ var orderPurgeCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		status, err := market.PurgeVerbose(ctx, &pb.Empty{})
+		status, err := market.PurgeVerbose(ctx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("cannot purge orders: %v", err)
 		}

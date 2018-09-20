@@ -7,7 +7,7 @@ import (
 	"io"
 	"strconv"
 
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -19,7 +19,7 @@ type tasksAPI struct {
 	log     *zap.SugaredLogger
 }
 
-func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskListReply, error) {
+func (t *tasksAPI) List(ctx context.Context, req *sonm.TaskListRequest) (*sonm.TaskListReply, error) {
 	if req.GetDealID() == nil || req.GetDealID().IsZero() {
 		return nil, errors.New("deal ID is required for listing tasks")
 	}
@@ -32,14 +32,14 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 		return nil, err
 	}
 	defer cc.Close()
-	deal, err := workerClient.GetDealInfo(ctx, &pb.ID{Id: req.GetDealID().Unwrap().String()})
+	deal, err := workerClient.GetDealInfo(ctx, &sonm.ID{Id: req.GetDealID().Unwrap().String()})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deal info for deal %s: %s", dealID, err)
 	}
 
 	// merge maps of running and completed tasks
-	reply := &pb.TaskListReply{
-		Info: make(map[string]*pb.TaskStatusReply),
+	reply := &sonm.TaskListReply{
+		Info: make(map[string]*sonm.TaskStatusReply),
 	}
 
 	for id, task := range deal.Completed {
@@ -53,7 +53,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	return reply, nil
 }
 
-func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
+func (t *tasksAPI) Start(ctx context.Context, req *sonm.StartTaskRequest) (*sonm.StartTaskReply, error) {
 	dealID := req.GetDealID().Unwrap().String()
 	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, dealID)
 	if err != nil {
@@ -69,7 +69,7 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.Sta
 	return reply, nil
 }
 
-func (t *tasksAPI) JoinNetwork(ctx context.Context, req *pb.JoinNetworkRequest) (*pb.NetworkSpec, error) {
+func (t *tasksAPI) JoinNetwork(ctx context.Context, req *sonm.JoinNetworkRequest) (*sonm.NetworkSpec, error) {
 	dealID := req.GetTaskID().GetDealID().Unwrap().String()
 	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, dealID)
 	if err != nil {
@@ -77,7 +77,7 @@ func (t *tasksAPI) JoinNetwork(ctx context.Context, req *pb.JoinNetworkRequest) 
 	}
 	defer cc.Close()
 
-	reply, err := worker.JoinNetwork(ctx, &pb.WorkerJoinNetworkRequest{
+	reply, err := worker.JoinNetwork(ctx, &sonm.WorkerJoinNetworkRequest{
 		TaskID:    req.GetTaskID().GetId(),
 		NetworkID: req.GetNetworkID(),
 	})
@@ -88,17 +88,17 @@ func (t *tasksAPI) JoinNetwork(ctx context.Context, req *pb.JoinNetworkRequest) 
 	return reply, nil
 }
 
-func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
+func (t *tasksAPI) Status(ctx context.Context, id *sonm.TaskID) (*sonm.TaskStatusReply, error) {
 	workerClient, cc, err := t.remotes.getWorkerClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	return workerClient.TaskStatus(ctx, &pb.ID{Id: id.GetId()})
+	return workerClient.TaskStatus(ctx, &sonm.ID{Id: id.GetId()})
 }
 
-func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
+func (t *tasksAPI) Logs(req *sonm.TaskLogsRequest, srv sonm.TaskManagement_LogsServer) error {
 	workerClient, cc, err := t.remotes.getWorkerClientForDeal(srv.Context(), req.GetDealID().Unwrap().String())
 	if err != nil {
 		return err
@@ -127,17 +127,17 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 	}
 }
 
-func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
+func (t *tasksAPI) Stop(ctx context.Context, id *sonm.TaskID) (*sonm.Empty, error) {
 	workerClient, cc, err := t.remotes.getWorkerClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	return workerClient.StopTask(ctx, &pb.ID{Id: id.GetId()})
+	return workerClient.StopTask(ctx, &sonm.ID{Id: id.GetId()})
 }
 
-func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error {
+func (t *tasksAPI) PushTask(clientStream sonm.TaskManagement_PushTaskServer) error {
 	meta, err := t.extractStreamMeta(clientStream)
 	if err != nil {
 		return err
@@ -219,7 +219,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 	}
 }
 
-func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
+func (t *tasksAPI) PullTask(req *sonm.PullTaskRequest, srv sonm.TaskManagement_PullTaskServer) error {
 	ctx := context.Background()
 	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, req.GetDealId())
 	if err != nil {
@@ -267,7 +267,7 @@ type streamMeta struct {
 	fileSize int64
 }
 
-func (t *tasksAPI) extractStreamMeta(clientStream pb.TaskManagement_PushTaskServer) (*streamMeta, error) {
+func (t *tasksAPI) extractStreamMeta(clientStream sonm.TaskManagement_PushTaskServer) (*streamMeta, error) {
 	md, ok := metadata.FromIncomingContext(clientStream.Context())
 	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "metadata required")
@@ -297,7 +297,7 @@ func (t *tasksAPI) extractStreamMeta(clientStream pb.TaskManagement_PushTaskServ
 	}, nil
 }
 
-func newTasksAPI(opts *remoteOptions) pb.TaskManagementServer {
+func newTasksAPI(opts *remoteOptions) sonm.TaskManagementServer {
 	return &tasksAPI{
 		remotes: opts,
 		log:     opts.log,

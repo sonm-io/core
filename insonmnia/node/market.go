@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/dwh"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
@@ -21,11 +21,11 @@ type marketAPI struct {
 	log           *zap.SugaredLogger
 }
 
-func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrdersReply, error) {
-	filter := &pb.OrdersRequest{
-		Type:     pb.OrderType_BID,
-		Status:   pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID: pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
+func (m *marketAPI) GetOrders(ctx context.Context, req *sonm.Count) (*sonm.GetOrdersReply, error) {
+	filter := &sonm.OrdersRequest{
+		Type:     sonm.OrderType_BID,
+		Status:   sonm.OrderStatus_ORDER_ACTIVE,
+		AuthorID: sonm.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
 		Limit:    req.GetCount(),
 	}
 
@@ -34,7 +34,7 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrders
 		return nil, fmt.Errorf("could not get orders from DWH: %s", err)
 	}
 
-	reply := &pb.GetOrdersReply{Orders: []*pb.Order{}}
+	reply := &sonm.GetOrdersReply{Orders: []*sonm.Order{}}
 	for _, order := range orders.GetOrders() {
 		reply.Orders = append(reply.Orders, order.Order)
 	}
@@ -42,7 +42,7 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrders
 	return reply, nil
 }
 
-func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
+func (m *marketAPI) GetOrderByID(ctx context.Context, req *sonm.ID) (*sonm.Order, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
 		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.GetId(), err)
@@ -51,7 +51,7 @@ func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, er
 	return m.remotes.eth.Market().GetOrderInfo(ctx, id)
 }
 
-func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Order, error) {
+func (m *marketAPI) CreateOrder(ctx context.Context, req *sonm.BidOrder) (*sonm.Order, error) {
 	knownBenchmarks := m.remotes.benchList.MapByCode()
 	givenBenchmarks := req.GetResources().GetBenchmarks()
 
@@ -59,7 +59,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		return nil, fmt.Errorf("benchmark list too large")
 	}
 
-	if req.GetIdentity() == pb.IdentityLevel_UNKNOWN {
+	if req.GetIdentity() == sonm.IdentityLevel_UNKNOWN {
 		return nil, errors.New("identity level is required and should not be 0")
 	}
 
@@ -73,7 +73,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		benchmarksValues[bench.GetID()] = value
 	}
 
-	benchStruct, err := pb.NewBenchmarks(benchmarksValues)
+	benchStruct, err := sonm.NewBenchmarks(benchmarksValues)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse benchmark values: %s", err)
 	}
@@ -83,14 +83,14 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		blacklist = req.GetBlacklist().Unwrap().Hex()
 	}
 
-	order := &pb.Order{
-		OrderType:      pb.OrderType_BID,
-		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
+	order := &sonm.Order{
+		OrderType:      sonm.OrderType_BID,
+		OrderStatus:    sonm.OrderStatus_ORDER_ACTIVE,
+		AuthorID:       sonm.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
 		CounterpartyID: req.GetCounterparty(),
 		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
 		Price:          req.GetPrice().GetPerSecond(),
-		Netflags:       &pb.NetFlags{},
+		Netflags:       &sonm.NetFlags{},
 		IdentityLevel:  req.GetIdentity(),
 		Blacklist:      blacklist,
 		Tag:            []byte(req.GetTag()),
@@ -121,7 +121,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 	return order, nil
 }
 
-func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
+func (m *marketAPI) CancelOrder(ctx context.Context, req *sonm.ID) (*sonm.Empty, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
 		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.GetId(), err)
@@ -131,25 +131,25 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, err
 		return nil, fmt.Errorf("could not get cancel order %s on blockchain: %s", req.GetId(), err)
 	}
 
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (m *marketAPI) Purge(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
+func (m *marketAPI) Purge(ctx context.Context, req *sonm.Empty) (*sonm.Empty, error) {
 	status, err := m.PurgeVerbose(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	if err = pb.CombinedError(status); err != nil {
+	if err = sonm.CombinedError(status); err != nil {
 		return nil, err
 	}
-	return &pb.Empty{}, nil
+	return &sonm.Empty{}, nil
 }
 
-func (m *marketAPI) PurgeVerbose(ctx context.Context, _ *pb.Empty) (*pb.ErrorByID, error) {
-	orders, err := m.remotes.dwh.GetOrders(ctx, &pb.OrdersRequest{
-		Type:     pb.OrderType_BID,
-		Status:   pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID: pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
+func (m *marketAPI) PurgeVerbose(ctx context.Context, _ *sonm.Empty) (*sonm.ErrorByID, error) {
+	orders, err := m.remotes.dwh.GetOrders(ctx, &sonm.OrdersRequest{
+		Type:     sonm.OrderType_BID,
+		Status:   sonm.OrderStatus_ORDER_ACTIVE,
+		AuthorID: sonm.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
 		Limit:    dwh.MaxLimit,
 	})
 
@@ -157,24 +157,24 @@ func (m *marketAPI) PurgeVerbose(ctx context.Context, _ *pb.Empty) (*pb.ErrorByI
 		return nil, fmt.Errorf("cannot get orders from dwh: %v", err)
 	}
 
-	ids := make([]*pb.BigInt, 0, len(orders.GetOrders()))
+	ids := make([]*sonm.BigInt, 0, len(orders.GetOrders()))
 	for _, order := range orders.GetOrders() {
 		ids = append(ids, order.GetOrder().GetId())
 	}
 	return m.cancelOrders(ctx, ids)
 }
 
-func (m *marketAPI) CancelOrders(ctx context.Context, req *pb.OrderIDs) (*pb.ErrorByID, error) {
+func (m *marketAPI) CancelOrders(ctx context.Context, req *sonm.OrderIDs) (*sonm.ErrorByID, error) {
 	return m.cancelOrders(ctx, req.GetIds())
 }
 
-func (m *marketAPI) cancelOrders(ctx context.Context, ids []*pb.BigInt) (*pb.ErrorByID, error) {
+func (m *marketAPI) cancelOrders(ctx context.Context, ids []*sonm.BigInt) (*sonm.ErrorByID, error) {
 	concurrency := purgeConcurrency
 	if len(ids) < concurrency {
 		concurrency = len(ids)
 	}
-	status := pb.NewTSErrorByID()
-	ch := make(chan *pb.BigInt)
+	status := sonm.NewTSErrorByID()
+	ch := make(chan *sonm.BigInt)
 	wg := sync.WaitGroup{}
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
@@ -200,7 +200,7 @@ func (m *marketAPI) cancelOrders(ctx context.Context, ids []*pb.BigInt) (*pb.Err
 	return status.Unwrap(), nil
 }
 
-func newMarketAPI(opts *remoteOptions) pb.MarketServer {
+func newMarketAPI(opts *remoteOptions) sonm.MarketServer {
 	return &marketAPI{
 		remotes:       opts,
 		workerCreator: opts.workerCreator,

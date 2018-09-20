@@ -15,7 +15,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/proto"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
 	"go.uber.org/zap"
 )
@@ -90,13 +89,13 @@ func (g *nvidiaTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error 
 	return nil
 }
 
-func (g *nvidiaTuner) Devices() []*pb.GPUDevice {
+func (g *nvidiaTuner) Devices() []*sonm.GPUDevice {
 	g.m.Lock()
 	defer g.m.Unlock()
 
-	var devices []*pb.GPUDevice
+	var devices []*sonm.GPUDevice
 	for _, d := range g.devMap {
-		dev := &pb.GPUDevice{
+		dev := &sonm.GPUDevice{
 			ID:          string(d.ID()),
 			VendorName:  "Nvidia",
 			VendorID:    d.driDevice.VendorID,

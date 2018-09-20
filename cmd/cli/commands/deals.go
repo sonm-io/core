@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -69,7 +69,7 @@ var dealListCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		req := &pb.Count{Count: dealsSearchCount}
+		req := &sonm.Count{Count: dealsSearchCount}
 		deals, err := dealer.List(ctx, req)
 		if err != nil {
 			return fmt.Errorf("cannot get deals list: %v", err)
@@ -88,7 +88,7 @@ func appendExtendedInfo(ctx context.Context, dealInfo *ExtendedDealInfo) error {
 	wg, ctx := errgroup.WithContext(ctx)
 
 	wg.Go(func() error {
-		ask, err := market.GetOrderByID(ctx, &pb.ID{Id: dealInfo.GetDeal().GetAskID().Unwrap().String()})
+		ask, err := market.GetOrderByID(ctx, &sonm.ID{Id: dealInfo.GetDeal().GetAskID().Unwrap().String()})
 		if err != nil {
 			return fmt.Errorf("failed to fetch ask order: %v", err)
 		}
@@ -96,7 +96,7 @@ func appendExtendedInfo(ctx context.Context, dealInfo *ExtendedDealInfo) error {
 		return nil
 	})
 	wg.Go(func() error {
-		bid, err := market.GetOrderByID(ctx, &pb.ID{Id: dealInfo.GetDeal().GetBidID().Unwrap().String()})
+		bid, err := market.GetOrderByID(ctx, &sonm.ID{Id: dealInfo.GetDeal().GetBidID().Unwrap().String()})
 		if err != nil {
 			return fmt.Errorf("failed to fetch bid order: %v", err)
 		}
@@ -119,7 +119,7 @@ var dealStatusCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		id, err := pb.NewBigIntFromString(args[0])
+		id, err := sonm.NewBigIntFromString(args[0])
 		if err != nil {
 			return err
 		}
@@ -170,9 +170,9 @@ var dealOpenCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		deal, err := deals.Open(ctx, &pb.OpenDealRequest{
-			BidID: pb.NewBigInt(bidID),
-			AskID: pb.NewBigInt(askID),
+		deal, err := deals.Open(ctx, &sonm.OpenDealRequest{
+			BidID: sonm.NewBigInt(bidID),
+			AskID: sonm.NewBigInt(askID),
 			Force: forceDealFlag,
 		})
 
@@ -198,12 +198,12 @@ var dealQuickBuyCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		id, err := pb.NewBigIntFromString(args[0])
+		id, err := sonm.NewBigIntFromString(args[0])
 		if err != nil {
 			return fmt.Errorf("cannot convert arg to number: %v", err)
 		}
 
-		req := &pb.QuickBuyRequest{
+		req := &sonm.QuickBuyRequest{
 			AskID: id,
 			Force: forceDealFlag,
 		}
@@ -213,7 +213,7 @@ var dealQuickBuyCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("cannot parse specified duration: %v", err)
 			}
-			req.Duration = &pb.Duration{
+			req.Duration = &sonm.Duration{
 				Nanoseconds: duration.Nanoseconds(),
 			}
 		}
@@ -236,13 +236,13 @@ var dealQuickBuyCmd = &cobra.Command{
 	},
 }
 
-func getBlacklistType() (pb.BlacklistType, error) {
+func getBlacklistType() (sonm.BlacklistType, error) {
 	blacklistTypeStr = "BLACKLIST_" + strings.ToUpper(blacklistTypeStr)
-	blacklistType, ok := pb.BlacklistType_value[blacklistTypeStr]
+	blacklistType, ok := sonm.BlacklistType_value[blacklistTypeStr]
 	if !ok {
-		return pb.BlacklistType_BLACKLIST_NOBODY, fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `nobody`, `worker` and `master`")
+		return sonm.BlacklistType_BLACKLIST_NOBODY, fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `nobody`, `worker` and `master`")
 	}
-	return pb.BlacklistType(blacklistType), nil
+	return sonm.BlacklistType(blacklistType), nil
 }
 
 var dealCloseCmd = &cobra.Command{
@@ -263,16 +263,16 @@ var dealCloseCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		request := &pb.DealsFinishRequest{
-			DealInfo: make([]*pb.DealFinishRequest, 0, len(args)),
+		request := &sonm.DealsFinishRequest{
+			DealInfo: make([]*sonm.DealFinishRequest, 0, len(args)),
 		}
 		ids, err := argsToBigInts(args)
 		if err != nil {
 			return fmt.Errorf("failed to parse parameters to deal ids: %v", err)
 		}
 		for _, id := range ids {
-			request.DealInfo = append(request.DealInfo, &pb.DealFinishRequest{
-				Id:            pb.NewBigInt(id),
+			request.DealInfo = append(request.DealInfo, &sonm.DealFinishRequest{
+				Id:            sonm.NewBigInt(id),
 				BlacklistType: blacklistType,
 			})
 		}
@@ -303,7 +303,7 @@ var dealPurgeCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		status, err := dealer.PurgeDeals(ctx, &pb.DealsPurgeRequest{BlacklistType: blacklistType})
+		status, err := dealer.PurgeDeals(ctx, &sonm.DealsPurgeRequest{BlacklistType: blacklistType})
 		if err != nil {
 			return fmt.Errorf("cannot purge deals: %v", err)
 		}
@@ -346,7 +346,7 @@ var changeRequestCreateCmd = &cobra.Command{
 			return fmt.Errorf("please specify at least one flag: --new-duration or --new-price")
 		}
 
-		var newPrice = &pb.Price{}
+		var newPrice = &sonm.Price{}
 		var newDuration time.Duration
 
 		if len(durationRaw) > 0 {
@@ -362,8 +362,8 @@ var changeRequestCreateCmd = &cobra.Command{
 			}
 		}
 
-		req := &pb.DealChangeRequest{
-			DealID:   pb.NewBigInt(id),
+		req := &sonm.DealChangeRequest{
+			DealID:   sonm.NewBigInt(id),
 			Duration: uint64(newDuration.Seconds()),
 			Price:    newPrice.GetPerSecond(),
 		}
@@ -396,7 +396,7 @@ var changeRequestApproveCmd = &cobra.Command{
 			return err
 		}
 
-		if _, err := dealer.ApproveChangeRequest(ctx, pb.NewBigInt(id)); err != nil {
+		if _, err := dealer.ApproveChangeRequest(ctx, sonm.NewBigInt(id)); err != nil {
 			return fmt.Errorf("cannot approve change request: %v", err)
 		}
 
@@ -423,7 +423,7 @@ var changeRequestCancelCmd = &cobra.Command{
 			return fmt.Errorf("cannot convert arg to id: %v", err)
 		}
 
-		if _, err := dealer.CancelChangeRequest(ctx, pb.NewBigInt(id)); err != nil {
+		if _, err := dealer.CancelChangeRequest(ctx, sonm.NewBigInt(id)); err != nil {
 			return fmt.Errorf("cannot cancel change request: %v", err)
 		}
 

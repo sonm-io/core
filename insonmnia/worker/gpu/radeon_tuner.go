@@ -12,7 +12,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/proto"
-	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -111,13 +110,13 @@ func (tun radeonTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error
 	return nil
 }
 
-func (tun radeonTuner) Devices() []*pb.GPUDevice {
+func (tun radeonTuner) Devices() []*sonm.GPUDevice {
 	tun.m.Lock()
 	defer tun.m.Unlock()
 
-	var devices []*pb.GPUDevice
+	var devices []*sonm.GPUDevice
 	for _, d := range tun.devMap {
-		dev := &pb.GPUDevice{
+		dev := &sonm.GPUDevice{
 			ID:          d.PCIBusID,
 			VendorName:  "Radeon",
 			VendorID:    d.VendorID,

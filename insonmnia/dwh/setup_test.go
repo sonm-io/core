@@ -21,7 +21,7 @@ import (
 	"github.com/golang/mock/gomock"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	bch "github.com/sonm-io/core/blockchain"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 )
 
 var (
@@ -285,8 +285,8 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 		return nil, err
 	}
 
-	var certs = []*pb.Certificate{
-		{OwnerID: pb.NewEthAddress(common.HexToAddress("0xBB")), Value: []byte("Consumer"), Attribute: CertificateName},
+	var certs = []*sonm.Certificate{
+		{OwnerID: sonm.NewEthAddress(common.HexToAddress("0xBB")), Value: []byte("Consumer"), Attribute: CertificateName},
 	}
 	byteCerts, _ := json.Marshal(certs)
 	for i := 0; i < 2; i++ {
@@ -300,12 +300,12 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 				fmt.Sprintf("2020%d", i),
 				fmt.Sprintf("3030%d", i),
 				10010+i, // Duration
-				pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
+				sonm.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 				30010+i, // StartTime
 				40010+i, // EndTime
-				uint64(pb.DealStatus_DEAL_ACCEPTED),
-				pb.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
-				pb.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
+				uint64(sonm.DealStatus_DEAL_ACCEPTED),
+				sonm.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
+				sonm.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
 				70010+i,   // LastBillTS
 				5,         // Netflags
 				3,         // AskIdentityLevel
@@ -339,18 +339,18 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
-			uint64(pb.OrderType_ASK),
-			uint64(pb.OrderStatus_ORDER_ACTIVE),
+			uint64(sonm.OrderType_ASK),
+			uint64(sonm.OrderStatus_ORDER_ACTIVE),
 			common.HexToAddress("0xA").Hex(), // AuthorID
 			common.Address{}.Hex(),           // CounterpartyID
 			10010+i,
-			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
+			sonm.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			7, // Netflags
-			uint64(pb.IdentityLevel_ANONYMOUS),
+			uint64(sonm.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},          // Tag
 			fmt.Sprintf("3001%d", i), // FrozenSum
-			uint64(pb.IdentityLevel_REGISTERED),
+			uint64(sonm.IdentityLevel_REGISTERED),
 			"CreatorName",
 			"CreatorCountry",
 			byteCerts, // CreatorCertificates
@@ -378,18 +378,18 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
-			uint64(pb.OrderType_BID),
-			uint64(pb.OrderStatus_ORDER_ACTIVE),
+			uint64(sonm.OrderType_BID),
+			uint64(sonm.OrderStatus_ORDER_ACTIVE),
 			common.HexToAddress("0xB").Hex(), // AuthorID
 			common.Address{}.Hex(),           // CounterpartyID
 			10010-i,                          // Duration
-			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
+			sonm.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			5, // Netflags
-			uint64(pb.IdentityLevel_ANONYMOUS),
+			uint64(sonm.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
-			[]byte{1, 2, 3},                     // Tag
-			fmt.Sprintf("3001%d", i),            // FrozenSum
-			uint64(pb.IdentityLevel_REGISTERED), // CreatorIdentityLevel
+			[]byte{1, 2, 3},                       // Tag
+			fmt.Sprintf("3001%d", i),              // FrozenSum
+			uint64(sonm.IdentityLevel_REGISTERED), // CreatorIdentityLevel
 			"CreatorName",
 			"CreatorCountry",
 			byteCerts, // CreatorCertificates
@@ -489,18 +489,18 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 		common.HexToAddress(fmt.Sprintf("0x9%d", 0)).Hex(), // Master
 		12345, // CreatedTS
 		fmt.Sprintf("1010%d", 0),
-		uint64(pb.OrderType_BID),
-		uint64(pb.OrderStatus_ORDER_ACTIVE),
+		uint64(sonm.OrderType_BID),
+		uint64(sonm.OrderStatus_ORDER_ACTIVE),
 		common.HexToAddress("0xCC").Hex(), // AuthorID
 		common.HexToAddress("0xA").Hex(),  // CounterpartyID
 		10, // Duration
-		pb.NewBigIntFromInt(30010+int64(0)).PaddedString(), // Price
+		sonm.NewBigIntFromInt(30010+int64(0)).PaddedString(), // Price
 		5, // Netflags
-		uint64(pb.IdentityLevel_ANONYMOUS),
+		uint64(sonm.IdentityLevel_ANONYMOUS),
 		fmt.Sprintf("blacklist_%d", 0),
-		[]byte{1, 2, 3},                     // Tag
-		fmt.Sprintf("3001%d", 0),            // FrozenSum
-		uint64(pb.IdentityLevel_REGISTERED), // CreatorIdentityLevel
+		[]byte{1, 2, 3},                       // Tag
+		fmt.Sprintf("3001%d", 0),              // FrozenSum
+		uint64(sonm.IdentityLevel_REGISTERED), // CreatorIdentityLevel
 		"CreatorName",
 		"CreatorCountry",
 		byteCerts, // CreatorCertificates

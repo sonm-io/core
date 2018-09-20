@@ -24,7 +24,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
-	pb "github.com/sonm-io/core/proto"
+	sonm "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
@@ -36,10 +36,10 @@ const dieEvent = "die"
 
 // Description for a target application.
 type Description struct {
-	pb.Container
+	sonm.Container
 	Reference    xdocker.Reference
 	Auth         string
-	Resources    *pb.AskPlanResources
+	Resources    *sonm.AskPlanResources
 	CGroupParent string
 	Cmd          []string
 	TaskId       string
@@ -58,7 +58,7 @@ func (d *Description) ID() string {
 	return d.TaskId
 }
 
-func (d *Description) Volumes() map[string]*pb.Volume {
+func (d *Description) Volumes() map[string]*sonm.Volume {
 	return d.Container.Volumes
 }
 
@@ -113,7 +113,7 @@ func (d *Description) Expose() (nat.PortSet, nat.PortMap, error) {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status       pb.TaskStatusReply_Status
+	status       sonm.TaskStatusReply_Status
 	ID           string
 	ImageName    string
 	StartAt      time.Time
@@ -122,16 +122,16 @@ type ContainerInfo struct {
 	Cgroup       string
 	CgroupParent string
 	NetworkIDs   []string
-	DealID       *pb.BigInt
+	DealID       *sonm.BigInt
 	TaskId       string
-	Tag          *pb.TaskTag
+	Tag          *sonm.TaskTag
 	AskID        string
 }
 
-func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
-	ports := make(map[string]*pb.Endpoints)
+func (c *ContainerInfo) IntoProto(ctx context.Context) *sonm.TaskStatusReply {
+	ports := make(map[string]*sonm.Endpoints)
 	for hostPort, binding := range c.Ports {
-		addrs := make([]*pb.SocketAddr, len(binding))
+		addrs := make([]*sonm.SocketAddr, len(binding))
 		for i, bind := range binding {
 			port, err := strconv.ParseUint(bind.HostPort, 10, 16)
 			if err != nil {
@@ -139,13 +139,13 @@ func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
 					zap.Error(err), zap.String("value", bind.HostPort))
 				continue
 			}
-			addrs[i] = &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)}
+			addrs[i] = &sonm.SocketAddr{Addr: bind.HostIP, Port: uint32(port)}
 		}
 
-		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addrs}
+		ports[string(hostPort)] = &sonm.Endpoints{Endpoints: addrs}
 	}
 
-	return &pb.TaskStatusReply{
+	return &sonm.TaskStatusReply{
 		Status:             c.status,
 		ImageName:          c.ImageName,
 		PortMap:            ports,
@@ -163,10 +163,10 @@ type ContainerMetrics struct {
 	net map[string]types.NetworkStats
 }
 
-func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
-	networkUsage := make(map[string]*pb.NetworkUsage)
+func (m *ContainerMetrics) Marshal() *sonm.ResourceUsage {
+	networkUsage := make(map[string]*sonm.NetworkUsage)
 	for i, n := range m.net {
-		networkUsage[i] = &pb.NetworkUsage{
+		networkUsage[i] = &sonm.NetworkUsage{
 			TxBytes:   n.TxBytes,
 			RxBytes:   n.RxBytes,
 			TxPackets: n.TxPackets,
@@ -176,11 +176,11 @@ func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
 		}
 	}
 
-	return &pb.ResourceUsage{
-		Cpu: &pb.CPUUsage{
+	return &sonm.ResourceUsage{
+		Cpu: &sonm.CPUUsage{
 			Total: m.cpu.CPUUsage.TotalUsage,
 		},
-		Memory: &pb.MemoryUsage{
+		Memory: &sonm.MemoryUsage{
 			MaxUsage: m.mem.MaxUsage,
 		},
 		Network: networkUsage,
@@ -206,10 +206,10 @@ type Overseer interface {
 	//
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
-	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
+	Start(ctx context.Context, description Description) (chan sonm.TaskStatusReply_Status, ContainerInfo, error)
 
 	// Attach attemps to attach to a running application with a specified description
-	Attach(ctx context.Context, ID string, description Description) (chan pb.TaskStatusReply_Status, error)
+	Attach(ctx context.Context, ID string, description Description) (chan sonm.TaskStatusReply_Status, error)
 
 	// Exec a given command in running container
 	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
@@ -245,7 +245,7 @@ type overseer struct {
 	// protects containers map
 	mu         sync.Mutex
 	containers map[string]*containerDescriptor
-	statuses   map[string]chan pb.TaskStatusReply_Status
+	statuses   map[string]chan sonm.TaskStatusReply_Status
 }
 
 func (o *overseer) supportGPU() bool {
@@ -266,7 +266,7 @@ func NewOverseer(ctx context.Context, plugins *plugin.Repository) (Overseer, err
 		plugins:    plugins,
 		client:     dockerClient,
 		containers: make(map[string]*containerDescriptor),
-		statuses:   make(map[string]chan pb.TaskStatusReply_Status),
+		statuses:   make(map[string]chan sonm.TaskStatusReply_Status),
 	}
 
 	go ovr.collectStats()
@@ -339,7 +339,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 					continue
 				}
 				if statusFound {
-					s <- pb.TaskStatusReply_BROKEN
+					s <- sonm.TaskStatusReply_BROKEN
 					close(s)
 				}
 				if c.description.CommitOnStop {
@@ -499,7 +499,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan pb.TaskStatusReply_Status, error) {
+func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan sonm.TaskStatusReply_Status, error) {
 	cont, err := attachContainer(ctx, o.client, ID, d, o.plugins)
 	if err != nil {
 		log.S(ctx).Debugf("failed to attach to container %s", err)
@@ -510,14 +510,14 @@ func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan p
 
 	o.mu.Lock()
 	o.containers[ID] = cont
-	status := make(chan pb.TaskStatusReply_Status, 1)
+	status := make(chan sonm.TaskStatusReply_Status, 1)
 	o.statuses[ID] = status
 	o.mu.Unlock()
 
 	return status, nil
 }
 
-func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
+func (o *overseer) Start(ctx context.Context, description Description) (status chan sonm.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
 	if description.IsGPURequired() && !o.supportGPU() {
 		err = fmt.Errorf("GPU required but not supported or disabled")
 		return
@@ -535,7 +535,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 
 	o.mu.Lock()
 	o.containers[pr.ID] = pr
-	status = make(chan pb.TaskStatusReply_Status, 1)
+	status = make(chan sonm.TaskStatusReply_Status, 1)
 	o.statuses[pr.ID] = status
 	o.mu.Unlock()
 
@@ -559,7 +559,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	}
 
 	cinfo = ContainerInfo{
-		status:       pb.TaskStatusReply_RUNNING,
+		status:       sonm.TaskStatusReply_RUNNING,
 		ID:           cjson.ID,
 		Ports:        cjson.NetworkSettings.Ports,
 		Cgroup:       string(cjson.HostConfig.Cgroup),
@@ -592,7 +592,7 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	o.mu.Unlock()
 
 	if sok {
-		status <- pb.TaskStatusReply_FINISHED
+		status <- sonm.TaskStatusReply_FINISHED
 		close(status)
 	}
 
@@ -618,7 +618,7 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 	delete(o.statuses, containerID)
 	o.mu.Unlock()
 	if sok {
-		status <- pb.TaskStatusReply_FINISHED
+		status <- sonm.TaskStatusReply_FINISHED
 		close(status)
 	}
 	if !ok {

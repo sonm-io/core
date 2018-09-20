@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
@@ -18,7 +18,7 @@ import (
 )
 
 type workerAPI struct {
-	pb.WorkerManagementServer
+	sonm.WorkerManagementServer
 	remotes *remoteOptions
 	log     *zap.SugaredLogger
 }
@@ -40,7 +40,7 @@ func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 	return auth.NewAddr(ctxAddrs[0])
 }
 
-func (h *workerAPI) getClient(ctx context.Context) (pb.WorkerManagementClient, io.Closer, error) {
+func (h *workerAPI) getClient(ctx context.Context) (sonm.WorkerManagementClient, io.Closer, error) {
 	addr, err := h.getWorkerAddr(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -75,7 +75,7 @@ func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 	return values[0].Interface(), err
 }
 
-func newWorkerAPI(opts *remoteOptions) pb.WorkerManagementServer {
+func newWorkerAPI(opts *remoteOptions) sonm.WorkerManagementServer {
 	return &workerAPI{
 		remotes: opts,
 		log:     opts.log,
