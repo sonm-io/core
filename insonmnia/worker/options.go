@@ -163,7 +163,7 @@ func (m *options) exportKey() error {
 
 func (m *options) setupBlockchainAPI() error {
 	if m.eth == nil {
-		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain))
+		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain), blockchain.WithNiceMarket())
 		if err != nil {
 			return err
 		}
