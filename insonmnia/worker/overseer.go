@@ -14,9 +14,7 @@ import (
 	"io/ioutil"
 
 	"os"
-	"path"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -24,7 +22,6 @@ import (
 	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
@@ -496,16 +493,19 @@ func (o *overseer) SaveDiff(ctx context.Context, imageID string) (types.ImageIns
 	defer rd2.Close()
 
 	dExtractor := newDiffExtractor(rd2, meta)
-	tempPath := path.Join(os.TempDir(), uuid.New())
-	wFile, err := os.OpenFile(tempPath, os.O_RDWR|os.O_CREATE, 0666)
+	//tempPath := path.Join(os.TempDir(), uuid.New())
+	tempPath := "./tmp/b.tar"
+	//wFile, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	wFile, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		return types.ImageInspect{}, nil, err
 	}
-	defer wFile.Close()
 
 	if err := dExtractor.WriteDiff(wFile); err != nil {
+		wFile.Close()
 		return types.ImageInspect{}, nil, err
 	}
+	wFile.Close()
 
 	rFile, err := os.OpenFile(tempPath, os.O_RDONLY, 0666)
 	if err != nil {
@@ -861,6 +861,7 @@ type diffMeta struct {
 }
 
 func (m *diffMeta) IsOuterLayer(layerID string) bool {
+	fmt.Println(">>>>>>", "LAYERS", m.Layers[len(m.Layers)-1], layerID, m.Layers[len(m.Layers)-1] == layerID)
 	return m.Layers[len(m.Layers)-1] == layerID
 }
 
@@ -891,6 +892,7 @@ func newDiffExtractor(image io.Reader, meta *diffMeta) *diffExtractor {
 
 func (m *diffExtractor) WriteDiff(writer io.Writer) error {
 	m.writer = tar.NewWriter(writer)
+	defer m.writer.Close()
 	for {
 		hdr, err := m.image.Next()
 		if err != nil {
@@ -900,12 +902,7 @@ func (m *diffExtractor) WriteDiff(writer io.Writer) error {
 			return err
 		}
 
-		if !(hdr.Name == "manifest.json" || hdr.Name == m.meta.Config || m.insideLayerDir) {
-			if _, err := io.Copy(ioutil.Discard, m.image); err != nil {
-				return fmt.Errorf("failed to discard %s: %v", hdr.Name, err)
-			}
-			return nil
-		}
+		fmt.Printf(">>> >>> %+v", hdr)
 
 		if m.meta.IsOuterLayer(hdr.Name) {
 			m.insideLayerDir = true
@@ -914,15 +911,26 @@ func (m *diffExtractor) WriteDiff(writer io.Writer) error {
 			m.insideLayerDir = false
 		}
 
+		if !(hdr.Name == "manifest.json" || hdr.Name == m.meta.Config || m.insideLayerDir) {
+			fmt.Println(">>> >>> discarding")
+			if _, err := io.Copy(ioutil.Discard, m.image); err != nil {
+				return fmt.Errorf("failed to discard %s: %v", hdr.Name, err)
+			}
+			continue
+		}
+
+		fmt.Println(">>>", m.insideLayerDir)
+
 		if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
 			return err
 		}
 	}
 
-	return m.writer.Close()
+	return nil
 }
 
 func (m *diffExtractor) writeHeaderAndFile(hdr *tar.Header, image *tar.Reader) error {
+	fmt.Println(">>>>>>>>>>>>", "WRITE", hdr.Name)
 	if err := m.writer.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("failed to write %s header: %v", hdr.Name, err)
 	}
@@ -939,10 +947,10 @@ type imageDiff struct {
 }
 
 func (m *imageDiff) Close() error {
-	if err := os.Remove(m.tempPath); err != nil {
-		log.G(m.ctx).Warn("failed to remove image diff file",
-			zap.Error(err), zap.String("diff_path", m.tempPath))
-	}
+	//if err := os.Remove(m.tempPath); err != nil {
+	//	log.G(m.ctx).Warn("failed to remove image diff file",
+	//		zap.Error(err), zap.String("diff_path", m.tempPath))
+	//}
 
 	return m.ReadCloser.Close()
 }

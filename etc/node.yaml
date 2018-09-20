@@ -4,7 +4,7 @@ node:
   bind_port: 15030
 
 # NAT punching settings.
-npp: &npp
+npp:
   # Rendezvous settings.
   rendezvous:
     # Known rendezvous endpoints.
@@ -43,12 +43,17 @@ log:
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
-# Settings for Ethereum keys
 ethereum: &ethereum
   # path to keystore
-  key_store: "./keys"
+  key_store: "~/manaevstore/"
   # passphrase for keystore
-  pass_phrase: "any"
+  pass_phrase: "1234567890"
+
+#ethereum: &ethereum
+#  # path to keystore
+#  key_store: "~/uebastore/"
+#  # passphrase for keystore
+#  pass_phrase: "any"
 
 metrics_listen_addr: "127.0.0.1:14003"
 
@@ -59,22 +64,6 @@ blockchain:
   # gas price for masterchain transactions, in wei
   # default is 20 Gwei
   # masterchain_gas_price: 20Gwei
-
-# SSH through NAT service.
-# Using this service you can log in in your running tasks directly using
-# native SSH even if the target worker is located behind NAT.
-# Note that the properly configured SSH agent is required to run a Node with this
-# option. Your credentials loaded into the agent will be used while logging in
-# the container.
-# Also you are required to specify your SSH public key in "container.ssh_key"
-# section in "task.yaml"
-# Then try "ssh <DealID>.<TaskID>@localhost -p 2222".
-# Optional.
-ssh:
-  # Endpoint where the local SSH server will be exposed.
-  endpoint: localhost:2222
-  # NAT punching settings.
-  npp: *npp
 
 # Order price predictor settings.
 # Optional.

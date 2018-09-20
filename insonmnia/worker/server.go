@@ -450,7 +450,6 @@ func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description,
 		Cinfo:       info,
 		Spec:        spec,
 	})
-
 	m.containers[id] = &info
 }
 
@@ -597,6 +596,7 @@ func (m *Worker) PullTask(request *sonm.PullTaskRequest, stream sonm.Worker_Pull
 		rd   io.ReadCloser
 	)
 	if request.OnlyDiff {
+		fmt.Println(">>> ONLY DIFF")
 		info, rd, err = m.ovs.SaveDiff(stream.Context(), imageID)
 	} else {
 		info, rd, err = m.ovs.Save(stream.Context(), imageID)
@@ -1029,11 +1029,12 @@ func (m *Worker) setupRunningContainers() error {
 
 	var closedDeals = map[string]*sonm.Deal{}
 	for _, container := range containers {
+		fmt.Println(">>>", container.ID, container.Labels)
+
 		var info runningContainerInfo
 
 		if _, ok := container.Labels[overseerTag]; ok {
 			loaded, err := m.storage.Load(container.ID, &info)
-
 			if err != nil {
 				log.S(m.ctx).Warnf("failed to load running container info %s", err)
 				continue

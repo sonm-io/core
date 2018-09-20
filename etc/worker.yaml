@@ -13,10 +13,10 @@ endpoint: ":15010"
 # it's eth addr can be found in logs.
 # Private key is also exported in /var/lib/sonm/worker_keystore with "sonm" passphrase
 # This option is required.
-# master: 0x0000000000000000000000000000000000000001
+master: 0xc620838fcaec0e5559aa111f77FC6016650c63E4
 
 # NAT punching settings.
-npp: &npp
+npp:
   rendezvous:
     endpoints:
       - 0x5b7d6516fad04e10db726933bcd75447fd7b4b17@rendezvous.livenet.sonm.com:14099
@@ -62,10 +62,7 @@ benchmarks:
 whitelist:
   # URL to downloads list of allowed containers.
   url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/general_whitelist.json"
-  # Deprecated: use PrivilegedIdentityLevel instead
   enabled: true
-  # allow users of this level or higher to skip whitelist
-  privileged_identity_level: identified
 
 matcher:
   poll_delay: 10s
@@ -86,8 +83,8 @@ plugins:
   volume:
     root: /var/lib/docker-volumes
     drivers:
-      cifs: {}
-      btfs: {}
+#      cifs: {}
+#      btfs: {}
 
   overlay:
     drivers:
@@ -99,21 +96,3 @@ plugins:
 # metrics_listen_addr is addr to bind prometheus
 # metrics exporter endpoint.
 metrics_listen_addr: "127.0.0.1:14001"
-
-# Optional SSH server, that allows users to login into their containers.
-# It works through NPP, i.e. can be used even if a worker is located behind NAT.
-ssh:
-  # Endpoint where SSH server will be exposed.
-  # Optional.
-  endpoint: localhost:0
-  # NPP settings.
-  # It is extremely likely that it should be borrowed from the global NPP
-  # settings.
-  npp: *npp
-  # Minimum user identity allowed to login into containers.
-  # By security reasons only identified users are allowed to login in their
-  # containers.
-  # This can be changed for testing purposes, but it is unsafe.
-  # Optional.
-  # Default value is "identified".
-  identity: identified
