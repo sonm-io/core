@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net"
 	"sync"
-
-	"encoding/json"
+	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
@@ -43,6 +43,7 @@ type DWH struct {
 	blockchain  blockchain.API
 	storage     *sqlStorage
 	lastEvent   *blockchain.Event
+	stats       *sonm.DWHStatsReply
 }
 
 func NewDWH(ctx context.Context, cfg *DWHConfig, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -83,6 +84,7 @@ func (m *DWH) Serve() error {
 	wg := errgroup.Group{}
 	wg.Go(m.serveGRPC)
 	wg.Go(m.serveHTTP)
+	wg.Go(m.monitorStatistics)
 
 	return wg.Wait()
 }
@@ -197,6 +199,30 @@ func (m *DWH) monitorNumBenchmarks() error {
 			if err := m.storage.CreateIndices(m.db); err != nil {
 				return fmt.Errorf("failed to CreateIndices (onNumBenchmarksUpdated): %v", err)
 			}
+		}
+	}
+}
+
+func (m *DWH) monitorStatistics() error {
+	tk := util.NewImmediateTicker(time.Second)
+	for {
+		select {
+		case <-tk.C:
+			func() {
+				m.mu.Lock()
+				defer m.mu.Unlock()
+
+				conn := newSimpleConn(m.db)
+				defer conn.Finish()
+
+				if stats, err := m.storage.getStats(conn); err != nil {
+					m.logger.Warn("failed to getStats", zap.Error(err))
+				} else {
+					m.stats = stats
+				}
+			}()
+		case <-m.ctx.Done():
+			return errors.New("monitorStatistics: context cancelled")
 		}
 	}
 }
@@ -398,4 +424,11 @@ func (m *DWH) GetWorkers(ctx context.Context, request *sonm.WorkersRequest) (*so
 	}
 
 	return &sonm.WorkersReply{Workers: workers, Count: count}, nil
+}
+
+func (m *DWH) GetStats(ctx context.Context, request *sonm.Empty) (*sonm.DWHStatsReply, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.stats, nil
 }

@@ -10,6 +10,19 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
+func testGetStats(t *testing.T) {
+	stats, err := testDWH.storage.getStats(newSimpleConn(testDWH.db))
+	if err != nil {
+		t.Errorf("Failed to get stats: %v", err)
+		return
+	}
+
+	if stats.CurrentDeals != 2 {
+		t.Errorf("Unexpected stats: %+v", stats)
+		return
+	}
+}
+
 func testGetDeals(t *testing.T) {
 	var (
 		byAddress            = common.HexToAddress("0x11")
