@@ -193,3 +193,33 @@ func (m *TSErrorByID) Append(id *BigInt, err error) {
 func (m *TSErrorByID) Unwrap() *ErrorByID {
 	return m.inner
 }
+
+func NewTSErrorByStringID() *TSErrorByStringID {
+	return &TSErrorByStringID{
+		inner: &ErrorByStringID{
+			Response: []*ErrorByStringID_Item{},
+		},
+	}
+}
+
+type TSErrorByStringID struct {
+	mu    sync.Mutex
+	inner *ErrorByStringID
+}
+
+func (m *TSErrorByStringID) Append(id string, err error) {
+	strErr := ""
+	if err != nil {
+		strErr = err.Error()
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.inner.Response = append(m.inner.Response, &ErrorByStringID_Item{
+		ID:    id,
+		Error: strErr,
+	})
+}
+
+func (m *TSErrorByStringID) Unwrap() *ErrorByStringID {
+	return m.inner
+}

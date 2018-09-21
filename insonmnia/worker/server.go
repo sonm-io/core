@@ -1476,7 +1476,7 @@ func (m *Worker) PurgeAsksPlansDetailed(ctx context.Context, _ *sonm.Empty) (*so
 	return m.salesman.PurgeAskPlans(ctx)
 }
 
-func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *pb.Timestamp) (*pb.Empty, error) {
+func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *sonm.Timestamp) (*sonm.Empty, error) {
 	if err := m.salesman.ScheduleMaintenance(timestamp.Unix()); err != nil {
 		return nil, err
 	}

@@ -207,14 +207,14 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 }
 
 //TODO: rework with error map
-func (m *Salesman) PurgeAskPlans(ctx context.Context) *sonm.ErrorByStringID {
+func (m *Salesman) PurgeAskPlans(ctx context.Context) (*sonm.ErrorByStringID, error) {
 	plans := m.AskPlans()
 	concurrency := blockchainProcessConcurrency
 	if len(plans) < concurrency {
 		concurrency = len(plans)
 	}
 
-	//status := pb.NewTSErrorByID()
+	status := sonm.NewTSErrorByStringID()
 	ch := make(chan string)
 	wg := sync.WaitGroup{}
 	wg.Add(concurrency)
@@ -222,7 +222,8 @@ func (m *Salesman) PurgeAskPlans(ctx context.Context) *sonm.ErrorByStringID {
 		go func() {
 			defer wg.Done()
 			for id := range ch {
-				m.RemoveAskPlan(ctx, id)
+				err := m.RemoveAskPlan(ctx, id)
+				status.Append(id, err)
 			}
 
 		}()
@@ -232,7 +233,7 @@ func (m *Salesman) PurgeAskPlans(ctx context.Context) *sonm.ErrorByStringID {
 	}
 	close(ch)
 	wg.Wait()
-	return nil
+	return status.Unwrap(), nil
 }
 
 func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
