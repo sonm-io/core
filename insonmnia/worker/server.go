@@ -393,26 +393,7 @@ func (m *Worker) setupHardware() error {
 	return nil
 }
 
-<<<<<<< HEAD
-func (m *Worker) listenDeals(dealsCh <-chan *sonm.Deal) {
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case deal := <-dealsCh:
-			if deal.Status == sonm.DealStatus_DEAL_CLOSED {
-				if err := m.cancelDealTasks(deal.GetId()); err != nil {
-					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s: %s", deal.GetId().Unwrap().String(), err)
-				}
-			}
-		}
-	}
-}
-
-func (m *Worker) cancelDealTasks(dealID *sonm.BigInt) error {
-=======
-func (m *Worker) CancelDealTasks(dealID *pb.BigInt) error {
->>>>>>> refactor: single shot ask plans
+func (m *Worker) CancelDealTasks(dealID *sonm.BigInt) error {
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
@@ -1487,22 +1468,15 @@ func (m *Worker) RemoveAskPlan(ctx context.Context, request *sonm.ID) (*sonm.Emp
 }
 
 func (m *Worker) PurgeAskPlans(ctx context.Context, _ *sonm.Empty) (*sonm.Empty, error) {
-	plans := m.salesman.AskPlans()
-
-	result := multierror.NewMultiError()
-	for id := range plans {
-		err := m.salesman.RemoveAskPlan(ctx, id)
-		result = multierror.Append(result, err)
-	}
-
-	if result.ErrorOrNil() != nil {
-		return nil, result.ErrorOrNil()
-	}
-
+	m.salesman.PurgeAskPlans(ctx)
 	return &sonm.Empty{}, nil
 }
 
-func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *sonm.Timestamp) (*sonm.Empty, error) {
+func (m *Worker) PurgeAsksPlansDetailed(ctx context.Context, _ *sonm.Empty) (*sonm.ErrorByStringID, error) {
+	return m.salesman.PurgeAskPlans(ctx)
+}
+
+func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *pb.Timestamp) (*pb.Empty, error) {
 	if err := m.salesman.ScheduleMaintenance(timestamp.Unix()); err != nil {
 		return nil, err
 	}

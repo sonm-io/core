@@ -34,7 +34,10 @@ service WorkerManagement {
     // for creating Ask orders on Marketplace
     rpc RemoveAskPlan(ID) returns (Empty) {}
     // PurgeAskPlans removes all ask-plans
+    // Deprecated: use PurgeAsksPlansDetailed instead
     rpc PurgeAskPlans(Empty) returns (Empty) {}
+    // PurgeAsksPlansDetailed removes all ask-plans in sync manner and returns error for each ask-plan (if it's present)
+    rpc PurgeAsksPlansDetailed(Empty) returns (ErrorByStringID) {}
     // Schedule maintenance for worker: it will attempt to close all deals till that time point
     rpc ScheduleMaintenance(Timestamp) returns (Empty) {}
     // Get next planned maintenance

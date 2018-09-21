@@ -100,6 +100,7 @@ It has these top-level messages:
 	DataSizeRate
 	Price
 	ErrorByID
+	ErrorByStringID
 	OrderIDs
 	GetOrdersReply
 	Benchmarks
