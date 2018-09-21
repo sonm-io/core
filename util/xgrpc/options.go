@@ -73,6 +73,13 @@ func UnaryServerInterceptor(u grpc.UnaryServerInterceptor) ServerOption {
 	}
 }
 
+// UnaryServerInterceptor adds an unary interceptor to the chain.
+func StreamServerInterceptor(s grpc.StreamServerInterceptor) ServerOption {
+	return func(o *options) {
+		o.interceptors.s = append(o.interceptors.s, s)
+	}
+}
+
 type options struct {
 	options      []grpc.ServerOption
 	interceptors struct {

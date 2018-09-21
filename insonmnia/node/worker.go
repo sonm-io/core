@@ -13,11 +13,15 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 type workerAPI struct {
+	sonm.WorkerServer
 	sonm.WorkerManagementServer
 	remotes *remoteOptions
 	log     *zap.SugaredLogger
@@ -40,7 +44,7 @@ func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 	return auth.NewAddr(ctxAddrs[0])
 }
 
-func (h *workerAPI) getClient(ctx context.Context) (sonm.WorkerManagementClient, io.Closer, error) {
+func (h *workerAPI) getManagementClient(ctx context.Context) (sonm.WorkerManagementClient, io.Closer, error) {
 	addr, err := h.getWorkerAddr(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -50,24 +54,51 @@ func (h *workerAPI) getClient(ctx context.Context) (sonm.WorkerManagementClient,
 	return h.remotes.workerCreator(ctx, addr)
 }
 
-func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	ctx = util.ForwardMetadata(ctx)
-	if !strings.HasPrefix(info.FullMethod, "/sonm.WorkerManagement") {
+func (m *workerAPI) getTasksClient(ctx context.Context) (sonm.WorkerClient, io.Closer, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, nil, status.Errorf(codes.InvalidArgument, "metadata required")
+	}
+
+	dealIDs, ok := md["deal"]
+	if !ok || len(dealIDs) != 1 {
+		return nil, nil, status.Errorf(codes.InvalidArgument, "deal field is required and should be unique")
+	}
+
+	worker, cc, err := m.remotes.getWorkerClientForDeal(ctx, dealIDs[0])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return worker, cc, nil
+}
+
+func (m *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	var cli interface{}
+	var closer io.Closer
+	var err error
+
+	serverName := strings.Split(info.FullMethod, "/")[1]
+	switch serverName {
+	case "sonm.Worker":
+		ctx = util.ForwardMetadata(ctx)
+		cli, closer, err = m.getTasksClient(ctx)
+	case "sonm.WorkerManagement":
+		ctx = util.ForwardMetadata(ctx)
+		cli, closer, err = m.getManagementClient(ctx)
+	default:
 		return handler(ctx, req)
 	}
-
-	cli, cc, err := h.getClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to worker: %s", err)
+		return nil, err
 	}
-	defer cc.Close()
+	defer closer.Close()
 
-	var (
-		t        = reflect.ValueOf(cli)
-		method   = t.MethodByName(xgrpc.MethodInfo(info.FullMethod).Method)
-		inValues = []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
-		values   = method.Call(inValues)
-	)
+	t := reflect.ValueOf(cli)
+	method := t.MethodByName(xgrpc.MethodInfo(info.FullMethod).Method)
+	inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
+	values := method.Call(inValues)
+
 	if !values[1].IsNil() {
 		err = values[1].Interface().(error)
 	}
@@ -75,7 +106,140 @@ func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 	return values[0].Interface(), err
 }
 
-func newWorkerAPI(opts *remoteOptions) sonm.WorkerManagementServer {
+func callMethod(cli interface{}, methodStr string, args ...interface{}) []reflect.Value {
+	value, ok := cli.(reflect.Value)
+	if !ok {
+		value = reflect.ValueOf(cli)
+	}
+	inValues := []reflect.Value{}
+	for _, arg := range args {
+		valueArg, ok := arg.(reflect.Value)
+		if !ok {
+			valueArg = reflect.ValueOf(arg)
+		}
+		inValues = append(inValues, valueArg)
+	}
+	method := value.MethodByName(methodStr)
+	return method.Call(inValues)
+}
+
+func callErrMethod(cli interface{}, methodStr string, args ...interface{}) error {
+	retValues := callMethod(cli, methodStr, args...)
+	if len(retValues) != 1 {
+		panic(fmt.Sprintf("failed to call method %s, it has %d return values, required 1", methodStr, len(retValues)))
+	}
+	if !retValues[0].IsNil() {
+		return retValues[0].Interface().(error)
+	}
+	return nil
+}
+
+func callBinMethod(cli interface{}, methodStr string, args ...interface{}) (reflect.Value, error) {
+	retValues := callMethod(cli, methodStr, args...)
+	if len(retValues) != 2 {
+		panic(fmt.Sprintf("failed to call method %s, it has %d return values, required 2", methodStr, len(retValues)))
+	}
+	var err error
+	if !retValues[1].IsNil() {
+		err = retValues[1].Interface().(error)
+	}
+	return retValues[0], err
+}
+
+func newMethodArgValue(cli interface{}, methodStr string, position int) reflect.Value {
+	value, ok := cli.(reflect.Value)
+	if !ok {
+		value = reflect.ValueOf(cli)
+	}
+	method := value.MethodByName(methodStr)
+	return reflect.New(method.Type().In(position).Elem())
+}
+
+func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	//TODO: deduplicate
+	var cli interface{}
+	var closer io.Closer
+	var err error
+	var ctx context.Context
+
+	serverName := strings.Split(info.FullMethod, "/")[1]
+	switch serverName {
+	case "sonm.Worker":
+		ctx = util.ForwardMetadata(ss.Context())
+		cli, closer, err = m.getTasksClient(ctx)
+	case "sonm.WorkerManagement":
+		ctx = util.ForwardMetadata(ss.Context())
+		cli, closer, err = m.getTasksClient(ctx)
+	default:
+		return handler(srv, ss)
+	}
+	defer closer.Close()
+
+	args := []interface{}{ctx}
+	methodName := xgrpc.MethodInfo(info.FullMethod).Method
+
+	if !info.IsClientStream {
+		// first position is always context, second is request
+		request := newMethodArgValue(cli, methodName, 1)
+		ss.RecvMsg(request.Interface())
+		args = append(args, request)
+	}
+	streamCli, err := callBinMethod(cli, methodName, args...)
+	if err != nil {
+		return err
+	}
+
+	wg := errgroup.Group{}
+	wg.Go(func() error {
+		if !info.IsClientStream {
+			m.log.Info("not a client stream")
+			return nil
+		}
+		for {
+			sendVar := newMethodArgValue(streamCli, "Send", 0)
+			if err := ss.RecvMsg(sendVar.Interface()); err != nil {
+				//TODO: CloseAndRecv for 3d case
+				if err == io.EOF {
+					return callErrMethod(streamCli, "CloseSend")
+				}
+				return err
+			}
+			if err := callErrMethod(streamCli, "Send", sendVar); err != nil {
+				return err
+			}
+		}
+	})
+
+	wg.Go(func() error {
+		if !info.IsServerStream {
+			return nil
+		}
+		headers, err := callBinMethod(streamCli, "Header")
+		if err != nil {
+			return err
+		}
+		if err := ss.SendHeader(headers.Interface().(metadata.MD)); err != nil {
+			return fmt.Errorf("failed to send metadata back to client: %s", err)
+		}
+		for {
+			progress, err := callBinMethod(streamCli, "Recv")
+			if err == io.EOF {
+				trailer := callMethod(streamCli, "Trailer")[0].Interface().(metadata.MD)
+				ss.SetTrailer(trailer)
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if err := ss.SendMsg(progress.Interface()); err != nil {
+				return err
+			}
+		}
+	})
+	return wg.Wait()
+}
+
+func newWorkerAPI(opts *remoteOptions) *workerAPI {
 	return &workerAPI{
 		remotes: opts,
 		log:     opts.log,
