@@ -208,10 +208,12 @@ var taskStatusCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		ctx = newDealContext(ctx, args[0])
+		// Check if passed value is valid bigint
+		_, err = sonm.NewBigIntFromString(args[0])
 		if err != nil {
 			return err
 		}
+		ctx = newDealContext(ctx, args[0])
 
 		taskID := args[1]
 		req := &sonm.ID{
@@ -235,6 +237,12 @@ var taskJoinNetworkCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
+
+		// Check if passed dealID value is valid bigint
+		_, err := sonm.NewBigIntFromString(args[0])
+		if err != nil {
+			return err
+		}
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
