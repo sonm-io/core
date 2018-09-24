@@ -1136,13 +1136,13 @@ func (m *sqlStorage) GetLastEvent(conn queryConn) (*blockchain.Event, error) {
 
 func (m *sqlStorage) getStats(conn queryConn) (*sonm.DWHStatsReply, error) {
 	var (
-		numCurrDealsQ, _, _ = m.builder().Select("count(Id)").From("Deals").Where("Status=1").Prefix("(").Suffix(")").ToSql()
+		numCurrDealsQ, _, _ = m.builder().Select("count(Id)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_ACCEPTED).Prefix("(").Suffix(")").ToSql()
 		numDealsQ, _, _     = m.builder().Select("count(Id)").From("Deals").Prefix("(").Suffix(")").ToSql()
-		dealsDurQ, _, _     = m.builder().Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600 end").From("Deals").Where("Status=2").Prefix("(").Suffix(")").ToSql()
-		dealsAvgDurQ, _, _  = m.builder().Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600/(count(id)+1) end").From("Deals").Where("Status=2").Prefix("(").Suffix(")").ToSql()
+		dealsDurQ, _, _     = m.builder().Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600 end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
+		dealsAvgDurQ, _, _  = m.builder().Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600/(count(id)+1) end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
 		numWorkersQ, _, _   = m.builder().Select("count(distinct WorkerID)").From("Workers").Prefix("(").Suffix(")").ToSql()
 		numMastersQ, _, _   = m.builder().Select("count(distinct MasterID)").From("Workers").Prefix("(").Suffix(")").ToSql()
-		numCustomersQ, _, _ = m.builder().Select("count(distinct ConsumerID)").From("Deals").Where("Status=2").Prefix("(").Suffix(")").ToSql()
+		numCustomersQ, _, _ = m.builder().Select("count(distinct ConsumerID)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
 	)
 	query, _, _ := m.builder().
 		Select(numCurrDealsQ, numDealsQ, dealsDurQ, dealsAvgDurQ, numWorkersQ, numMastersQ, numCustomersQ).
