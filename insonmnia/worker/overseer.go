@@ -15,6 +15,8 @@ import (
 
 	"os"
 
+	"strings"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -494,7 +496,7 @@ func (o *overseer) SaveDiff(ctx context.Context, imageID string) (types.ImageIns
 
 	dExtractor := newDiffExtractor(rd2, meta)
 	//tempPath := path.Join(os.TempDir(), uuid.New())
-	tempPath := "./tmp/b.tar"
+	tempPath := "./tmp/diff.tar"
 	//wFile, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	wFile, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
@@ -847,12 +849,23 @@ func (m *metaExtractor) Process() (*diffMeta, error) {
 		if len(manifestContents) < 1 || len(manifestContents[0].Config) == 0 || len(manifestContents[0].Layers) == 0 {
 			return nil, errors.New("manifest.json is malformed")
 		}
+
 		m.meta = manifestContents[0]
+		m.meta.Layers = m.stripLayersInfo(m.meta.Layers)
 
 		return m.meta, nil
 	}
 
 	return nil, errors.New("failed to find manifest.json")
+}
+
+func (m *metaExtractor) stripLayersInfo(layers []string) []string {
+	var out []string
+	for _, layer := range layers {
+		out = append(out, strings.Split(layer, "/")[0])
+	}
+
+	return out
 }
 
 type diffMeta struct {
@@ -861,13 +874,12 @@ type diffMeta struct {
 }
 
 func (m *diffMeta) IsOuterLayer(layerID string) bool {
-	fmt.Println(">>>>>>", "LAYERS", m.Layers[len(m.Layers)-1], layerID, m.Layers[len(m.Layers)-1] == layerID)
-	return m.Layers[len(m.Layers)-1] == layerID
+	return strings.Contains(layerID, m.Layers[len(m.Layers)-1])
 }
 
 func (m *diffMeta) IsLayer(layerID string) bool {
 	for _, ownLayer := range m.Layers[:len(m.Layers)-1] {
-		if layerID == ownLayer {
+		if strings.Contains(layerID, ownLayer) {
 			return true
 		}
 	}
@@ -891,6 +903,7 @@ func newDiffExtractor(image io.Reader, meta *diffMeta) *diffExtractor {
 }
 
 func (m *diffExtractor) WriteDiff(writer io.Writer) error {
+	fmt.Println("...", m.meta.Layers)
 	m.writer = tar.NewWriter(writer)
 	defer m.writer.Close()
 	for {
@@ -902,8 +915,6 @@ func (m *diffExtractor) WriteDiff(writer io.Writer) error {
 			return err
 		}
 
-		fmt.Printf(">>> >>> %+v", hdr)
-
 		if m.meta.IsOuterLayer(hdr.Name) {
 			m.insideLayerDir = true
 		}
@@ -911,15 +922,14 @@ func (m *diffExtractor) WriteDiff(writer io.Writer) error {
 			m.insideLayerDir = false
 		}
 
+		fmt.Println("...", hdr.Name, "is outer", m.meta.IsOuterLayer(hdr.Name), "is layer", m.meta.IsLayer(hdr.Name), m.insideLayerDir)
+
 		if !(hdr.Name == "manifest.json" || hdr.Name == m.meta.Config || m.insideLayerDir) {
-			fmt.Println(">>> >>> discarding")
 			if _, err := io.Copy(ioutil.Discard, m.image); err != nil {
 				return fmt.Errorf("failed to discard %s: %v", hdr.Name, err)
 			}
 			continue
 		}
-
-		fmt.Println(">>>", m.insideLayerDir)
 
 		if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
 			return err
@@ -930,7 +940,6 @@ func (m *diffExtractor) WriteDiff(writer io.Writer) error {
 }
 
 func (m *diffExtractor) writeHeaderAndFile(hdr *tar.Header, image *tar.Reader) error {
-	fmt.Println(">>>>>>>>>>>>", "WRITE", hdr.Name)
 	if err := m.writer.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("failed to write %s header: %v", hdr.Name, err)
 	}
