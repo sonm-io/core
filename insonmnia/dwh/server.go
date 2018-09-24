@@ -209,16 +209,15 @@ func (m *DWH) monitorStatistics() error {
 		select {
 		case <-tk.C:
 			func() {
-				m.mu.Lock()
-				defer m.mu.Unlock()
-
 				conn := newSimpleConn(m.db)
 				defer conn.Finish()
 
 				if stats, err := m.storage.getStats(conn); err != nil {
 					m.logger.Warn("failed to getStats", zap.Error(err))
 				} else {
+					m.mu.Lock()
 					m.stats = stats
+					m.mu.Unlock()
 				}
 			}()
 		case <-m.ctx.Done():
@@ -427,8 +426,5 @@ func (m *DWH) GetWorkers(ctx context.Context, request *sonm.WorkersRequest) (*so
 }
 
 func (m *DWH) GetStats(ctx context.Context, request *sonm.Empty) (*sonm.DWHStatsReply, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	return m.stats, nil
 }
