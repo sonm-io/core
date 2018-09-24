@@ -1136,18 +1136,23 @@ func (m *sqlStorage) GetLastEvent(conn queryConn) (*blockchain.Event, error) {
 
 func (m *sqlStorage) getStats(conn queryConn) (*sonm.DWHStatsReply, error) {
 	var (
-		numCurrDealsQ, _, _ = m.builder().Select("count(Id)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_ACCEPTED).Prefix("(").Suffix(")").ToSql()
-		numDealsQ, _, _     = m.builder().Select("count(Id)").From("Deals").Prefix("(").Suffix(")").ToSql()
-		dealsDurQ, _, _     = m.builder().Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600 end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
-		dealsAvgDurQ, _, _  = m.builder().Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600/(count(id)+1) end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
-		numWorkersQ, _, _   = m.builder().Select("count(distinct WorkerID)").From("Workers").Prefix("(").Suffix(")").ToSql()
-		numMastersQ, _, _   = m.builder().Select("count(distinct MasterID)").From("Workers").Prefix("(").Suffix(")").ToSql()
-		numCustomersQ, _, _ = m.builder().Select("count(distinct ConsumerID)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
+		numCurrDealsQ, argsCurrDeals, _  = sq.Select("count(Id)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_ACCEPTED).Prefix("(").Suffix(")").ToSql()
+		numDealsQ, _, _                  = sq.Select("count(Id)").From("Deals").Prefix("(").Suffix(")").ToSql()
+		dealsDurQ, argsDealsDur, _       = sq.Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600 end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
+		dealsAvgDurQ, argsDealsAvgDur, _ = sq.Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600/(count(id)+1) end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
+		numWorkersQ, _, _                = sq.Select("count(distinct WorkerID)").From("Workers").Prefix("(").Suffix(")").ToSql()
+		numMastersQ, _, _                = sq.Select("count(distinct MasterID)").From("Workers").Prefix("(").Suffix(")").ToSql()
+		numCustomersQ, argsCustomers, _  = sq.Select("count(distinct ConsumerID)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
 	)
+	var args []interface{}
+	args = append(args, argsCurrDeals...)
+	args = append(args, argsDealsDur...)
+	args = append(args, argsDealsAvgDur...)
+	args = append(args, argsCustomers...)
 	query, _, _ := m.builder().
 		Select(numCurrDealsQ, numDealsQ, dealsDurQ, dealsAvgDurQ, numWorkersQ, numMastersQ, numCustomersQ).
 		ToSql()
-	rows, err := conn.Query(query)
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to getStats: %v", err)
 	}
