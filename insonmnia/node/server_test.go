@@ -23,6 +23,10 @@ func nopInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServer
 	return handler(ctx, req)
 }
 
+func nopStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return handler(srv, ss)
+}
+
 func newTestTLS(t *testing.T, privateKey *ecdsa.PrivateKey) credentials.TransportCredentials {
 	_, tlsConfig, err := util.NewHitlessCertRotator(context.Background(), privateKey)
 	require.NoError(t, err)
@@ -38,6 +42,22 @@ func newTestKey(t *testing.T) *ecdsa.PrivateKey {
 	return key
 }
 
+func servicesMock(c *gomock.Controller) *MockServices {
+	marketServer := sonm.NewMockMarketServer(c)
+	marketServer.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).AnyTimes().Return(&sonm.Order{}, nil)
+
+	services := NewMockServices(c)
+	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
+	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
+	services.EXPECT().StreamInterceptor().Times(1).Return(nopStreamInterceptor)
+	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
+		sonm.RegisterMarketServer(server, marketServer)
+		return nil
+	})
+	services.EXPECT().RegisterREST(gomock.Any()).Times(0).Return(nil)
+	return services
+}
+
 func TestConnectWithoutTLS(t *testing.T) {
 	c := gomock.NewController(t)
 	defer c.Finish()
@@ -45,18 +65,9 @@ func TestConnectWithoutTLS(t *testing.T) {
 	marketServer := sonm.NewMockMarketServer(c)
 	marketServer.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).Times(0)
 
-	services := NewMockServices(c)
-	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
-	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
-	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
-		sonm.RegisterMarketServer(server, marketServer)
-		return nil
-	})
-	services.EXPECT().RegisterREST(gomock.Any()).Times(0).Return(nil)
-
 	key := newTestKey(t)
 
-	server, err := newServer(nodeConfig{}, services, WithGRPCServer(), WithGRPCSecure(newTestTLS(t, key), key))
+	server, err := newServer(nodeConfig{}, servicesMock(c), WithGRPCServer(), WithGRPCSecure(newTestTLS(t, key), key))
 	require.NoError(t, err)
 
 	endpoints := server.LocalEndpoints()
@@ -82,22 +93,10 @@ func TestConnectWithValidKeyWithoutWallet(t *testing.T) {
 	c := gomock.NewController(t)
 	defer c.Finish()
 
-	marketServer := sonm.NewMockMarketServer(c)
-	marketServer.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).Times(1).Return(&sonm.Order{}, nil)
-
-	services := NewMockServices(c)
-	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
-	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
-	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
-		sonm.RegisterMarketServer(server, marketServer)
-		return nil
-	})
-	services.EXPECT().RegisterREST(gomock.Any()).Times(0).Return(nil)
-
 	key := newTestKey(t)
 	transportCredentials := newTestTLS(t, key)
 
-	server, err := newServer(nodeConfig{}, services, WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
+	server, err := newServer(nodeConfig{}, servicesMock(c), WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
 	require.NoError(t, err)
 
 	endpoints := server.LocalEndpoints()
@@ -120,22 +119,10 @@ func TestConnectWithInvalidKeyWithoutWallet(t *testing.T) {
 	c := gomock.NewController(t)
 	defer c.Finish()
 
-	marketServer := sonm.NewMockMarketServer(c)
-	marketServer.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).Times(0)
-
-	services := NewMockServices(c)
-	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
-	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
-	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
-		sonm.RegisterMarketServer(server, marketServer)
-		return nil
-	})
-	services.EXPECT().RegisterREST(gomock.Any()).Times(0).Return(nil)
-
 	key := newTestKey(t)
 	transportCredentials := newTestTLS(t, key)
 
-	server, err := newServer(nodeConfig{}, services, WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
+	server, err := newServer(nodeConfig{}, servicesMock(c), WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
 	require.NoError(t, err)
 
 	endpoints := server.LocalEndpoints()
@@ -164,22 +151,10 @@ func TestConnectWithInvalidKeyWithWallet(t *testing.T) {
 	c := gomock.NewController(t)
 	defer c.Finish()
 
-	marketServer := sonm.NewMockMarketServer(c)
-	marketServer.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).Times(0)
-
-	services := NewMockServices(c)
-	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
-	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
-	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
-		sonm.RegisterMarketServer(server, marketServer)
-		return nil
-	})
-	services.EXPECT().RegisterREST(gomock.Any()).Times(0).Return(nil)
-
 	key := newTestKey(t)
 	transportCredentials := newTestTLS(t, key)
 
-	server, err := newServer(nodeConfig{}, services, WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
+	server, err := newServer(nodeConfig{}, servicesMock(c), WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
 	require.NoError(t, err)
 
 	endpoints := server.LocalEndpoints()
@@ -209,22 +184,10 @@ func TestConnectWithValidKeyWithWallet(t *testing.T) {
 	c := gomock.NewController(t)
 	defer c.Finish()
 
-	marketServer := sonm.NewMockMarketServer(c)
-	marketServer.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).Times(1).Return(&sonm.Order{}, nil)
-
-	services := NewMockServices(c)
-	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
-	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
-	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
-		sonm.RegisterMarketServer(server, marketServer)
-		return nil
-	})
-	services.EXPECT().RegisterREST(gomock.Any()).Times(0).Return(nil)
-
 	key := newTestKey(t)
 	transportCredentials := newTestTLS(t, key)
 
-	server, err := newServer(nodeConfig{}, services, WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
+	server, err := newServer(nodeConfig{}, servicesMock(c), WithGRPCServer(), WithGRPCSecure(transportCredentials, key))
 	require.NoError(t, err)
 
 	endpoints := server.LocalEndpoints()
