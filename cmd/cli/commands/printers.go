@@ -142,7 +142,7 @@ func printNodeTaskStatus(printer Printer, reply *sonm.DealInfoReply) {
 		printer.Printf("Running:")
 		printTaskStatuses(idented, reply.GetRunning())
 		printer.Printf("Completed:")
-		printTaskStatuses(idented, reply.GetRunning())
+		printTaskStatuses(idented, reply.GetCompleted())
 	} else {
 		showJSON(printer, reply)
 	}
