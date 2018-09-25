@@ -24,6 +24,7 @@ type LogProcessorConfig struct {
 
 type PoolProcessorConfig struct {
 	ProcessorConfig `yaml:",inline"`
+	URL             string `yaml:"url"`
 }
 
 type Config struct {
