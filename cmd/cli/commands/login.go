@@ -9,11 +9,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	passwordFlag string
+)
+
+func init() {
+	loginCmd.Flags().StringVar(&passwordFlag, "password", "", "Explicitly set password")
+}
+
 var loginCmd = &cobra.Command{
 	Use:   "login [addr]",
 	Short: "Open or generate Ethereum keys",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ks, err := initKeystore()
+		var passReader accounts.PassPhraser
+		if len(passwordFlag) > 0 {
+			passReader = accounts.NewStaticPassPhraser(passwordFlag)
+		} else {
+			passReader = accounts.NewInteractivePassPhraser()
+		}
+
+		ks, err := initKeystore(passReader)
 		if err != nil {
 			return fmt.Errorf("cannot init keystore: %v", err)
 		}
@@ -36,7 +51,7 @@ var loginCmd = &cobra.Command{
 			}
 
 			// ask for password for default key
-			pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
+			pass, err := passReader.GetPassPhrase()
 			if err != nil {
 				return fmt.Errorf("cannot read pass phrase: %v", err)
 			}
@@ -66,7 +81,7 @@ var loginCmd = &cobra.Command{
 				// generate new key
 				cmd.Println("Keystore is empty, generating new key...")
 				// ask for password for default key
-				pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
+				pass, err := passReader.GetPassPhrase()
 				if err != nil {
 					return fmt.Errorf("cannot read pass phrase: %v", err)
 				}
@@ -90,9 +105,9 @@ var loginCmd = &cobra.Command{
 				cmd.Printf("Default key: %s\r\n", defaultAddr.Hex())
 				// try to decrypt default key with pre-defined pass
 				if len(cfg.Eth.Passphrase) == 0 {
-					pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
+					pass, err := passReader.GetPassPhrase()
 					if err != nil {
-						return fmt.Errorf("Cannot read pass phrase: %v", err)
+						return fmt.Errorf("cannot read pass phrase: %v", err)
 					}
 
 					cfg.Eth.Passphrase = pass
