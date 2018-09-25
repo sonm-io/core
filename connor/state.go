@@ -2,6 +2,7 @@ package connor
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"sync"
 
@@ -10,9 +11,9 @@ import (
 )
 
 type dealQuality struct {
-	Deal   *types.Deal
-	ByLogs float64
-	ByPool float64
+	Deal   *types.Deal `json:"deal"`
+	ByLogs float64     `json:"by_logs"`
+	ByPool float64     `json:"by_pool"`
 }
 
 type state struct {
@@ -23,7 +24,7 @@ type state struct {
 	deals        map[string]*dealQuality
 }
 
-func newState(log *zap.Logger) *state {
+func NewState(log *zap.Logger) *state {
 	return &state{
 		log:          log.Named("state"),
 		activeOrders: map[string]*types.Corder{},
@@ -32,12 +33,12 @@ func newState(log *zap.Logger) *state {
 	}
 }
 
-func (s *state) hasOrder(order *types.Corder) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+func (s *state) HasOrder(order *types.Corder) bool {
 	id := order.GetId().Unwrap().String()
 	hash := order.Hash()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	_, ok := s.activeOrders[id]
 	if !ok {
@@ -46,7 +47,9 @@ func (s *state) hasOrder(order *types.Corder) bool {
 	return ok
 }
 
-func (s *state) hasDeal(id string) bool {
+func (s *state) HasDeal(deal *types.Deal) bool {
+	id := deal.GetId().Unwrap().String()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -54,79 +57,87 @@ func (s *state) hasDeal(id string) bool {
 	return ok
 }
 
-func (s *state) addActiveOrder(ord *types.Corder) {
+func (s *state) AddActiveOrder(ord *types.Corder) {
+	id := ord.GetId().Unwrap().String()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.activeOrders[ord.GetId().Unwrap().String()] = ord
-	s.log.Debug("adding active order",
-		zap.String("order_id", ord.GetId().Unwrap().String()),
+	s.activeOrders[id] = ord
+	s.log.Debug("active order added",
+		zap.String("order_id", id),
 		zap.Int("active", len(s.activeOrders)),
 		zap.Int("creating", len(s.queuedOrders)))
 }
 
-func (s *state) addQueuedOrder(ord *types.Corder) {
+func (s *state) AddQueuedOrder(ord *types.Corder) {
+	hash := ord.Hash()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	hash := ord.Hash()
 	s.queuedOrders[hash] = ord
-	s.log.Debug("adding queued order",
+	s.log.Debug("queued order added",
 		zap.String("order_hash", hash),
 		zap.Int("active", len(s.activeOrders)),
 		zap.Int("queued", len(s.queuedOrders)))
 }
 
-func (s *state) deleteActiveOrder(id string) {
+func (s *state) DeleteActiveOrder(ord *types.Corder) {
+	id := ord.GetId().Unwrap().String()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	delete(s.activeOrders, id)
-	s.log.Debug("deleting active order",
+	s.log.Debug("active order deleted",
 		zap.String("order_id", id),
 		zap.Int("active", len(s.activeOrders)),
 		zap.Int("queued", len(s.queuedOrders)))
 }
 
-func (s *state) deleteCreatingOrder(ord *types.Corder) {
+func (s *state) DeleteQueuedOrder(ord *types.Corder) {
+	hash := ord.Hash()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	hash := ord.Hash()
 	delete(s.queuedOrders, hash)
-	s.log.Debug("deleting queued order",
+	s.log.Debug("queued order deleted",
 		zap.String("order_hash", hash),
 		zap.Int("active", len(s.activeOrders)),
 		zap.Int("queued", len(s.queuedOrders)))
 }
 
-func (s *state) addDeal(deal *types.Deal) {
+func (s *state) AddDeal(deal *types.Deal) {
+	id := deal.GetId().Unwrap().String()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.deals[deal.GetId().Unwrap().String()] = &dealQuality{
+	s.deals[id] = &dealQuality{
 		Deal:   deal,
 		ByLogs: 1,
 		ByPool: 1,
 	}
-	s.log.Debug("adding deal",
-		zap.String("deal_id", deal.GetId().Unwrap().String()),
-		zap.Int("total", len(s.deals)))
+	s.log.Debug("deal added", zap.String("deal_id", id), zap.Int("total", len(s.deals)))
 }
 
-func (s *state) deleteDeal(id string) {
+func (s *state) DeleteDeal(deal *types.Deal) {
+	id := deal.GetId().Unwrap().String()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.log.Debug("deleting deal", zap.String("deal_id", id), zap.Int("total", len(s.deals)))
 	delete(s.deals, id)
+	s.log.Debug("deal deleted", zap.String("deal_id", id), zap.Int("total", len(s.deals)))
 }
 
-func (s *state) dump() {
+func (s *state) dump() ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	b, err := json.Marshal(struct {
+	return json.Marshal(struct {
 		ActiveOrders map[string]*types.Corder
 		QueuedOrders map[string]*types.Corder
 		Deals        map[string]*dealQuality
@@ -135,14 +146,13 @@ func (s *state) dump() {
 		QueuedOrders: s.queuedOrders,
 		Deals:        s.deals,
 	})
+}
 
+func (s *state) DumpToFile() error {
+	data, err := s.dump()
 	if err != nil {
-		s.log.Warn("cannot marshal state", zap.Error(err))
-		return
+		return fmt.Errorf("failed to maarshal storage state: %v", err)
 	}
 
-	s.log.Info("dumpling state to the disk")
-	if err := ioutil.WriteFile("/tmp/connor_state.json", b, 0600); err != nil {
-		s.log.Warn("cannot write state data ", zap.Error(err))
-	}
+	return ioutil.WriteFile("/tmp/connor_state.json", data, 0600)
 }

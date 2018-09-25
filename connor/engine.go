@@ -118,7 +118,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 	return &engine{
 		cfg:     cfg,
 		log:     log,
-		state:   newState(log),
+		state:   NewState(log),
 		ethAddr: crypto.PubkeyToAddress(key.PublicKey),
 
 		priceProvider: cfg.backends().priceProvider,
@@ -175,12 +175,12 @@ func (e *engine) Serve(ctx context.Context) error {
 }
 
 func (e *engine) CreateOrder(bid *types.Corder) {
-	e.state.addQueuedOrder(bid)
+	e.state.AddQueuedOrder(bid)
 	e.ordersCreateChan <- bid
 }
 
 func (e *engine) CancelOrder(order *types.Corder) {
-	e.state.addActiveOrder(order)
+	e.state.AddActiveOrder(order)
 	e.orderCancelChan <- types.NewCorderCancelTuple(order)
 }
 
@@ -191,7 +191,7 @@ func (e *engine) RestoreOrder(order *types.Corder) {
 
 func (e *engine) RestoreDeal(ctx context.Context, deal *sonm.Deal) {
 	e.log.Debug("restoring deal", zap.String("id", deal.GetId().Unwrap().String()))
-	e.state.addDeal(e.dealFactory.FromDeal(deal))
+	e.state.AddDeal(e.dealFactory.FromDeal(deal))
 	go e.processDeal(ctx, deal)
 }
 
@@ -221,7 +221,7 @@ func (e *engine) processOrderCreate(ctx context.Context) {
 		e.log.Debug("order successfully created", zap.String("order_id", created.GetId().Unwrap().String()))
 		createdOrdersCounter.Inc()
 		corder := e.corderFactory.FromOrder(created)
-		e.state.deleteCreatingOrder(corder)
+		e.state.DeleteQueuedOrder(corder)
 		e.ordersResultsChan <- corder
 	}
 }
@@ -245,7 +245,7 @@ func (e *engine) processOrderCancel(ctx context.Context) {
 			continue
 		}
 
-		e.state.deleteActiveOrder(tuple.Corder.GetId().Unwrap().String())
+		e.state.DeleteActiveOrder(tuple.Corder)
 		e.log.Debug("order cancelled", zap.String("order_id", tuple.Corder.GetId().Unwrap().String()))
 	}
 }
@@ -276,7 +276,7 @@ func (e *engine) getOrderByID(ctx context.Context, id string) (*sonm.Order, erro
 
 func (e *engine) processOrderResult(ctx context.Context) {
 	for order := range e.ordersResultsChan {
-		e.state.addActiveOrder(order)
+		e.state.AddActiveOrder(order)
 		go e.waitForDeal(ctx, order)
 	}
 }
@@ -333,7 +333,7 @@ func (e *engine) checkOrderForDealOnce(ctx context.Context, log *zap.Logger, ord
 
 	if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
 		activeOrdersGauge.Dec()
-		e.state.deleteActiveOrder(ord.GetId().Unwrap().String())
+		e.state.DeleteActiveOrder(e.corderFactory.FromOrder(ord))
 		// TODO: (in a separate PR) check for `one_shot` parameter, do not re-create order.
 		log.Info("order becomes inactive, looking for related deal")
 
@@ -369,7 +369,7 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 
 	log.Debug("start deal processing")
 	defer log.Debug("stop deal processing")
-	defer e.state.deleteDeal(dealID)
+	defer e.state.DeleteDeal(e.dealFactory.FromDeal(deal))
 
 	e.antiFraud.DealOpened(deal)
 	defer e.antiFraud.FinishDeal(ctx, deal, antifraud.AllChecks)
@@ -861,7 +861,7 @@ func (e *engine) waitForExternalUpdates(ctx context.Context) error {
 		case <-tk.C:
 			e.adoptExternalDeals(ctx)
 			e.adoptExternalOrders(ctx)
-			e.state.dump()
+			e.state.DumpToFile()
 		}
 	}
 }
@@ -877,8 +877,7 @@ func (e *engine) adoptExternalDeals(ctx context.Context) {
 	}
 
 	for _, deal := range deals.GetDeal() {
-		id := deal.GetId().Unwrap().String()
-		if !e.state.hasDeal(id) {
+		if !e.state.HasDeal(e.dealFactory.FromDeal(deal)) {
 			adoptedDealsCounter.Inc()
 			e.RestoreDeal(ctx, deal)
 		}
@@ -897,7 +896,7 @@ func (e *engine) adoptExternalOrders(ctx context.Context) {
 
 	for _, order := range orders.GetOrders() {
 		cord := e.corderFactory.FromOrder(order)
-		if !e.state.hasOrder(cord) {
+		if !e.state.HasOrder(cord) {
 			adoptedOrdersCounter.Inc()
 			e.RestoreOrder(cord)
 		}
