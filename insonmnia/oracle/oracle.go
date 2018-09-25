@@ -85,8 +85,18 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 	if o.cfg.Oracle.IsMaster {
 		return nil
 	}
+
+	var lastBlock uint64 = 0
+	if o.cfg.Oracle.FromNow {
+		var err error
+		lastBlock, err = o.bch.Events().GetLastBlock(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
 	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter(
-		[]common.Address{o.bch.ContractRegistry().OracleMultiSig()}, big.NewInt(0)))
+		[]common.Address{o.bch.ContractRegistry().OracleMultiSig()}, big.NewInt(0).SetUint64(lastBlock)))
 	if err != nil {
 		return err
 	}
