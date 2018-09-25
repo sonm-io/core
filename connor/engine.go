@@ -68,14 +68,14 @@ var (
 		Help: "Number of orders that were re-created on marker because of price deviation",
 	})
 
-	restoredOrdersCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "sonm_orders_restored",
-		Help: "Number of orders registered in runtime",
+	adoptedOrdersCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "sonm_orders_adopted",
+		Help: "Number of orders restored in runtime",
 	})
 
-	restoredDealsCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "sonm_deals_restored",
-		Help: "Number of deals registered in runtime",
+	adoptedDealsCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "sonm_deals_adopted",
+		Help: "Number of deals restored in runtime",
 	})
 )
 
@@ -84,8 +84,8 @@ func init() {
 	prometheus.MustRegister(activeOrdersGauge)
 	prometheus.MustRegister(createdOrdersCounter)
 	prometheus.MustRegister(replacedOrdersCounter)
-	prometheus.MustRegister(restoredOrdersCounter)
-	prometheus.MustRegister(restoredDealsCounter)
+	prometheus.MustRegister(adoptedOrdersCounter)
+	prometheus.MustRegister(adoptedDealsCounter)
 }
 
 func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
@@ -859,14 +859,14 @@ func (e *engine) waitForExternalUpdates(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-tk.C:
-			e.restoreNewDeals(ctx)
-			e.restoreNewOrders(ctx)
+			e.adoptExternalDeals(ctx)
+			e.adoptExternalOrders(ctx)
 			e.state.dump()
 		}
 	}
 }
 
-func (e *engine) restoreNewDeals(ctx context.Context) {
+func (e *engine) adoptExternalDeals(ctx context.Context) {
 	reqCtx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
@@ -879,13 +879,13 @@ func (e *engine) restoreNewDeals(ctx context.Context) {
 	for _, deal := range deals.GetDeal() {
 		id := deal.GetId().Unwrap().String()
 		if !e.state.hasDeal(id) {
-			restoredDealsCounter.Inc()
+			adoptedDealsCounter.Inc()
 			e.RestoreDeal(ctx, deal)
 		}
 	}
 }
 
-func (e *engine) restoreNewOrders(ctx context.Context) {
+func (e *engine) adoptExternalOrders(ctx context.Context) {
 	reqCtx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
@@ -898,7 +898,7 @@ func (e *engine) restoreNewOrders(ctx context.Context) {
 	for _, order := range orders.GetOrders() {
 		cord := e.corderFactory.FromOrder(order)
 		if !e.state.hasOrder(cord) {
-			restoredOrdersCounter.Inc()
+			adoptedOrdersCounter.Inc()
 			e.RestoreOrder(cord)
 		}
 	}
