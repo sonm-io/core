@@ -41,10 +41,9 @@ type engine struct {
 	corderFactory types.CorderFactory
 	dealFactory   types.DealFactory
 
-	ordersCreateChan  chan *types.Corder
-	ordersResultsChan chan *types.Corder
-	orderCancelChan   chan *types.CorderCancelTuple
-	state             *state
+	ordersCreateChan chan *types.Corder
+	orderCancelChan  chan *types.CorderCancelTuple
+	state            *state
 }
 
 var (
@@ -130,9 +129,8 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		tasks:     sonm.NewTaskManagementClient(cc),
 		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.backends().processorFactory, cfg.backends().dealFactory, cc),
 
-		ordersCreateChan:  make(chan *types.Corder, concurrency),
-		ordersResultsChan: make(chan *types.Corder, concurrency),
-		orderCancelChan:   make(chan *types.CorderCancelTuple, concurrency),
+		ordersCreateChan: make(chan *types.Corder, concurrency),
+		orderCancelChan:  make(chan *types.CorderCancelTuple, concurrency),
 	}, nil
 }
 
@@ -180,13 +178,12 @@ func (e *engine) CreateOrder(bid *types.Corder) {
 }
 
 func (e *engine) CancelOrder(order *types.Corder) {
-	e.state.AddActiveOrder(order)
 	e.orderCancelChan <- types.NewCorderCancelTuple(order)
 }
 
-func (e *engine) RestoreOrder(order *types.Corder) {
+func (e *engine) RestoreOrder(ctx context.Context, order *types.Corder) {
 	e.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
-	e.ordersResultsChan <- order
+	go e.waitForDeal(ctx, order)
 }
 
 func (e *engine) RestoreDeal(ctx context.Context, deal *sonm.Deal) {
@@ -222,7 +219,7 @@ func (e *engine) processOrderCreate(ctx context.Context) {
 		createdOrdersCounter.Inc()
 		corder := e.corderFactory.FromOrder(created)
 		e.state.DeleteQueuedOrder(corder)
-		e.ordersResultsChan <- corder
+		go e.waitForDeal(ctx, corder)
 	}
 }
 
@@ -274,14 +271,8 @@ func (e *engine) getOrderByID(ctx context.Context, id string) (*sonm.Order, erro
 	return e.market.GetOrderByID(ctx, &sonm.ID{Id: id})
 }
 
-func (e *engine) processOrderResult(ctx context.Context) {
-	for order := range e.ordersResultsChan {
-		e.state.AddActiveOrder(order)
-		go e.waitForDeal(ctx, order)
-	}
-}
-
 func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
+	e.state.AddActiveOrder(order)
 	activeOrdersGauge.Inc()
 
 	id := order.GetId().Unwrap().String()
@@ -745,11 +736,6 @@ func (e *engine) start(ctx context.Context) error {
 		})
 	}
 
-	wg.Go(func() error {
-		e.processOrderResult(ctx)
-		return nil
-	})
-
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -824,6 +810,11 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 	existingCorders := e.corderFactory.FromSlice(existingOrders.GetOrders())
 	targetCorders := e.getTargetCorders()
 
+	// adding all existing orders as active, no matter if it should be canceled in the nearest future
+	for _, ord := range existingCorders {
+		e.state.AddActiveOrder(ord)
+	}
+
 	set := types.DivideOrdersSets(existingCorders, targetCorders)
 	e.log.Debug("restoring existing entities",
 		zap.Int("orders_restore", len(set.Restore)),
@@ -840,7 +831,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 	}
 
 	for _, ord := range set.Restore {
-		e.RestoreOrder(ord)
+		e.RestoreOrder(ctx, ord)
 	}
 
 	for _, ord := range set.Cancel {
@@ -898,7 +889,7 @@ func (e *engine) adoptExternalOrders(ctx context.Context) {
 		cord := e.corderFactory.FromOrder(order)
 		if !e.state.HasOrder(cord) {
 			adoptedOrdersCounter.Inc()
-			e.RestoreOrder(cord)
+			e.RestoreOrder(ctx, cord)
 		}
 	}
 }
@@ -918,6 +909,5 @@ func (e *engine) close() {
 	e.log.Info("closing engine")
 
 	close(e.ordersCreateChan)
-	close(e.ordersResultsChan)
 	close(e.orderCancelChan)
 }
