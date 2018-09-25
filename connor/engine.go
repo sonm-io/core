@@ -192,7 +192,7 @@ func (e *engine) RestoreDeal(ctx context.Context, deal *sonm.Deal) {
 	go e.processDeal(ctx, deal)
 }
 
-func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*sonm.Order, error) {
+func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*types.Corder, error) {
 	e.log.Debug("creating order on market",
 		zap.String("price", bid.GetPrice().GetPerSecond().Unwrap().String()),
 		zap.Any("benchmarks", bid.Resources.GetBenchmarks()))
@@ -200,7 +200,12 @@ func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*so
 	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
-	return e.market.CreateOrder(ctx, bid)
+	order, err := e.market.CreateOrder(ctx, bid)
+	if err != nil {
+		return nil, err
+	}
+
+	return e.corderFactory.FromOrder(order), nil
 }
 
 func (e *engine) processOrderCreate(ctx context.Context) {
@@ -217,9 +222,8 @@ func (e *engine) processOrderCreate(ctx context.Context) {
 		}
 		e.log.Debug("order successfully created", zap.String("order_id", created.GetId().Unwrap().String()))
 		createdOrdersCounter.Inc()
-		corder := e.corderFactory.FromOrder(created)
-		e.state.DeleteQueuedOrder(corder)
-		go e.waitForDeal(ctx, corder)
+		e.state.DeleteQueuedOrder(created)
+		go e.waitForDeal(ctx, created)
 	}
 }
 
@@ -264,11 +268,16 @@ func (e *engine) cancelOrder(ctx context.Context, id *sonm.BigInt) error {
 	return nil
 }
 
-func (e *engine) getOrderByID(ctx context.Context, id string) (*sonm.Order, error) {
+func (e *engine) getOrderByID(ctx context.Context, id string) (*types.Corder, error) {
 	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
-	return e.market.GetOrderByID(ctx, &sonm.ID{Id: id})
+	order, err := e.market.GetOrderByID(ctx, &sonm.ID{Id: id})
+	if err != nil {
+		return nil, err
+	}
+
+	return e.corderFactory.FromOrder(order), nil
 }
 
 func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
@@ -324,7 +333,7 @@ func (e *engine) checkOrderForDealOnce(ctx context.Context, log *zap.Logger, ord
 
 	if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
 		activeOrdersGauge.Dec()
-		e.state.DeleteActiveOrder(e.corderFactory.FromOrder(ord))
+		e.state.DeleteActiveOrder(ord)
 		// TODO: (in a separate PR) check for `one_shot` parameter, do not re-create order.
 		log.Info("order becomes inactive, looking for related deal")
 
