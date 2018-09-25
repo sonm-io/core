@@ -204,7 +204,7 @@ func keystorePath() (string, error) {
 	return expanded, nil
 }
 
-func initKeystore() (*accounts.MultiKeystore, error) {
+func initKeystore(reader accounts.PassPhraser) (*accounts.MultiKeystore, error) {
 	keyDir, err := keystorePath()
 	if err != nil {
 		return nil, err
@@ -213,7 +213,7 @@ func initKeystore() (*accounts.MultiKeystore, error) {
 	return accounts.NewMultiKeystore(&accounts.KeystoreConfig{
 		KeyDir:      keyDir,
 		PassPhrases: make(map[string]string),
-	}, accounts.NewInteractivePassPhraser())
+	}, reader)
 }
 
 // loadKeyStoreWrapper is matching cobra.Command.PreRunE signature.
@@ -222,7 +222,7 @@ func initKeystore() (*accounts.MultiKeystore, error) {
 // Note that the keystore must be loaded before any command's logic it started to execute.
 func loadKeyStoreWrapper(_ *cobra.Command, _ []string) error {
 	var err error
-	keystore, err = initKeystore()
+	keystore, err = initKeystore(accounts.NewInteractivePassPhraser())
 	if err != nil {
 		return fmt.Errorf("cannot init keystore: %v", err)
 	}
