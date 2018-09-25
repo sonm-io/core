@@ -1134,6 +1134,66 @@ func (m *sqlStorage) GetLastEvent(conn queryConn) (*blockchain.Event, error) {
 	}, nil
 }
 
+func (m *sqlStorage) getStats(conn queryConn) (*sonm.DWHStatsReply, error) {
+	var (
+		numCurrDealsQ, argsCurrDeals, _  = sq.Select("count(Id)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_ACCEPTED).Prefix("(").Suffix(")").ToSql()
+		numDealsQ, _, _                  = sq.Select("count(Id)").From("Deals").Prefix("(").Suffix(")").ToSql()
+		dealsDurQ, argsDealsDur, _       = sq.Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600 end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
+		dealsAvgDurQ, argsDealsAvgDur, _ = sq.Select("case count(id) when 0 then 0 else sum(EndTime - StartTime)/3600/(count(id)+1) end").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
+		numWorkersQ, _, _                = sq.Select("count(distinct WorkerID)").From("Workers").Prefix("(").Suffix(")").ToSql()
+		numMastersQ, _, _                = sq.Select("count(distinct MasterID)").From("Workers").Prefix("(").Suffix(")").ToSql()
+		numCustomersQ, argsCustomers, _  = sq.Select("count(distinct ConsumerID)").From("Deals").Where("Status=?", sonm.DealStatus_DEAL_CLOSED).Prefix("(").Suffix(")").ToSql()
+	)
+	var args []interface{}
+	args = append(args, argsCurrDeals...)
+	args = append(args, argsDealsDur...)
+	args = append(args, argsDealsAvgDur...)
+	args = append(args, argsCustomers...)
+	query, _, _ := m.builder().
+		Select(numCurrDealsQ, numDealsQ, dealsDurQ, dealsAvgDurQ, numWorkersQ, numMastersQ, numCustomersQ).
+		ToSql()
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to getStats: %v", err)
+	}
+	defer rows.Close()
+
+	if ok := rows.Next(); !ok {
+		return nil, errors.New("getStats: no entries")
+	}
+
+	var (
+		numCurrDeals uint64
+		numDeals     uint64
+		dealsDur     uint64
+		dealsAvgDur  uint64
+		numWorkers   uint64
+		numMasters   uint64
+		numCustomers uint64
+	)
+	if err := rows.Scan(
+		&numCurrDeals,
+		&numDeals,
+		&dealsDur,
+		&dealsAvgDur,
+		&numWorkers,
+		&numMasters,
+		&numCustomers,
+	); err != nil {
+		return nil, fmt.Errorf("failed to parse stats: %v", err)
+	}
+
+	return &sonm.DWHStatsReply{
+		CurrentDeals:        numCurrDeals,
+		TotalDeals:          numDeals,
+		TotalDealsDuration:  dealsDur,
+		AverageDealDuration: dealsAvgDur,
+		Workers:             numWorkers,
+		Masters:             numMasters,
+		Customers:           numCustomers,
+	}, nil
+}
+
 func (m *sqlStorage) builderWithBenchmarkFilters(builder sq.SelectBuilder, benches map[uint64]*sonm.MaxMinUint64) sq.SelectBuilder {
 	for benchID, condition := range benches {
 		if condition.Max >= condition.Min {

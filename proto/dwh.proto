@@ -39,6 +39,7 @@ service DWH {
     rpc GetDealChangeRequests(BigInt) returns (DealChangeRequestsReply) {}
     rpc GetChangeRequests(ChangeRequestsRequest) returns (DealChangeRequestsReply) {}
     rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
+    rpc GetStats(Empty) returns (DWHStatsReply) {}
 }
 
 message DealsRequest {
@@ -315,4 +316,14 @@ message CmpUint64 {
 message BlacklistQuery {
     EthAddress ownerID = 1;
     BlacklistOption option = 2;
+}
+
+message DWHStatsReply {
+    uint64 currentDeals = 1;
+    uint64 totalDeals = 2;
+    uint64 totalDealsDuration = 3;
+    uint64 averageDealDuration = 4;
+    uint64 workers = 5;
+    uint64 masters = 6;
+    uint64 customers = 7;
 }

@@ -80,6 +80,7 @@ It has these top-level messages:
 	MaxMinTimestamp
 	CmpUint64
 	BlacklistQuery
+	DWHStatsReply
 	Empty
 	ID
 	NumericID

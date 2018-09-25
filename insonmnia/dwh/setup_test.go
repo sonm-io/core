@@ -80,6 +80,7 @@ func TestAll(t *testing.T) {
 
 	tests := []func(*testing.T){
 		testDWH_L1Processor,
+		testGetStats,
 		testGetDeals,
 		testGetDealDetails,
 		testGetOrders,
