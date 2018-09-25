@@ -115,7 +115,7 @@ func (co *Corder) IsReplaceable(newPrice *big.Int, delta float64) bool {
 	return isOrderReplaceable(currentPrice, newFloatPrice, delta)
 }
 
-func (co *Corder) hash() string {
+func (co *Corder) Hash() string {
 	s := struct {
 		Benchmarks   []uint64
 		Counterparty common.Address

@@ -34,7 +34,7 @@ func DivideOrdersSets(existingCorders, targetCorders []*Corder) *OrdersSets {
 
 	for _, ord := range targetCorders {
 		if ex, ok := existingByBenchmark[ord.GetHashrate()]; ok {
-			if ex.hash() == ord.hash() {
+			if ex.Hash() == ord.Hash() {
 				set.Restore = append(set.Restore, ex)
 			} else {
 				set.Cancel = append(set.Cancel, ex)
