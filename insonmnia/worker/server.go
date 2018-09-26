@@ -1124,13 +1124,11 @@ func (m *Worker) removeExpiredContainers() error {
 		return err
 	}
 
-	var toDelete []string
 	for _, container := range containers {
 		if _, ok := container.Labels[overseerTag]; ok {
 			dealID, ok := container.Labels[dealIDTag]
 			if !ok {
 				log.G(m.ctx).Warn("container has no deal id info", zap.String("container_id", container.ID))
-				toDelete = append(toDelete, container.ID)
 				continue
 			}
 
@@ -1138,14 +1136,12 @@ func (m *Worker) removeExpiredContainers() error {
 			if !ok {
 				log.G(m.ctx).Warn("container has corrupted deal id",
 					zap.String("container_id", container.ID), zap.Any("deal_id", dealID))
-				toDelete = append(toDelete, container.ID)
 				continue
 			}
 
 			dealInfo, err := m.getDealInfo(sonm.NewBigInt(bigDealID))
 			if err != nil {
-				log.G(m.ctx).Warn("failed to get deal info while removing container",
-					zap.String("container_id", container.ID),
+				log.G(m.ctx).Warn("failed to get deal info", zap.String("container_id", container.ID),
 					zap.Any("deal_id", dealID))
 				continue
 			}
@@ -1153,14 +1149,10 @@ func (m *Worker) removeExpiredContainers() error {
 			if dealInfo.Deal.Status == sonm.DealStatus_DEAL_CLOSED {
 				log.G(m.ctx).Info("found running container assigned to closed deal, going to purge it",
 					zap.String("container_id", container.ID), zap.String("deal_id", dealID))
-				toDelete = append(toDelete, container.ID)
+				if err := m.ovs.PurgeContainer(m.ctx, container.ID); err != nil {
+					log.G(m.ctx).Warn("failed to purge container", zap.String("container_id", container.ID))
+				}
 			}
-		}
-	}
-
-	for _, containerID := range toDelete {
-		if err := m.ovs.PurgeContainer(m.ctx, containerID); err != nil {
-			log.G(m.ctx).Warn("failed to purge container", zap.String("container_id", containerID))
 		}
 	}
 
