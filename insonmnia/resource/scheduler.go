@@ -10,7 +10,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v1"
 )
 
 type Scheduler struct {
@@ -20,7 +20,7 @@ type Scheduler struct {
 	// taskToAskPlan maps task ID to ask plan ID
 	taskToAskPlan map[string]string
 	// askPlanPools maps ask plan' ID to allocated resource pool
-	askPlanPools map[string]*pool
+	askPlanPools map[string]*taskPool
 	log          *zap.SugaredLogger
 }
 
@@ -34,7 +34,7 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 		OS:            hardware,
 		pool:          newPool(resources),
 		taskToAskPlan: map[string]string{},
-		askPlanPools:  map[string]*pool{},
+		askPlanPools:  map[string]*taskPool{},
 		log:           log,
 	}
 }
@@ -42,32 +42,33 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 func (m *Scheduler) DebugDump() *sonm.SchedulerData {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	panic("implement me")
 
-	reply := &sonm.SchedulerData{
-		TaskToAskPlan: deepcopy.Copy(m.taskToAskPlan).(map[string]string),
-		MainPool: &sonm.ResourcePool{
-			All:  m.pool.all,
-			Used: map[string]*sonm.AskPlanResources{},
-		},
-		AskPlanPools: map[string]*sonm.ResourcePool{},
-	}
-
-	for id, res := range m.pool.used {
-		reply.MainPool.Used[id] = res
-	}
-
-	for askID, pool := range m.askPlanPools {
-		resultPool := &sonm.ResourcePool{
-			All:  pool.all,
-			Used: map[string]*sonm.AskPlanResources{},
-		}
-		reply.AskPlanPools[askID] = resultPool
-		for id, res := range pool.used {
-			resultPool.Used[id] = res
-		}
-	}
-
-	return reply
+	//reply := &sonm.SchedulerData{
+	//	TaskToAskPlan: deepcopy.Copy(m.taskToAskPlan).(map[string]string),
+	//	MainPool: &sonm.ResourcePool{
+	//		All:  m.pool.all,
+	//		Used: map[string]*sonm.AskPlanResources{},
+	//	},
+	//	AskPlanPools: map[string]*sonm.ResourcePool{},
+	//}
+	//
+	//for id, res := range m.pool.used {
+	//	reply.MainPool.Used[id] = res
+	//}
+	//
+	//for askID, pool := range m.askPlanPools {
+	//	resultPool := &sonm.ResourcePool{
+	//		All:  pool.all,
+	//		Used: map[string]*sonm.AskPlanResources{},
+	//	}
+	//	reply.AskPlanPools[askID] = resultPool
+	//	for id, res := range pool.used {
+	//		resultPool.Used[id] = res
+	//	}
+	//}
+	//
+	//return reply
 }
 
 //TODO: rework needed — looks like it should not be here
@@ -81,23 +82,10 @@ func (m *Scheduler) AskPlanIDByTaskID(taskID string) (string, error) {
 	return askID, nil
 }
 
-func (m *Scheduler) GetUsage() (*sonm.AskPlanResources, error) {
+func (m *Scheduler) GetCommitedFree() (*sonm.AskPlanResources, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.pool.getUsage()
-}
-
-func (m *Scheduler) GetFree() (*sonm.AskPlanResources, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.pool.getFree()
-}
-
-func (m *Scheduler) PollConsume(askPlan *sonm.AskPlan) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return m.pool.pollConsume(askPlan.Resources)
+	return m.pool.getCommitedFree()
 }
 
 // Consume tries to consume the specified resource usage from the pool.
@@ -106,13 +94,19 @@ func (m *Scheduler) PollConsume(askPlan *sonm.AskPlan) error {
 func (m *Scheduler) Consume(askPlan *sonm.AskPlan) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.askPlanPools[askPlan.ID] = newPool(askPlan.Resources)
+	m.askPlanPools[askPlan.ID] = newTaskPool(askPlan.Resources)
 
-	if err := m.pool.consume(askPlan.ID, askPlan.Resources); err != nil {
+	if err := m.pool.consume(askPlan); err != nil {
 		return fmt.Errorf("failed to consume resources for ask plan %s: %s", askPlan.ID, err)
 	}
 	m.log.Debugf("consumed ask-plan %s by scheduler", askPlan.ID)
 	return nil
+}
+
+func (m *Scheduler) MakeRoomAndCommit(askPlan *sonm.AskPlan) (ejectedAskPlans []string, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.pool.makeRoomAndCommit(askPlan)
 }
 
 func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm.AskPlanResources) error {
@@ -201,76 +195,5 @@ func (m *Scheduler) OnDealFinish(taskID string) error {
 
 	delete(m.taskToAskPlan, taskID)
 
-	return nil
-}
-
-type pool struct {
-	all *sonm.AskPlanResources
-	// used maps resource ID (usually task id) to allocated resources
-	used map[string]*sonm.AskPlanResources
-}
-
-func newPool(resources *sonm.AskPlanResources) *pool {
-	return &pool{
-		all:  resources,
-		used: map[string]*sonm.AskPlanResources{},
-	}
-}
-
-func (p *pool) getFree() (*sonm.AskPlanResources, error) {
-	res := deepcopy.Copy(p.all).(*sonm.AskPlanResources)
-	usage, err := p.getUsage()
-	if err != nil {
-		return nil, err
-	}
-	err = res.Sub(usage)
-	if err != nil {
-		pool, _ := yaml.Marshal(res)
-		use, _ := yaml.Marshal(usage)
-		return &sonm.AskPlanResources{}, fmt.Errorf("resource pool inconsistency found - used resources are greater than available for scheduling(%s). pool - %s, used - %s",
-			err, pool, use)
-	}
-	return res, nil
-}
-
-func (p *pool) getUsage() (*sonm.AskPlanResources, error) {
-	sum := &sonm.AskPlanResources{}
-	for _, askPlan := range p.used {
-		if err := sum.Add(askPlan); err != nil {
-			return nil, err
-		}
-	}
-	return sum, nil
-}
-
-func (p *pool) pollConsume(resources *sonm.AskPlanResources) error {
-	available, err := p.getFree()
-	if err != nil {
-		return err
-	}
-	err = available.Sub(resources)
-	if err != nil {
-		return fmt.Errorf("not enough resources: %s", err)
-	}
-	return nil
-}
-
-func (p *pool) consume(ID string, resources *sonm.AskPlanResources) error {
-	if err := p.pollConsume(resources); err != nil {
-		return err
-	}
-	if _, ok := p.used[ID]; ok {
-		return fmt.Errorf("resources with ID %s has been already consumed", ID)
-	}
-
-	p.used[ID] = resources
-	return nil
-}
-
-func (p *pool) release(ID string) error {
-	if _, ok := p.used[ID]; !ok {
-		return fmt.Errorf("could not release resource with ID %s from pool - no such resource", ID)
-	}
-	delete(p.used, ID)
 	return nil
 }

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const (
@@ -72,6 +72,10 @@ func (m *AskPlan) UnsoldDuration() time.Duration {
 	return time.Now().Sub(m.GetLastOrderPlacedTime().Unix())
 }
 
+func (m *AskPlan) IsSpot() bool {
+	return m.GetDuration().Unwrap() == 0
+}
+
 func NewEmptyAskPlanResources() *AskPlanResources {
 	res := &AskPlanResources{}
 	res.initNilWithZero()
@@ -131,16 +135,32 @@ func (m *AskPlanResources) Add(resources *AskPlanResources) error {
 }
 
 func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
-	m.initNilWithZero()
 	if err := m.CheckContains(resources); err != nil {
 		return fmt.Errorf("cannot substract resources: %s", err)
 	}
-	m.CPU.CorePercents -= resources.GetCPU().GetCorePercents()
-	m.RAM.Size.Bytes -= resources.GetRAM().GetSize().GetBytes()
-	m.Storage.Size.Bytes -= resources.GetStorage().GetSize().GetBytes()
-	m.GPU.Sub(resources.GetGPU())
-	m.Network.ThroughputIn.BitsPerSecond -= resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
-	m.Network.ThroughputOut.BitsPerSecond -= resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
+
+	return m.SubAtMost(resources)
+}
+
+func subAtMost(lhs uint64, rhs uint64) uint64 {
+	if lhs < rhs {
+		return 0
+	}
+	return lhs - rhs
+}
+
+// This function substracts as much resources as it can
+func (m *AskPlanResources) SubAtMost(resources *AskPlanResources) error {
+	if err := m.GPU.Sub(resources.GetGPU()); err != nil {
+		return err
+	}
+	m.initNilWithZero()
+	m.CPU.CorePercents = subAtMost(m.CPU.CorePercents, resources.GetCPU().GetCorePercents())
+	m.RAM.Size.Bytes = subAtMost(m.RAM.Size.Bytes, resources.GetRAM().GetSize().GetBytes())
+	m.Storage.Size.Bytes = subAtMost(m.Storage.Size.Bytes, resources.GetStorage().GetSize().GetBytes())
+
+	m.Network.ThroughputIn.BitsPerSecond = subAtMost(m.Network.ThroughputIn.BitsPerSecond, resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())
+	m.Network.ThroughputOut.BitsPerSecond = subAtMost(m.Network.ThroughputOut.BitsPerSecond, resources.GetNetwork().GetThroughputOut().GetBitsPerSecond())
 	if m.Network.NetFlags.GetIncoming() && resources.GetNetwork().GetNetFlags().GetIncoming() {
 		m.Network.NetFlags.SetIncoming(false)
 	}
@@ -283,11 +303,15 @@ func (m *AskPlanGPU) Add(other *AskPlanGPU) error {
 }
 
 func (m *AskPlanGPU) Sub(other *AskPlanGPU) error {
-	if !m.Normalized() || !other.Normalized() {
-		return errors.New("can not subtract gpu resources - not normalized")
-	}
 	if !m.Contains(other) {
 		return errors.New("can not subtract gpu resources - minuend is less than subtrahend")
+	}
+	return m.SubAtMost(other)
+}
+
+func (m *AskPlanGPU) SubAtMost(other *AskPlanGPU) error {
+	if !m.Normalized() || !other.Normalized() {
+		return errors.New("can not subtract gpu resources - not normalized")
 	}
 	result := m.deviceSet()
 	for _, dev := range other.GetHashes() {
@@ -295,6 +319,7 @@ func (m *AskPlanGPU) Sub(other *AskPlanGPU) error {
 	}
 	m.restoreFromSet(result)
 	return nil
+
 }
 
 func (m *AskPlanGPU) Contains(other *AskPlanGPU) bool {

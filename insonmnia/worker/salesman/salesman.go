@@ -621,6 +621,26 @@ func (m *Salesman) registerDeal(ctx context.Context, planID string, deal *sonm.D
 	}
 	m.deals[dealIDStr] = deal
 	plan.DealID = deal.GetId()
+
+	ejectedPlans, err := m.resources.MakeRoomAndCommit(plan)
+	if err != nil {
+		m.log.Errorf("failed to make room and commit plan %s with new deal %s: %s", planID, deal.GetId(), err)
+	}
+	// Anyway check if any plans were ejected
+	for _, planID := range ejectedPlans {
+		plan, ok := m.askPlans[planID]
+		if !ok {
+			m.log.Errorf("ejected ask plan with ID %s is not found", planID)
+			continue
+		}
+		if !plan.GetDealID().IsZero() {
+			plan.Status = sonm.AskPlan_PENDING_DELETION
+			m.closeDeal(ctx, plan.DealID)
+		} else {
+			m.log.Errorf("ejected ask plan with ID %s has no deal", planID)
+		}
+	}
+
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
 		return err
 	}
