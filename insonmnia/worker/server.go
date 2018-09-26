@@ -1103,9 +1103,9 @@ func (m *Worker) tasksGC() error {
 		case <-m.ctx.Done():
 			return errors.New("context cancelled")
 		case <-tk.C:
-			log.G(m.ctx).Debug("going to GC tasks")
+			log.G(m.ctx).Debug("going to GC containers")
 			if err := m.removeExpiredContainers(); err != nil {
-				log.G(m.ctx).Warn("failed to remove expired containers", zap.Error(err))
+				log.G(m.ctx).Warn("failed to GC containers", zap.Error(err))
 			}
 		}
 	}
