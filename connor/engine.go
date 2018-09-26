@@ -316,7 +316,9 @@ func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
 
 			e.CreateOrder(order)
 			if deal != nil {
-				e.processDeal(ctx, deal)
+				if !e.state.HasDeal(e.dealFactory.FromDeal(deal)) {
+					e.processDeal(ctx, deal)
+				}
 			}
 
 			return
