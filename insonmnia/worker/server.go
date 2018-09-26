@@ -68,6 +68,7 @@ var (
 		workerAPIPrefix + "CreateAskPlan",
 		workerAPIPrefix + "RemoveAskPlan",
 		workerAPIPrefix + "PurgeAskPlans",
+		workerAPIPrefix + "PurgeAskPlansDetailed",
 		workerAPIPrefix + "ScheduleMaintenance",
 		workerAPIPrefix + "NextMaintenance",
 		workerAPIPrefix + "DebugState",
@@ -1472,7 +1473,7 @@ func (m *Worker) PurgeAskPlans(ctx context.Context, _ *sonm.Empty) (*sonm.Empty,
 	return &sonm.Empty{}, nil
 }
 
-func (m *Worker) PurgeAsksPlansDetailed(ctx context.Context, _ *sonm.Empty) (*sonm.ErrorByStringID, error) {
+func (m *Worker) PurgeAskPlansDetailed(ctx context.Context, _ *sonm.Empty) (*sonm.ErrorByStringID, error) {
 	return m.salesman.PurgeAskPlans(ctx)
 }
 
