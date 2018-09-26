@@ -117,3 +117,5 @@ ssh:
   # Optional.
   # Default value is "identified".
   identity: identified
+
+tasks_gc_period: 1m

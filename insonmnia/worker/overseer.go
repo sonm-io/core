@@ -217,6 +217,10 @@ type Overseer interface {
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
 
+	// PurgeContainer makes Overseer completely remove and forget the container, no matter what
+	// was known about that container.
+	PurgeContainer(ctx context.Context, containerID string) error
+
 	// OnDealFinish makes all cleanup related to closed deal
 	OnDealFinish(ctx context.Context, containerID string) error
 
@@ -601,6 +605,28 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	}
 
 	return descriptor.Kill(ctx)
+}
+
+func (o *overseer) PurgeContainer(ctx context.Context, containerID string) error {
+	var result = multierror.NewMultiError()
+
+	o.mu.Lock()
+	// Unconditionally remove all (possibly left) info about the container.
+	delete(o.containers, containerID)
+	if status, ok := o.statuses[containerID]; ok {
+		close(status)
+	}
+	delete(o.statuses, containerID)
+	o.mu.Unlock()
+
+	if err := o.client.ContainerKill(ctx, containerID, "SIGKILL"); err != nil {
+		result = multierror.Append(result, fmt.Errorf("failed to kill container: %v", err))
+	}
+	if err := o.client.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{}); err != nil {
+		result = multierror.Append(result, fmt.Errorf("failed to remove container: %v", err))
+	}
+
+	return result.ErrorOrNil()
 }
 
 func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {

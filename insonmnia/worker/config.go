@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -55,6 +57,7 @@ type Config struct {
 	Development       *DevConfig          `yaml:"development"`
 	Admin             *common.Address     `yaml:"admin"`
 	Debug             *debug.Config       `yaml:"debug"`
+	TasksGCPeriod     time.Duration       `yaml:"tasks_gc_period" default:"1m"`
 }
 
 // NewConfig creates a new Worker config from the specified YAML file.

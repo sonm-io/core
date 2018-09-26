@@ -224,7 +224,7 @@ func (m *Worker) Serve() error {
 
 		return m.externalGrpc.Serve(m.listener)
 	})
-
+	wg.Go(m.tasksGC)
 	<-ctx.Done()
 	m.Close()
 
@@ -1090,6 +1090,77 @@ func (m *Worker) setupRunningContainers() error {
 	for _, deal := range closedDeals {
 		if err := m.cancelDealTasks(deal.GetId()); err != nil {
 			return fmt.Errorf("failed to cancel tasks for deal %s: %v", deal.Id.Unwrap().String(), err)
+		}
+	}
+
+	return nil
+}
+
+func (m *Worker) tasksGC() error {
+	tk := time.NewTicker(m.cfg.TasksGCPeriod)
+	for {
+		select {
+		case <-m.ctx.Done():
+			return errors.New("context cancelled")
+		case <-tk.C:
+			log.G(m.ctx).Debug("going to GC tasks")
+			if err := m.removeExpiredContainers(); err != nil {
+				log.G(m.ctx).Warn("failed to remove expired containers", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (m *Worker) removeExpiredContainers() error {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+	defer dockerClient.Close()
+
+	// Collect only running containers.
+	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{})
+	if err != nil {
+		return err
+	}
+
+	var toDelete []string
+	for _, container := range containers {
+		if _, ok := container.Labels[overseerTag]; ok {
+			dealID, ok := container.Labels[dealIDTag]
+			if !ok {
+				log.G(m.ctx).Warn("container has no deal id info", zap.String("container_id", container.ID))
+				toDelete = append(toDelete, container.ID)
+				continue
+			}
+
+			bigDealID, ok := big.NewInt(0).SetString(dealID, 10)
+			if !ok {
+				log.G(m.ctx).Warn("container has corrupted deal id",
+					zap.String("container_id", container.ID), zap.Any("deal_id", dealID))
+				toDelete = append(toDelete, container.ID)
+				continue
+			}
+
+			dealInfo, err := m.getDealInfo(sonm.NewBigInt(bigDealID))
+			if err != nil {
+				log.G(m.ctx).Warn("failed to get deal info while removing container",
+					zap.String("container_id", container.ID),
+					zap.Any("deal_id", dealID))
+				continue
+			}
+
+			if dealInfo.Deal.Status == sonm.DealStatus_DEAL_CLOSED {
+				log.G(m.ctx).Info("found running container assigned to closed deal, going to purge it",
+					zap.String("container_id", container.ID), zap.String("deal_id", dealID))
+				toDelete = append(toDelete, container.ID)
+			}
+		}
+	}
+
+	for _, containerID := range toDelete {
+		if err := m.ovs.PurgeContainer(m.ctx, containerID); err != nil {
+			log.G(m.ctx).Warn("failed to purge container", zap.String("container_id", containerID))
 		}
 	}
 
