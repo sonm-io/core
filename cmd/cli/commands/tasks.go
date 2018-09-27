@@ -33,7 +33,7 @@ func init() {
 	taskLogsCmd.Flags().BoolVar(&prependStream, prependStreamFlag, false, "Show stream (stderr or stdout) for each line of logs")
 
 	taskPullCmd.Flags().StringVar(&taskPullOutput, "output", "", "file to output")
-	taskPullCmd.Flags().BoolVar(&taskPullOnlyDiff, "only-diff", false, "pull only task diff (less network load, same effect)")
+	taskPullCmd.Flags().StringVar(&taskPullDiffOver, "diff-over", "", "pull only task diff and combine it with an existing image")
 
 	taskRootCmd.AddCommand(
 		taskListCmd,
@@ -49,7 +49,7 @@ func init() {
 
 var (
 	taskPullOutput   string
-	taskPullOnlyDiff bool
+	taskPullDiffOver string
 )
 
 var taskRootCmd = &cobra.Command{
@@ -380,6 +380,18 @@ var taskPullCmd = &cobra.Command{
 		dealID := args[0]
 		taskID := args[1]
 
+		if len(taskPullDiffOver) > 0 {
+			// 1. Pull the diff to a temp1 file,
+			// 2. Open the target file (taskPullOutput) as a tar writer,
+			// 3. Save the taskPullDiffOver image to a temp2 file,
+			// 4. Open temp2 file as a tar reader,
+			// 5. Write diff's directory and config to target file,
+			// 6. Parse diff's manifest,
+			// 7. Write taskPullDiffOver to target file, BUT
+			// 8. While writing manifest, add the diff's layer to layers list and change manifest's config to that
+			//    specified in the diff's config.
+		}
+
 		var wr io.Writer
 		var err error
 		if taskPullOutput == "" {
@@ -407,7 +419,7 @@ var taskPullCmd = &cobra.Command{
 		req := &sonm.PullTaskRequest{
 			DealId:   dealID,
 			TaskId:   taskID,
-			OnlyDiff: taskPullOnlyDiff,
+			OnlyDiff: len(taskPullDiffOver) > 0,
 		}
 
 		client, err := node.PullTask(ctx, req)
