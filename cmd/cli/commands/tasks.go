@@ -10,7 +10,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -121,7 +120,7 @@ var taskListCmd = &cobra.Command{
 		}
 
 		for k, dealID := range dealIDs {
-			timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+			timeoutCtx, cancel := context.WithTimeout(ctx, timeoutFlag)
 			if isSimpleFormat() {
 				cmd.Printf("Deal %s (%d/%d):\n", dealID.String(), k+1, len(dealIDs))
 			}
