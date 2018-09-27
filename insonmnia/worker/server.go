@@ -1135,14 +1135,14 @@ func (m *Worker) removeExpiredContainers() error {
 			bigDealID, ok := big.NewInt(0).SetString(dealID, 10)
 			if !ok {
 				log.G(m.ctx).Warn("container has corrupted deal id",
-					zap.String("container_id", container.ID), zap.Any("deal_id", dealID), zap.Error(err))
+					zap.String("container_id", container.ID), zap.Any("deal_id", dealID))
 				continue
 			}
 
 			dealInfo, err := m.getDealInfo(sonm.NewBigInt(bigDealID))
 			if err != nil {
 				log.G(m.ctx).Warn("failed to get deal info", zap.String("container_id", container.ID),
-					zap.Any("deal_id", dealID))
+					zap.Any("deal_id", dealID), zap.Error(err))
 				continue
 			}
 
