@@ -77,6 +77,11 @@ func (m *BigInt) ToPriceString() string {
 	return r.Text('f', -18)
 }
 
+func (m *BigInt) PricePerHour() string {
+	v := big.NewInt(0).Mul(big.NewInt(3600), m.Unwrap())
+	return NewBigInt(v).ToPriceString()
+}
+
 func (m *BigInt) PaddedString() string {
 	return util.BigIntToPaddedString(m.Unwrap())
 }
