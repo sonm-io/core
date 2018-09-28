@@ -42,11 +42,13 @@ var (
 
 	// flags var
 	nodeAddressFlag string
-	outputModeFlag  string
-	timeoutFlag     = 60 * time.Second
-	insecureFlag    bool
-	keystoreFlag    string
-	configFlag      string
+	// deprecated: should be replaced with outputModeJSON
+	outputModeFlag string
+	outputModeJSON bool
+	timeoutFlag    = 60 * time.Second
+	insecureFlag   bool
+	keystoreFlag   string
+	configFlag     string
 
 	// logging flag vars
 	logType       string
@@ -97,7 +99,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "", "node endpoint")
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
-	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
+	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json (DEPRECATED)")
+	rootCmd.PersistentFlags().BoolVar(&outputModeJSON, "json", false, "Show command output in JSON format")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
 	rootCmd.PersistentFlags().StringVar(&keystoreFlag, "keystore", "", "Keystore dir")
 	rootCmd.PersistentFlags().StringVar(&configFlag, "config", "", "Configuration file")
@@ -160,7 +163,7 @@ func isSimpleFormat() bool {
 		return true
 	}
 
-	if outputModeFlag == config.OutputModeJSON || cfg.OutputFormat() == config.OutputModeJSON {
+	if outputModeJSON || outputModeFlag == config.OutputModeJSON || cfg.OutputFormat() == config.OutputModeJSON {
 		return false
 	}
 
