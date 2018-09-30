@@ -164,6 +164,7 @@ func printDeviceList(cmd *cobra.Command, dev *sonm.DevicesReply) {
 	if isSimpleFormat() {
 		cpu := dev.GetCPU().GetDevice()
 		cmd.Printf("CPU: %d cores at %d sockets\r\n", cpu.GetCores(), cpu.GetSockets())
+		cmd.Printf("  %s\r\n", cpu.GetModelName())
 		printBenchmarkGroup(cmd, dev.GetCPU().GetBenchmarks())
 
 		ram := datasize.NewByteSize(dev.GetRAM().GetDevice().GetAvailable()).HumanReadable()
