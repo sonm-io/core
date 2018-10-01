@@ -467,7 +467,10 @@ func (m *Worker) Devices(ctx context.Context, request *sonm.Empty) (*sonm.Device
 
 // Status returns internal worker statistic
 func (m *Worker) Status(ctx context.Context, _ *sonm.Empty) (*sonm.StatusReply, error) {
-	uptime := uint64(time.Now().Sub(m.startTime).Seconds())
+	var uptime uint64
+	if m.isBenchmarkFinished {
+		uptime = uint64(time.Now().Sub(m.startTime).Seconds())
+	}
 
 	rendezvousStatus := "not connected"
 	if m.listener != nil {
