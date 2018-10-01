@@ -462,10 +462,10 @@ func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlag
 		if info.ChangeRequests != nil && len(info.ChangeRequests.GetRequests()) > 0 {
 			cmd.Println("Change requests:")
 			for _, req := range info.ChangeRequests.GetRequests() {
-				cmd.Printf("  id: %s,  new duration: %s, new price: %s USD/s\n",
+				cmd.Printf("  id: %s,  new duration: %s, new price: %s USD/h\n",
 					req.GetId().Unwrap().String(),
 					time.Second*time.Duration(req.GetDuration()),
-					req.GetPrice().ToPriceString())
+					req.GetPrice().PricePerHour())
 			}
 		}
 
