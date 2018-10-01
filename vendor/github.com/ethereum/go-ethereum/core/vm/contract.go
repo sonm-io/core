@@ -40,7 +40,7 @@ type AccountRef common.Address
 func (ar AccountRef) Address() common.Address { return (common.Address)(ar) }
 
 // Contract represents an ethereum contract in the state database. It contains
-// the the contract code, calling arguments. Contract implements ContractRef
+// the contract code, calling arguments. Contract implements ContractRef
 type Contract struct {
 	// CallerAddress is the result of the caller which initialised this
 	// contract. However when the "call method" is delegated this value
@@ -139,15 +139,15 @@ func (c *Contract) Value() *big.Int {
 }
 
 // SetCode sets the code to the contract
-func (self *Contract) SetCode(hash common.Hash, code []byte) {
-	self.Code = code
-	self.CodeHash = hash
+func (c *Contract) SetCode(hash common.Hash, code []byte) {
+	c.Code = code
+	c.CodeHash = hash
 }
 
 // SetCallCode sets the code of the contract and address of the backing data
 // object
-func (self *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []byte) {
-	self.Code = code
-	self.CodeHash = hash
-	self.CodeAddr = addr
+func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []byte) {
+	c.Code = code
+	c.CodeHash = hash
+	c.CodeAddr = addr
 }

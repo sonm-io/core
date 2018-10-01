@@ -106,7 +106,7 @@ func TestCalculateXmrPrice(t *testing.T) {
 			expected: big.NewInt(5912092344),
 		},
 		{
-			price:    big.NewInt(params.Finney),
+			price:    big.NewInt(1e15),
 			reward:   4,
 			netHash:  563816182,
 			expected: big.NewInt(59120),

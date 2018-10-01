@@ -157,11 +157,11 @@ func (o *Oracle) getPriceForSubmit() (*big.Int, error) {
 		return nil, fmt.Errorf("actual price is not downloaded")
 	}
 
-	if o.actualPrice.Cmp(big.NewInt(params.Finney)) < 0 {
+	if o.actualPrice.Cmp(big.NewInt(1e15)) < 0 {
 		return nil, fmt.Errorf("oracle mustn't automaticly set price lower than 1e15")
 	}
 
-	if o.actualPrice.Cmp(big.NewInt(0).Mul(big.NewInt(params.Ether), big.NewInt(params.Ada))) > 0 {
+	if o.actualPrice.Cmp(big.NewInt(0).Mul(big.NewInt(params.Ether), big.NewInt(1e3))) > 0 {
 		return nil, fmt.Errorf("oracle mustn't automaticly set price greater than 1e21")
 	}
 	return big.NewInt(0).Set(o.actualPrice), nil
