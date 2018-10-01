@@ -206,7 +206,6 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 	return id, nil
 }
 
-//TODO: rework with error map
 func (m *Salesman) PurgeAskPlans(ctx context.Context) (*sonm.ErrorByStringID, error) {
 	plans := m.AskPlans()
 	concurrency := blockchainProcessConcurrency
@@ -255,11 +254,14 @@ func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	_, ok := m.askPlans[planID]
+	ask, ok := m.askPlans[planID]
 	if !ok {
 		// There is a race between  external call of this function and call from blockchain syncing routine,
 		// so we check again if the plan was removed already
 		return nil
+	}
+	if !ask.GetDealID().IsZero() || !ask.GetOrderID().IsZero() {
+		return fmt.Errorf("failed to remove ask plan %s: concurrent order or deal was placed", planID, err)
 	}
 	if err := m.resources.Release(planID); err != nil {
 		// We can not handle this error, because it is persistent so just log it and skip
