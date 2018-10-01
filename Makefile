@@ -72,7 +72,7 @@ ifeq ($(WITH_NL),true)
     NL_TAGS := nl
 endif
 
-LDFLAGS = -X github.com/sonm-io/core/cmd.appVersion=$(FULL_VERSION)
+LDFLAGS = -X github.com/sonm-io/core/cmd.AppVersion=$(FULL_VERSION)
 
 .PHONY: fmt vet test
 
