@@ -428,3 +428,19 @@ func (m *DWH) GetWorkers(ctx context.Context, request *sonm.WorkersRequest) (*so
 func (m *DWH) GetStats(ctx context.Context, request *sonm.Empty) (*sonm.DWHStatsReply, error) {
 	return m.stats, nil
 }
+
+func (m *DWH) GetOrdersByIDs(ctx context.Context, request *sonm.OrdersByIDsRequest) (*sonm.DWHOrdersReply, error) {
+	conn := newSimpleConn(m.db)
+	defer conn.Finish()
+
+	orders, count, err := m.storage.GetOrdersByIDs(conn, request)
+	if err != nil {
+		m.logger.Warn("failed to GetOrdersByIDs", zap.Error(err), zap.Any("request", *request))
+		return nil, status.Error(codes.NotFound, "failed to GetWorkers")
+	}
+
+	return &sonm.DWHOrdersReply{
+		Orders: orders,
+		Count:  count,
+	}, nil
+}
