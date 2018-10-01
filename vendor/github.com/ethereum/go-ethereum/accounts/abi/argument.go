@@ -111,18 +111,15 @@ func (arguments Arguments) unpackTuple(v interface{}, marshalledValues []interfa
 	if err := requireUnpackKind(value, typ, kind, arguments); err != nil {
 		return err
 	}
-	// If the output interface is a struct, make sure names don't collide
+
+	// If the interface is a struct, get of abi->struct_field mapping
+
+	var abi2struct map[string]string
 	if kind == reflect.Struct {
-		exists := make(map[string]bool)
-		for _, arg := range arguments {
-			field := capitalise(arg.Name)
-			if field == "" {
-				return fmt.Errorf("abi: purely underscored output cannot unpack to struct")
-			}
-			if exists[field] {
-				return fmt.Errorf("abi: multiple outputs mapping to the same struct field '%s'", field)
-			}
-			exists[field] = true
+		var err error
+		abi2struct, err = mapAbiToStructFields(arguments, value)
+		if err != nil {
+			return err
 		}
 	}
 	for i, arg := range arguments.NonIndexed() {
@@ -131,13 +128,9 @@ func (arguments Arguments) unpackTuple(v interface{}, marshalledValues []interfa
 
 		switch kind {
 		case reflect.Struct:
-			name := capitalise(arg.Name)
-			for j := 0; j < typ.NumField(); j++ {
-				// TODO read tags: `abi:"fieldName"`
-				if typ.Field(j).Name == name {
-					if err := set(value.Field(j), reflectValue, arg); err != nil {
-						return err
-					}
+			if structField, ok := abi2struct[arg.Name]; ok {
+				if err := set(value.FieldByName(structField), reflectValue, arg); err != nil {
+					return err
 				}
 			}
 		case reflect.Slice, reflect.Array:
@@ -164,9 +157,26 @@ func (arguments Arguments) unpackAtomic(v interface{}, marshalledValues []interf
 	if len(marshalledValues) != 1 {
 		return fmt.Errorf("abi: wrong length, expected single value, got %d", len(marshalledValues))
 	}
+
 	elem := reflect.ValueOf(v).Elem()
+	kind := elem.Kind()
 	reflectValue := reflect.ValueOf(marshalledValues[0])
+
+	var abi2struct map[string]string
+	if kind == reflect.Struct {
+		var err error
+		if abi2struct, err = mapAbiToStructFields(arguments, elem); err != nil {
+			return err
+		}
+		arg := arguments.NonIndexed()[0]
+		if structField, ok := abi2struct[arg.Name]; ok {
+			return set(elem.FieldByName(structField), reflectValue, arg)
+		}
+		return nil
+	}
+
 	return set(elem, reflectValue, arguments.NonIndexed()[0])
+
 }
 
 // Computes the full size of an array;

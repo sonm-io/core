@@ -76,7 +76,7 @@ func (co *Corder) GetHashrate() uint64 {
 func (co *Corder) AsBID() *sonm.BidOrder {
 	return &sonm.BidOrder{
 		Price:        &sonm.Price{PerSecond: co.Order.GetPrice()},
-		Blacklist:    sonm.NewEthAddress(common.StringToAddress(co.Order.GetBlacklist())),
+		Blacklist:    sonm.NewEthAddress(common.HexToAddress(co.Order.GetBlacklist())),
 		Identity:     co.Order.IdentityLevel,
 		Tag:          string(co.Tag),
 		Counterparty: co.CounterpartyID,
