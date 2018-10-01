@@ -972,6 +972,7 @@ func (m *Worker) setupResources() error {
 
 func (m *Worker) setupSalesman() error {
 	s, err := salesman.NewSalesman(
+		m.ctx,
 		salesman.WithLogger(log.S(m.ctx).With("source", "salesman")),
 		salesman.WithStorage(m.storage),
 		salesman.WithResources(m.resources),

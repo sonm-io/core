@@ -65,7 +65,7 @@ type Salesman struct {
 	mu              sync.Mutex
 }
 
-func NewSalesman(opts ...Option) (*Salesman, error) {
+func NewSalesman(ctx context.Context, opts ...Option) (*Salesman, error) {
 	o := &options{}
 	for _, opt := range opts {
 		opt(o)
@@ -93,7 +93,7 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 		networkManager:  networkManager,
 	}
 
-	if err := s.restoreState(); err != nil {
+	if err := s.restoreState(ctx); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -388,13 +388,13 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	wg.Wait()
 }
 
-func (m *Salesman) restoreState() error {
+func (m *Salesman) restoreState(ctx context.Context) error {
 	m.askPlans = map[string]*sonm.AskPlan{}
 	if _, err := m.askPlanStorage.Load(&m.askPlans); err != nil {
 		return fmt.Errorf("could not restore salesman state: %s", err)
 	}
 
-	pruneReply, err := m.networkManager.Prune(context.Background(), &network.PruneRequest{})
+	pruneReply, err := m.networkManager.Prune(ctx, &network.PruneRequest{})
 	if err != nil {
 		m.log.Warnw("failed to prune unused networks", zap.Error(err))
 		return err
@@ -405,7 +405,7 @@ func (m *Salesman) restoreState() error {
 		if err := m.resources.Consume(plan); err != nil {
 			m.log.Warnf("dropping ask plan due to resource changes")
 			//Ignore error here, as resources that were not consumed can not be released.
-			m.RemoveAskPlan(context.TODO(), plan.ID)
+			m.RemoveAskPlan(ctx, plan.ID)
 		} else {
 			m.log.Debugf("consumed resource for ask plan %s", plan.GetID())
 			if err := m.createCGroup(plan); err != nil {
