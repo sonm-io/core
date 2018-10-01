@@ -300,7 +300,7 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 				common.HexToAddress(fmt.Sprintf("0x3%d", i)).Hex(), // Master
 				fmt.Sprintf("2020%d", i),
 				fmt.Sprintf("3030%d", i),
-				10010+i, // Duration
+				10010+i,                                              // Duration
 				sonm.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 				30010+i, // StartTime
 				40010+i, // EndTime
@@ -494,7 +494,7 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 		uint64(sonm.OrderStatus_ORDER_ACTIVE),
 		common.HexToAddress("0xCC").Hex(), // AuthorID
 		common.HexToAddress("0xA").Hex(),  // CounterpartyID
-		10, // Duration
+		10,                                // Duration
 		sonm.NewBigIntFromInt(30010+int64(0)).PaddedString(), // Price
 		5, // Netflags
 		uint64(sonm.IdentityLevel_ANONYMOUS),

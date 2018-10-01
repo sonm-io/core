@@ -4,7 +4,7 @@ sudo: "required"
 language: "go"
 
 go:
-    - 1.9.x
+    - 1.11.x
 
 env:
   - BUILD_TYPE=Tests
@@ -18,9 +18,6 @@ services:
 before_install:
   - sudo apt-get update
   - sudo apt-get install debhelper devscripts fakeroot dh-systemd ocl-icd-opencl-dev libnl-3-dev libnl-route-3-dev btrfs-tools -y
-
-install:
-  - git submodule update
 
 script:
     - go get github.com/golang/mock/gomock
