@@ -95,6 +95,10 @@ func init() {
 			fmt.Printf("Cannot load config: %s\r\n", err)
 			os.Exit(1)
 		}
+
+		if outputModeJSON {
+			outputModeFlag = config.OutputModeJSON
+		}
 	})
 
 	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "", "node endpoint")
@@ -163,7 +167,7 @@ func isSimpleFormat() bool {
 		return true
 	}
 
-	if outputModeJSON || outputModeFlag == config.OutputModeJSON || cfg.OutputFormat() == config.OutputModeJSON {
+	if outputModeFlag == config.OutputModeJSON || cfg.OutputFormat() == config.OutputModeJSON {
 		return false
 	}
 
