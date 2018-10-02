@@ -1,3 +1,79 @@
+sonm-core (0.4.12) unstable; urgency=low
+
+  * Added: introducing GetOrdersByIDs method in DWH (#1570).
+    This PR introduces a method to DWH API that allows you to get orders with
+    required IDs.
+  * Added: replace "--out=json" with just "--json" flag (#1559).
+  * Added: update ethereum, build on go 1.11 (#1564).
+    Now the project can be built on go 1.11.
+  * Added: print CPU model in worker devices cmd (#1563).
+    Closes #1521.
+  * Added: password flag for sonmcli login command (#1551).
+    This commit adds able to pass "--password=topsecret" flag for "sonmcli login"
+    command.
+    Useful for auto-installer script.
+  * Added: keep internal state for Connor (#1545).
+  * Added: dwh stats handle (#1540).
+    The new GetStats() handle returns current DWH stats.
+  * Added: activate nice market API on Worker matcher (#1534).
+    This allows to see why a Worker's matcher failed to open a deal, instead
+    of just "transaction failed".
+  * Added: show CPU cryptonight benchmark in CLI (#1536).
+  * Added: gRPC rate limiter (#1525).
+    This commit allows restricting Worker and Node services usage by specifying
+    rate limiter interceptor, which can be configured for taking in action both
+    global and precise settings - for each method differently.
+    This is required to avoid some dumb DOS attempts, however, not ideal.
+    The idea is to keep RPS counter for each remote peer that is identified by ETH
+    address, which we can extract from the request. The counter has EWMA
+    internally, which is good for an npredictable load profile. Then this EWMA
+    exceeds the specified threshold an "Unavailable" error is returned.
+    Closes #1495.
+  * Added: btrfs based storage quotas (#1034).
+    It's based on Btrfs subvolumes and quota groups limits. Each subvolume can
+    have its own limit (Docker sets this limit if you ask) and several subvolumes
+    can be added to a quota group to have a shared limit.
+    https://btrfs.wiki.kernel.org/index.php/Quota_support Playing with quota
+    groups allows us to provide a shared limit.
+    When a container is created we lookup its rootfs directory. WARNING: Docker
+    does not expose this API, so some dark magic applied to fetch btrfs graph
+    driver related information.
+    We extract this information by reading files inside graph driver directory.
+    DealID is used as quota group id. We allocate new group if it does not exist.
+    A subvolume with roofs of the container is assigned to this group. When
+    container dies we remove this subvolume from quota group. If the quota group
+    is empty, it's deallocated.
+  * Fixed: reduce bid price predictor deviation (#1571).
+    Bid price predictor is now trained on BID orders that were successfully
+    converted into deals. This should reduce the deviation between the predicted
+    price and the actual one.
+    Also Optimus is now trained on BID orders, while previously all active orders
+    were used.
+  * Fixed: memory leak in Node and everywhere (#1572).
+    Node and other servers under the medium/high load should no longer suffer from
+    a memory leak.
+  * Fixed: calculate uptime only when benchmarks is finished (#1561).
+  * Fixed: proper version var for cli (#1560).
+    Closes #1537.
+  * Fixed: show change request price in USD/h (#1562).
+    Closes #1507.
+  * Fixed: use global timeout for task list cmd (#1558).
+  * Fixed: restore 13-th benchmark for Connor (#1538).
+  * Fixed: restore setting version in apps (#1533).
+    Suddenly, go doesn't allow to set a nested variable through link arguments,
+    only strings.
+  * Fixed: do not build linux-only tests everywhere (#1529).
+  * Fixed: remove extra benchmark from Connor's config (#1526).
+    Should be added in #1512.
+  * Fixed: always expand config path (#1519).
+    Previously if user specifies config path like "~/config/node.yaml", service
+    cmd wrapper wasn't threated "~" as home dir. This commit fixes this issue.
+  * Fixed: proper xdocker.Reference marshalling (#1524).
+    This commit fixes xdocker.Reference marshalling in the way it can be used via
+    json and yaml encoders.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 02 Oct 2018 16:37:58 +0300
+
 sonm-core (0.4.11) unstable; urgency=low
 
   * Added: restrict Optimus CPU usage via cgroup (#1244).
