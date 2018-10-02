@@ -78,6 +78,10 @@ func (m *Benchmarks) CPUCores() uint64 {
 	return m.Get(2)
 }
 
+func (m *Benchmarks) SetCPUCores(v uint64) {
+	m.Values[2] = v
+}
+
 func (m *Benchmarks) RAMSize() uint64 {
 	return m.Get(3)
 }
@@ -96,6 +100,10 @@ func (m *Benchmarks) NetTrafficOut() uint64 {
 
 func (m *Benchmarks) GPUCount() uint64 {
 	return m.Get(7)
+}
+
+func (m *Benchmarks) SetGPUCount(v uint64) {
+	m.Values[7] = v
 }
 
 func (m *Benchmarks) GPUMem() uint64 {

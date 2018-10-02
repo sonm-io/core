@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -94,9 +95,19 @@ func (m *PredictorService) serveMarketplace(ctx context.Context) error {
 func (m *PredictorService) executeRegression(ctx context.Context, marketCache *MarketCache) error {
 	m.log.Info("performing regression analysis")
 
-	orders, err := marketCache.ActiveOrders(ctx)
+	orders, err := marketCache.ExecutedOrders(ctx, sonm.OrderType_BID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch active orders: %v", err)
+	}
+
+	// This is the hack, which mathematicians call "tuning regression parameters".
+	// We have some benchmark cross-correlated, which results in bad fitting, for
+	// example GPU count, correlated to hashrate etc. To avoid this we just
+	// reset them to zero, which forces the model to exclude them from
+	// training.
+	for _, order := range orders {
+		order.GetOrder().GetBenchmarks().SetCPUCores(0)
+		order.GetOrder().GetBenchmarks().SetGPUCount(0)
 	}
 
 	classification, err := m.regression.ClassifyExt(orders)
