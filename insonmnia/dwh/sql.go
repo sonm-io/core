@@ -2142,9 +2142,9 @@ func setupDB(ctx context.Context, db *sql.DB, blockchain blockchain.API) (*sqlSt
 }
 
 func (m *sqlStorage) GetOrdersByIDs(conn queryConn, r *sonm.OrdersByIDsRequest) ([]*sonm.DWHOrder, uint64, error) {
-	var ids []string
-	for _, id := range r.Ids {
-		ids = append(ids, id.Unwrap().String())
+	var ids = make([]string, len(r.Ids))
+	for idx, id := range r.Ids {
+		ids[idx] = id.Unwrap().String()
 	}
 
 	if len(ids) < 1 {
@@ -2160,13 +2160,13 @@ func (m *sqlStorage) GetOrdersByIDs(conn queryConn, r *sonm.OrdersByIDsRequest) 
 	}
 	defer rows.Close()
 
-	var orders []*sonm.DWHOrder
-	for rows.Next() {
+	var orders = make([]*sonm.DWHOrder, len(r.Ids))
+	for idx := 0; rows.Next(); idx++ {
 		order, err := m.decodeOrder(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to decodeOrder: %v", err)
 		}
-		orders = append(orders, order)
+		orders[idx] = order
 	}
 
 	if err := rows.Err(); err != nil {
