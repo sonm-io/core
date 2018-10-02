@@ -80,14 +80,14 @@ ssh:
 # Optional.
 predictor:
   marketplace:
-      # Account settings.
-      ethereum: *ethereum
-      # DWH endpoint.
-      endpoint: 0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021
-      # Interval of current orders caching, that are fetched from the marketplace.
-      interval: 30s
-      # Minimum price threshold for fetching orders from the marketplace.
-      # Used to prevent regression poisoning.
-      # Optional.
-      # Default value is 0.0001 USD/h, which is nearly about 1 USD per year.
-      min_price: 0.0001 USD/h
+    # Account settings.
+    ethereum: *ethereum
+    # DWH endpoint.
+    endpoint: 0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021
+    # Interval of current orders caching, that are fetched from the marketplace.
+    interval: 30s
+    # Minimum price threshold for fetching orders from the marketplace.
+    # Used to prevent regression poisoning.
+    # Optional.
+    # Default value is 0.0001 USD/h, which is nearly about 1 USD per year.
+    min_price: 0.0001 USD/h
