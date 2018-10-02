@@ -109,18 +109,23 @@ func (s *state) DeleteQueuedOrder(ord *types.Corder) {
 		zap.Int("queued", len(s.queuedOrders)))
 }
 
-func (s *state) AddDeal(deal *types.Deal) {
+func (s *state) AddDeal(deal *types.Deal) bool {
 	id := deal.GetId().Unwrap().String()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.deals[id] = &dealQuality{
-		Deal:   deal,
-		ByLogs: 1,
-		ByPool: 1,
+	if _, ok := s.deals[id]; !ok {
+		s.deals[id] = &dealQuality{
+			Deal:   deal,
+			ByLogs: 1,
+			ByPool: 1,
+		}
+		s.log.Debug("deal added", zap.String("deal_id", id), zap.Int("total", len(s.deals)))
+		return true
 	}
-	s.log.Debug("deal added", zap.String("deal_id", id), zap.Int("total", len(s.deals)))
+
+	return false
 }
 
 func (s *state) DeleteDeal(deal *types.Deal) {

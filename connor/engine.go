@@ -188,7 +188,6 @@ func (e *engine) RestoreOrder(ctx context.Context, order *types.Corder) {
 
 func (e *engine) RestoreDeal(ctx context.Context, deal *sonm.Deal) {
 	e.log.Debug("restoring deal", zap.String("id", deal.GetId().Unwrap().String()))
-	e.state.AddDeal(e.dealFactory.FromDeal(deal))
 	go e.processDeal(ctx, deal)
 }
 
@@ -316,7 +315,9 @@ func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
 
 			e.CreateOrder(order)
 			if deal != nil {
-				e.processDeal(ctx, deal)
+				if ok := e.state.AddDeal(e.dealFactory.FromDeal(deal)); ok {
+					go e.processDeal(ctx, deal)
+				}
 			}
 
 			return
@@ -832,6 +833,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 		zap.Int("deals_restore", len(dealsToRestore)))
 
 	for _, deal := range dealsToRestore {
+		e.state.AddDeal(e.dealFactory.FromDeal(deal))
 		e.RestoreDeal(ctx, deal)
 	}
 
@@ -877,7 +879,7 @@ func (e *engine) adoptExternalDeals(ctx context.Context) {
 	}
 
 	for _, deal := range deals.GetDeal() {
-		if !e.state.HasDeal(e.dealFactory.FromDeal(deal)) {
+		if ok := e.state.AddDeal(e.dealFactory.FromDeal(deal)); ok {
 			adoptedDealsCounter.Inc()
 			e.RestoreDeal(ctx, deal)
 		}
