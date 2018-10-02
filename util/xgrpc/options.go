@@ -62,8 +62,16 @@ func TraceInterceptor(tracer opentracing.Tracer) ServerOption {
 	}
 }
 
+type noopRecorder struct{}
+
+func newNoOpRecorder() *noopRecorder {
+	return &noopRecorder{}
+}
+
+func (noopRecorder) RecordSpan(span basictracer.RawSpan) {}
+
 func DefaultTraceInterceptor() ServerOption {
-	return TraceInterceptor(basictracer.New(basictracer.NewInMemoryRecorder()))
+	return TraceInterceptor(basictracer.New(newNoOpRecorder()))
 }
 
 // UnaryServerInterceptor adds an unary interceptor to the chain.

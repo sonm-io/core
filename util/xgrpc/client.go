@@ -15,7 +15,7 @@ func newTracer() opentracing.Tracer {
 	return basictracer.NewWithOptions(basictracer.Options{
 		ShouldSample:   func(traceID uint64) bool { return true },
 		MaxLogsPerSpan: 100,
-		Recorder:       basictracer.NewInMemoryRecorder(),
+		Recorder:       newNoOpRecorder(),
 	})
 }
 
