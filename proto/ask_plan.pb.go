@@ -81,6 +81,7 @@ It has these top-level messages:
 	CmpUint64
 	BlacklistQuery
 	DWHStatsReply
+	OrdersByIDsRequest
 	Empty
 	ID
 	NumericID

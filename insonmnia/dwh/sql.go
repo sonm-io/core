@@ -2140,3 +2140,38 @@ func setupDB(ctx context.Context, db *sql.DB, blockchain blockchain.API) (*sqlSt
 
 	return storage, nil
 }
+
+func (m *sqlStorage) GetOrdersByIDs(conn queryConn, r *sonm.OrdersByIDsRequest) ([]*sonm.DWHOrder, uint64, error) {
+	var ids = make([]string, len(r.Ids))
+	for idx, id := range r.Ids {
+		ids[idx] = id.Unwrap().String()
+	}
+
+	if len(ids) < 1 {
+		return nil, 0, errors.New("no IDs provided")
+	}
+
+	builder := m.builder().Select("*").From("Orders AS o").Where(sq.Eq{"ID": ids})
+
+	query, args, _ := builder.ToSql()
+	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), true, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to run query: %v", err)
+	}
+	defer rows.Close()
+
+	var orders = make([]*sonm.DWHOrder, len(r.Ids))
+	for idx := 0; rows.Next(); idx++ {
+		order, err := m.decodeOrder(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to decodeOrder: %v", err)
+		}
+		orders[idx] = order
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %v", err)
+	}
+
+	return orders, count, nil
+}

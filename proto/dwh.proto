@@ -40,6 +40,7 @@ service DWH {
     rpc GetChangeRequests(ChangeRequestsRequest) returns (DealChangeRequestsReply) {}
     rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
     rpc GetStats(Empty) returns (DWHStatsReply) {}
+    rpc GetOrdersByIDs(OrdersByIDsRequest) returns (DWHOrdersReply) {}
 }
 
 message DealsRequest {
@@ -326,4 +327,8 @@ message DWHStatsReply {
     uint64 workers = 5;
     uint64 masters = 6;
     uint64 customers = 7;
+}
+
+message OrdersByIDsRequest {
+    repeated BigInt ids = 1;
 }
