@@ -261,7 +261,7 @@ func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
 		return nil
 	}
 	if !ask.GetDealID().IsZero() || !ask.GetOrderID().IsZero() {
-		return fmt.Errorf("failed to remove ask plan %s: concurrent order or deal was placed", planID, err)
+		return fmt.Errorf("failed to remove ask plan %s: concurrent order or deal was placed", planID)
 	}
 	if err := m.resources.Release(planID); err != nil {
 		// We can not handle this error, because it is persistent so just log it and skip
