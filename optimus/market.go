@@ -4,12 +4,10 @@ import (
 	"context"
 
 	"github.com/sonm-io/core/proto"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
 	pullLimit             = 1000
-	pullConcurrency       = 256
 	ordersPreallocateSize = 1 << 13
 )
 
@@ -82,43 +80,16 @@ func (m *marketScanner) ExecutedOrders(ctx context.Context, orderType sonm.Order
 		}
 	}
 
-	ch := make(chan int, len(orderIds))
-	wg := errgroup.Group{}
-	orders := make([]*MarketOrder, len(orderIds))
-	for numWorker := 0; numWorker < pullConcurrency; numWorker++ {
-		wg.Go(func() error {
-			for id := range ch {
-				select {
-				case <-ctx.Done():
-					// Still exhaust the channel.
-					continue
-				default:
-				}
-
-				order, err := m.dwh.GetOrderDetails(ctx, orderIds[id])
-				if err != nil {
-					return err
-				}
-
-				orders[id] = order
-			}
-
-			return nil
-		})
-	}
-
-	for id := range orderIds {
-		ch <- id
-	}
-	close(ch)
-
-	if err := wg.Wait(); err != nil {
+	ordersResponse, err := m.dwh.GetOrdersByIDs(ctx, &sonm.OrdersByIDsRequest{
+		Ids: orderIds,
+	})
+	if err != nil {
 		return nil, err
 	}
 
 	// Leave only orders without counterparty.
-	filteredOrders := make([]*MarketOrder, 0, len(orders))
-	for _, order := range orders {
+	filteredOrders := make([]*MarketOrder, 0, len(ordersResponse.GetOrders()))
+	for _, order := range ordersResponse.GetOrders() {
 		if order.GetOrder().GetCounterpartyID().IsZero() {
 			filteredOrders = append(filteredOrders, order)
 		}
