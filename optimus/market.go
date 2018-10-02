@@ -8,7 +8,6 @@ import (
 
 const (
 	pullLimit             = 1000
-	pullConcurrency       = 256
 	ordersPreallocateSize = 1 << 13
 )
 
