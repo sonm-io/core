@@ -16,8 +16,8 @@ import (
 import (
 	"io"
 
+	"github.com/sonm-io/core/util/xcode"
 	"github.com/spf13/cobra"
-	"github.com/sshaman1101/grpccmd"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -379,7 +379,7 @@ var _Rendezvous_serviceDesc = grpc.ServiceDesc{
 }
 
 // Begin grpccmd
-var _ = grpccmd.RunE
+var _ = xcode.RunE
 
 // Rendezvous
 var _RendezvousCmd = &cobra.Command{
@@ -390,7 +390,7 @@ var _RendezvousCmd = &cobra.Command{
 var _Rendezvous_ResolveCmd = &cobra.Command{
 	Use:   "resolve",
 	Short: "Make the Resolve method call, input-type: sonm.ConnectRequest output-type: sonm.RendezvousReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Resolve",
 		"sonm.ConnectRequest",
 		func(c io.Closer) interface{} {
@@ -403,13 +403,13 @@ var _Rendezvous_ResolveCmd = &cobra.Command{
 var _Rendezvous_ResolveCmd_gen = &cobra.Command{
 	Use:   "resolve-gen",
 	Short: "Generate JSON for method call of Resolve (input-type: sonm.ConnectRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.ConnectRequest"),
+	RunE:  xcode.TypeToJson("sonm.ConnectRequest"),
 }
 
 var _Rendezvous_ResolveAllCmd = &cobra.Command{
 	Use:   "resolveAll",
 	Short: "Make the ResolveAll method call, input-type: sonm.ID output-type: sonm.ResolveMetaReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"ResolveAll",
 		"sonm.ID",
 		func(c io.Closer) interface{} {
@@ -422,13 +422,13 @@ var _Rendezvous_ResolveAllCmd = &cobra.Command{
 var _Rendezvous_ResolveAllCmd_gen = &cobra.Command{
 	Use:   "resolveAll-gen",
 	Short: "Generate JSON for method call of ResolveAll (input-type: sonm.ID)",
-	RunE:  grpccmd.TypeToJson("sonm.ID"),
+	RunE:  xcode.TypeToJson("sonm.ID"),
 }
 
 var _Rendezvous_PublishCmd = &cobra.Command{
 	Use:   "publish",
 	Short: "Make the Publish method call, input-type: sonm.PublishRequest output-type: sonm.RendezvousReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Publish",
 		"sonm.PublishRequest",
 		func(c io.Closer) interface{} {
@@ -441,13 +441,13 @@ var _Rendezvous_PublishCmd = &cobra.Command{
 var _Rendezvous_PublishCmd_gen = &cobra.Command{
 	Use:   "publish-gen",
 	Short: "Generate JSON for method call of Publish (input-type: sonm.PublishRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.PublishRequest"),
+	RunE:  xcode.TypeToJson("sonm.PublishRequest"),
 }
 
 var _Rendezvous_InfoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Make the Info method call, input-type: sonm.Empty output-type: sonm.RendezvousState",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Info",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -460,12 +460,12 @@ var _Rendezvous_InfoCmd = &cobra.Command{
 var _Rendezvous_InfoCmd_gen = &cobra.Command{
 	Use:   "info-gen",
 	Short: "Generate JSON for method call of Info (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_RendezvousCmd)
+	xcode.RegisterServiceCmd(_RendezvousCmd)
 	_RendezvousCmd.AddCommand(
 		_Rendezvous_ResolveCmd,
 		_Rendezvous_ResolveCmd_gen,

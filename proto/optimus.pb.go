@@ -16,8 +16,8 @@ import (
 import (
 	"io"
 
+	"github.com/sonm-io/core/util/xcode"
 	"github.com/spf13/cobra"
-	"github.com/sshaman1101/grpccmd"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -98,7 +98,7 @@ var _OrderPredictor_serviceDesc = grpc.ServiceDesc{
 }
 
 // Begin grpccmd
-var _ = grpccmd.RunE
+var _ = xcode.RunE
 
 // OrderPredictor
 var _OrderPredictorCmd = &cobra.Command{
@@ -109,7 +109,7 @@ var _OrderPredictorCmd = &cobra.Command{
 var _OrderPredictor_PredictCmd = &cobra.Command{
 	Use:   "predict",
 	Short: "Make the Predict method call, input-type: sonm.BidResources output-type: sonm.Price",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Predict",
 		"sonm.BidResources",
 		func(c io.Closer) interface{} {
@@ -122,12 +122,12 @@ var _OrderPredictor_PredictCmd = &cobra.Command{
 var _OrderPredictor_PredictCmd_gen = &cobra.Command{
 	Use:   "predict-gen",
 	Short: "Generate JSON for method call of Predict (input-type: sonm.BidResources)",
-	RunE:  grpccmd.TypeToJson("sonm.BidResources"),
+	RunE:  xcode.TypeToJson("sonm.BidResources"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_OrderPredictorCmd)
+	xcode.RegisterServiceCmd(_OrderPredictorCmd)
 	_OrderPredictorCmd.AddCommand(
 		_OrderPredictor_PredictCmd,
 		_OrderPredictor_PredictCmd_gen,

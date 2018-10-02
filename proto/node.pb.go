@@ -17,8 +17,8 @@ import (
 import (
 	"io"
 
+	"github.com/sonm-io/core/util/xcode"
 	"github.com/spf13/cobra"
-	"github.com/sshaman1101/grpccmd"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1920,7 +1920,7 @@ var _Monitoring_serviceDesc = grpc.ServiceDesc{
 }
 
 // Begin grpccmd
-var _ = grpccmd.RunE
+var _ = xcode.RunE
 
 // TaskManagement
 var _TaskManagementCmd = &cobra.Command{
@@ -1931,7 +1931,7 @@ var _TaskManagementCmd = &cobra.Command{
 var _TaskManagement_ListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Make the List method call, input-type: sonm.TaskListRequest output-type: sonm.TaskListReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"List",
 		"sonm.TaskListRequest",
 		func(c io.Closer) interface{} {
@@ -1944,13 +1944,13 @@ var _TaskManagement_ListCmd = &cobra.Command{
 var _TaskManagement_ListCmd_gen = &cobra.Command{
 	Use:   "list-gen",
 	Short: "Generate JSON for method call of List (input-type: sonm.TaskListRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.TaskListRequest"),
+	RunE:  xcode.TypeToJson("sonm.TaskListRequest"),
 }
 
 var _TaskManagement_PushTaskCmd = &cobra.Command{
 	Use:   "pushTask",
 	Short: "Make the PushTask method call, input-type: sonm.Chunk output-type: sonm.Progress",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"PushTask",
 		"sonm.Chunk",
 		func(c io.Closer) interface{} {
@@ -1963,13 +1963,13 @@ var _TaskManagement_PushTaskCmd = &cobra.Command{
 var _TaskManagement_PushTaskCmd_gen = &cobra.Command{
 	Use:   "pushTask-gen",
 	Short: "Generate JSON for method call of PushTask (input-type: sonm.Chunk)",
-	RunE:  grpccmd.TypeToJson("sonm.Chunk"),
+	RunE:  xcode.TypeToJson("sonm.Chunk"),
 }
 
 var _TaskManagement_StartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Make the Start method call, input-type: sonm.StartTaskRequest output-type: sonm.StartTaskReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Start",
 		"sonm.StartTaskRequest",
 		func(c io.Closer) interface{} {
@@ -1982,13 +1982,13 @@ var _TaskManagement_StartCmd = &cobra.Command{
 var _TaskManagement_StartCmd_gen = &cobra.Command{
 	Use:   "start-gen",
 	Short: "Generate JSON for method call of Start (input-type: sonm.StartTaskRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.StartTaskRequest"),
+	RunE:  xcode.TypeToJson("sonm.StartTaskRequest"),
 }
 
 var _TaskManagement_JoinNetworkCmd = &cobra.Command{
 	Use:   "joinNetwork",
 	Short: "Make the JoinNetwork method call, input-type: sonm.JoinNetworkRequest output-type: sonm.NetworkSpec",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"JoinNetwork",
 		"sonm.JoinNetworkRequest",
 		func(c io.Closer) interface{} {
@@ -2001,13 +2001,13 @@ var _TaskManagement_JoinNetworkCmd = &cobra.Command{
 var _TaskManagement_JoinNetworkCmd_gen = &cobra.Command{
 	Use:   "joinNetwork-gen",
 	Short: "Generate JSON for method call of JoinNetwork (input-type: sonm.JoinNetworkRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.JoinNetworkRequest"),
+	RunE:  xcode.TypeToJson("sonm.JoinNetworkRequest"),
 }
 
 var _TaskManagement_StatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Make the Status method call, input-type: sonm.TaskID output-type: sonm.TaskStatusReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Status",
 		"sonm.TaskID",
 		func(c io.Closer) interface{} {
@@ -2020,13 +2020,13 @@ var _TaskManagement_StatusCmd = &cobra.Command{
 var _TaskManagement_StatusCmd_gen = &cobra.Command{
 	Use:   "status-gen",
 	Short: "Generate JSON for method call of Status (input-type: sonm.TaskID)",
-	RunE:  grpccmd.TypeToJson("sonm.TaskID"),
+	RunE:  xcode.TypeToJson("sonm.TaskID"),
 }
 
 var _TaskManagement_LogsCmd = &cobra.Command{
 	Use:   "logs",
 	Short: "Make the Logs method call, input-type: sonm.TaskLogsRequest output-type: sonm.TaskLogsChunk",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Logs",
 		"sonm.TaskLogsRequest",
 		func(c io.Closer) interface{} {
@@ -2039,13 +2039,13 @@ var _TaskManagement_LogsCmd = &cobra.Command{
 var _TaskManagement_LogsCmd_gen = &cobra.Command{
 	Use:   "logs-gen",
 	Short: "Generate JSON for method call of Logs (input-type: sonm.TaskLogsRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.TaskLogsRequest"),
+	RunE:  xcode.TypeToJson("sonm.TaskLogsRequest"),
 }
 
 var _TaskManagement_StopCmd = &cobra.Command{
 	Use:   "stop",
 	Short: "Make the Stop method call, input-type: sonm.TaskID output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Stop",
 		"sonm.TaskID",
 		func(c io.Closer) interface{} {
@@ -2058,13 +2058,13 @@ var _TaskManagement_StopCmd = &cobra.Command{
 var _TaskManagement_StopCmd_gen = &cobra.Command{
 	Use:   "stop-gen",
 	Short: "Generate JSON for method call of Stop (input-type: sonm.TaskID)",
-	RunE:  grpccmd.TypeToJson("sonm.TaskID"),
+	RunE:  xcode.TypeToJson("sonm.TaskID"),
 }
 
 var _TaskManagement_PullTaskCmd = &cobra.Command{
 	Use:   "pullTask",
 	Short: "Make the PullTask method call, input-type: sonm.PullTaskRequest output-type: sonm.Chunk",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"PullTask",
 		"sonm.PullTaskRequest",
 		func(c io.Closer) interface{} {
@@ -2077,12 +2077,12 @@ var _TaskManagement_PullTaskCmd = &cobra.Command{
 var _TaskManagement_PullTaskCmd_gen = &cobra.Command{
 	Use:   "pullTask-gen",
 	Short: "Generate JSON for method call of PullTask (input-type: sonm.PullTaskRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.PullTaskRequest"),
+	RunE:  xcode.TypeToJson("sonm.PullTaskRequest"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_TaskManagementCmd)
+	xcode.RegisterServiceCmd(_TaskManagementCmd)
 	_TaskManagementCmd.AddCommand(
 		_TaskManagement_ListCmd,
 		_TaskManagement_ListCmd_gen,
@@ -2112,7 +2112,7 @@ var _DealManagementCmd = &cobra.Command{
 var _DealManagement_ListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Make the List method call, input-type: sonm.Count output-type: sonm.DealsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"List",
 		"sonm.Count",
 		func(c io.Closer) interface{} {
@@ -2125,13 +2125,13 @@ var _DealManagement_ListCmd = &cobra.Command{
 var _DealManagement_ListCmd_gen = &cobra.Command{
 	Use:   "list-gen",
 	Short: "Generate JSON for method call of List (input-type: sonm.Count)",
-	RunE:  grpccmd.TypeToJson("sonm.Count"),
+	RunE:  xcode.TypeToJson("sonm.Count"),
 }
 
 var _DealManagement_StatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Make the Status method call, input-type: sonm.BigInt output-type: sonm.DealInfoReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Status",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2144,13 +2144,13 @@ var _DealManagement_StatusCmd = &cobra.Command{
 var _DealManagement_StatusCmd_gen = &cobra.Command{
 	Use:   "status-gen",
 	Short: "Generate JSON for method call of Status (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _DealManagement_FinishCmd = &cobra.Command{
 	Use:   "finish",
 	Short: "Make the Finish method call, input-type: sonm.DealFinishRequest output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Finish",
 		"sonm.DealFinishRequest",
 		func(c io.Closer) interface{} {
@@ -2163,13 +2163,13 @@ var _DealManagement_FinishCmd = &cobra.Command{
 var _DealManagement_FinishCmd_gen = &cobra.Command{
 	Use:   "finish-gen",
 	Short: "Generate JSON for method call of Finish (input-type: sonm.DealFinishRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.DealFinishRequest"),
+	RunE:  xcode.TypeToJson("sonm.DealFinishRequest"),
 }
 
 var _DealManagement_FinishDealsCmd = &cobra.Command{
 	Use:   "finishDeals",
 	Short: "Make the FinishDeals method call, input-type: sonm.DealsFinishRequest output-type: sonm.ErrorByID",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"FinishDeals",
 		"sonm.DealsFinishRequest",
 		func(c io.Closer) interface{} {
@@ -2182,13 +2182,13 @@ var _DealManagement_FinishDealsCmd = &cobra.Command{
 var _DealManagement_FinishDealsCmd_gen = &cobra.Command{
 	Use:   "finishDeals-gen",
 	Short: "Generate JSON for method call of FinishDeals (input-type: sonm.DealsFinishRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.DealsFinishRequest"),
+	RunE:  xcode.TypeToJson("sonm.DealsFinishRequest"),
 }
 
 var _DealManagement_PurgeDealsCmd = &cobra.Command{
 	Use:   "purgeDeals",
 	Short: "Make the PurgeDeals method call, input-type: sonm.DealsPurgeRequest output-type: sonm.ErrorByID",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"PurgeDeals",
 		"sonm.DealsPurgeRequest",
 		func(c io.Closer) interface{} {
@@ -2201,13 +2201,13 @@ var _DealManagement_PurgeDealsCmd = &cobra.Command{
 var _DealManagement_PurgeDealsCmd_gen = &cobra.Command{
 	Use:   "purgeDeals-gen",
 	Short: "Generate JSON for method call of PurgeDeals (input-type: sonm.DealsPurgeRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.DealsPurgeRequest"),
+	RunE:  xcode.TypeToJson("sonm.DealsPurgeRequest"),
 }
 
 var _DealManagement_OpenCmd = &cobra.Command{
 	Use:   "open",
 	Short: "Make the Open method call, input-type: sonm.OpenDealRequest output-type: sonm.Deal",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Open",
 		"sonm.OpenDealRequest",
 		func(c io.Closer) interface{} {
@@ -2220,13 +2220,13 @@ var _DealManagement_OpenCmd = &cobra.Command{
 var _DealManagement_OpenCmd_gen = &cobra.Command{
 	Use:   "open-gen",
 	Short: "Generate JSON for method call of Open (input-type: sonm.OpenDealRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.OpenDealRequest"),
+	RunE:  xcode.TypeToJson("sonm.OpenDealRequest"),
 }
 
 var _DealManagement_ChangeRequestsListCmd = &cobra.Command{
 	Use:   "changeRequestsList",
 	Short: "Make the ChangeRequestsList method call, input-type: sonm.BigInt output-type: sonm.DealChangeRequestsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"ChangeRequestsList",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2239,13 +2239,13 @@ var _DealManagement_ChangeRequestsListCmd = &cobra.Command{
 var _DealManagement_ChangeRequestsListCmd_gen = &cobra.Command{
 	Use:   "changeRequestsList-gen",
 	Short: "Generate JSON for method call of ChangeRequestsList (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _DealManagement_CreateChangeRequestCmd = &cobra.Command{
 	Use:   "createChangeRequest",
 	Short: "Make the CreateChangeRequest method call, input-type: sonm.DealChangeRequest output-type: sonm.BigInt",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"CreateChangeRequest",
 		"sonm.DealChangeRequest",
 		func(c io.Closer) interface{} {
@@ -2258,13 +2258,13 @@ var _DealManagement_CreateChangeRequestCmd = &cobra.Command{
 var _DealManagement_CreateChangeRequestCmd_gen = &cobra.Command{
 	Use:   "createChangeRequest-gen",
 	Short: "Generate JSON for method call of CreateChangeRequest (input-type: sonm.DealChangeRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.DealChangeRequest"),
+	RunE:  xcode.TypeToJson("sonm.DealChangeRequest"),
 }
 
 var _DealManagement_ApproveChangeRequestCmd = &cobra.Command{
 	Use:   "approveChangeRequest",
 	Short: "Make the ApproveChangeRequest method call, input-type: sonm.BigInt output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"ApproveChangeRequest",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2277,13 +2277,13 @@ var _DealManagement_ApproveChangeRequestCmd = &cobra.Command{
 var _DealManagement_ApproveChangeRequestCmd_gen = &cobra.Command{
 	Use:   "approveChangeRequest-gen",
 	Short: "Generate JSON for method call of ApproveChangeRequest (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _DealManagement_CancelChangeRequestCmd = &cobra.Command{
 	Use:   "cancelChangeRequest",
 	Short: "Make the CancelChangeRequest method call, input-type: sonm.BigInt output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"CancelChangeRequest",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2296,13 +2296,13 @@ var _DealManagement_CancelChangeRequestCmd = &cobra.Command{
 var _DealManagement_CancelChangeRequestCmd_gen = &cobra.Command{
 	Use:   "cancelChangeRequest-gen",
 	Short: "Generate JSON for method call of CancelChangeRequest (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _DealManagement_QuickBuyCmd = &cobra.Command{
 	Use:   "quickBuy",
 	Short: "Make the QuickBuy method call, input-type: sonm.QuickBuyRequest output-type: sonm.DealInfoReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"QuickBuy",
 		"sonm.QuickBuyRequest",
 		func(c io.Closer) interface{} {
@@ -2315,12 +2315,12 @@ var _DealManagement_QuickBuyCmd = &cobra.Command{
 var _DealManagement_QuickBuyCmd_gen = &cobra.Command{
 	Use:   "quickBuy-gen",
 	Short: "Generate JSON for method call of QuickBuy (input-type: sonm.QuickBuyRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.QuickBuyRequest"),
+	RunE:  xcode.TypeToJson("sonm.QuickBuyRequest"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_DealManagementCmd)
+	xcode.RegisterServiceCmd(_DealManagementCmd)
 	_DealManagementCmd.AddCommand(
 		_DealManagement_ListCmd,
 		_DealManagement_ListCmd_gen,
@@ -2356,7 +2356,7 @@ var _MasterManagementCmd = &cobra.Command{
 var _MasterManagement_WorkersListCmd = &cobra.Command{
 	Use:   "workersList",
 	Short: "Make the WorkersList method call, input-type: sonm.EthAddress output-type: sonm.WorkerListReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"WorkersList",
 		"sonm.EthAddress",
 		func(c io.Closer) interface{} {
@@ -2369,13 +2369,13 @@ var _MasterManagement_WorkersListCmd = &cobra.Command{
 var _MasterManagement_WorkersListCmd_gen = &cobra.Command{
 	Use:   "workersList-gen",
 	Short: "Generate JSON for method call of WorkersList (input-type: sonm.EthAddress)",
-	RunE:  grpccmd.TypeToJson("sonm.EthAddress"),
+	RunE:  xcode.TypeToJson("sonm.EthAddress"),
 }
 
 var _MasterManagement_WorkerConfirmCmd = &cobra.Command{
 	Use:   "workerConfirm",
 	Short: "Make the WorkerConfirm method call, input-type: sonm.EthAddress output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"WorkerConfirm",
 		"sonm.EthAddress",
 		func(c io.Closer) interface{} {
@@ -2388,13 +2388,13 @@ var _MasterManagement_WorkerConfirmCmd = &cobra.Command{
 var _MasterManagement_WorkerConfirmCmd_gen = &cobra.Command{
 	Use:   "workerConfirm-gen",
 	Short: "Generate JSON for method call of WorkerConfirm (input-type: sonm.EthAddress)",
-	RunE:  grpccmd.TypeToJson("sonm.EthAddress"),
+	RunE:  xcode.TypeToJson("sonm.EthAddress"),
 }
 
 var _MasterManagement_WorkerRemoveCmd = &cobra.Command{
 	Use:   "workerRemove",
 	Short: "Make the WorkerRemove method call, input-type: sonm.WorkerRemoveRequest output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"WorkerRemove",
 		"sonm.WorkerRemoveRequest",
 		func(c io.Closer) interface{} {
@@ -2407,12 +2407,12 @@ var _MasterManagement_WorkerRemoveCmd = &cobra.Command{
 var _MasterManagement_WorkerRemoveCmd_gen = &cobra.Command{
 	Use:   "workerRemove-gen",
 	Short: "Generate JSON for method call of WorkerRemove (input-type: sonm.WorkerRemoveRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.WorkerRemoveRequest"),
+	RunE:  xcode.TypeToJson("sonm.WorkerRemoveRequest"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_MasterManagementCmd)
+	xcode.RegisterServiceCmd(_MasterManagementCmd)
 	_MasterManagementCmd.AddCommand(
 		_MasterManagement_WorkersListCmd,
 		_MasterManagement_WorkersListCmd_gen,
@@ -2432,7 +2432,7 @@ var _TokenManagementCmd = &cobra.Command{
 var _TokenManagement_TestTokensCmd = &cobra.Command{
 	Use:   "testTokens",
 	Short: "Make the TestTokens method call, input-type: sonm.Empty output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"TestTokens",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -2445,13 +2445,13 @@ var _TokenManagement_TestTokensCmd = &cobra.Command{
 var _TokenManagement_TestTokensCmd_gen = &cobra.Command{
 	Use:   "testTokens-gen",
 	Short: "Generate JSON for method call of TestTokens (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _TokenManagement_BalanceCmd = &cobra.Command{
 	Use:   "balance",
 	Short: "Make the Balance method call, input-type: sonm.Empty output-type: sonm.BalanceReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Balance",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -2464,13 +2464,13 @@ var _TokenManagement_BalanceCmd = &cobra.Command{
 var _TokenManagement_BalanceCmd_gen = &cobra.Command{
 	Use:   "balance-gen",
 	Short: "Generate JSON for method call of Balance (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _TokenManagement_BalanceOfCmd = &cobra.Command{
 	Use:   "balanceOf",
 	Short: "Make the BalanceOf method call, input-type: sonm.EthAddress output-type: sonm.BalanceReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"BalanceOf",
 		"sonm.EthAddress",
 		func(c io.Closer) interface{} {
@@ -2483,13 +2483,13 @@ var _TokenManagement_BalanceOfCmd = &cobra.Command{
 var _TokenManagement_BalanceOfCmd_gen = &cobra.Command{
 	Use:   "balanceOf-gen",
 	Short: "Generate JSON for method call of BalanceOf (input-type: sonm.EthAddress)",
-	RunE:  grpccmd.TypeToJson("sonm.EthAddress"),
+	RunE:  xcode.TypeToJson("sonm.EthAddress"),
 }
 
 var _TokenManagement_DepositCmd = &cobra.Command{
 	Use:   "deposit",
 	Short: "Make the Deposit method call, input-type: sonm.BigInt output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Deposit",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2502,13 +2502,13 @@ var _TokenManagement_DepositCmd = &cobra.Command{
 var _TokenManagement_DepositCmd_gen = &cobra.Command{
 	Use:   "deposit-gen",
 	Short: "Generate JSON for method call of Deposit (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _TokenManagement_WithdrawCmd = &cobra.Command{
 	Use:   "withdraw",
 	Short: "Make the Withdraw method call, input-type: sonm.BigInt output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Withdraw",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2521,13 +2521,13 @@ var _TokenManagement_WithdrawCmd = &cobra.Command{
 var _TokenManagement_WithdrawCmd_gen = &cobra.Command{
 	Use:   "withdraw-gen",
 	Short: "Generate JSON for method call of Withdraw (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _TokenManagement_MarketAllowanceCmd = &cobra.Command{
 	Use:   "marketAllowance",
 	Short: "Make the MarketAllowance method call, input-type: sonm.Empty output-type: sonm.BigInt",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"MarketAllowance",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -2540,13 +2540,13 @@ var _TokenManagement_MarketAllowanceCmd = &cobra.Command{
 var _TokenManagement_MarketAllowanceCmd_gen = &cobra.Command{
 	Use:   "marketAllowance-gen",
 	Short: "Generate JSON for method call of MarketAllowance (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _TokenManagement_TransferCmd = &cobra.Command{
 	Use:   "transfer",
 	Short: "Make the Transfer method call, input-type: sonm.TokenTransferRequest output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Transfer",
 		"sonm.TokenTransferRequest",
 		func(c io.Closer) interface{} {
@@ -2559,12 +2559,12 @@ var _TokenManagement_TransferCmd = &cobra.Command{
 var _TokenManagement_TransferCmd_gen = &cobra.Command{
 	Use:   "transfer-gen",
 	Short: "Generate JSON for method call of Transfer (input-type: sonm.TokenTransferRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.TokenTransferRequest"),
+	RunE:  xcode.TypeToJson("sonm.TokenTransferRequest"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_TokenManagementCmd)
+	xcode.RegisterServiceCmd(_TokenManagementCmd)
 	_TokenManagementCmd.AddCommand(
 		_TokenManagement_TestTokensCmd,
 		_TokenManagement_TestTokensCmd_gen,
@@ -2592,7 +2592,7 @@ var _BlacklistCmd = &cobra.Command{
 var _Blacklist_ListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Make the List method call, input-type: sonm.EthAddress output-type: sonm.BlacklistReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"List",
 		"sonm.EthAddress",
 		func(c io.Closer) interface{} {
@@ -2605,13 +2605,13 @@ var _Blacklist_ListCmd = &cobra.Command{
 var _Blacklist_ListCmd_gen = &cobra.Command{
 	Use:   "list-gen",
 	Short: "Generate JSON for method call of List (input-type: sonm.EthAddress)",
-	RunE:  grpccmd.TypeToJson("sonm.EthAddress"),
+	RunE:  xcode.TypeToJson("sonm.EthAddress"),
 }
 
 var _Blacklist_RemoveCmd = &cobra.Command{
 	Use:   "remove",
 	Short: "Make the Remove method call, input-type: sonm.EthAddress output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Remove",
 		"sonm.EthAddress",
 		func(c io.Closer) interface{} {
@@ -2624,12 +2624,12 @@ var _Blacklist_RemoveCmd = &cobra.Command{
 var _Blacklist_RemoveCmd_gen = &cobra.Command{
 	Use:   "remove-gen",
 	Short: "Generate JSON for method call of Remove (input-type: sonm.EthAddress)",
-	RunE:  grpccmd.TypeToJson("sonm.EthAddress"),
+	RunE:  xcode.TypeToJson("sonm.EthAddress"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_BlacklistCmd)
+	xcode.RegisterServiceCmd(_BlacklistCmd)
 	_BlacklistCmd.AddCommand(
 		_Blacklist_ListCmd,
 		_Blacklist_ListCmd_gen,
@@ -2647,7 +2647,7 @@ var _ProfilesCmd = &cobra.Command{
 var _Profiles_ListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Make the List method call, input-type: sonm.ProfilesRequest output-type: sonm.ProfilesReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"List",
 		"sonm.ProfilesRequest",
 		func(c io.Closer) interface{} {
@@ -2660,13 +2660,13 @@ var _Profiles_ListCmd = &cobra.Command{
 var _Profiles_ListCmd_gen = &cobra.Command{
 	Use:   "list-gen",
 	Short: "Generate JSON for method call of List (input-type: sonm.ProfilesRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.ProfilesRequest"),
+	RunE:  xcode.TypeToJson("sonm.ProfilesRequest"),
 }
 
 var _Profiles_StatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Make the Status method call, input-type: sonm.EthID output-type: sonm.Profile",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Status",
 		"sonm.EthID",
 		func(c io.Closer) interface{} {
@@ -2679,13 +2679,13 @@ var _Profiles_StatusCmd = &cobra.Command{
 var _Profiles_StatusCmd_gen = &cobra.Command{
 	Use:   "status-gen",
 	Short: "Generate JSON for method call of Status (input-type: sonm.EthID)",
-	RunE:  grpccmd.TypeToJson("sonm.EthID"),
+	RunE:  xcode.TypeToJson("sonm.EthID"),
 }
 
 var _Profiles_RemoveAttributeCmd = &cobra.Command{
 	Use:   "removeAttribute",
 	Short: "Make the RemoveAttribute method call, input-type: sonm.BigInt output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"RemoveAttribute",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2698,12 +2698,12 @@ var _Profiles_RemoveAttributeCmd = &cobra.Command{
 var _Profiles_RemoveAttributeCmd_gen = &cobra.Command{
 	Use:   "removeAttribute-gen",
 	Short: "Generate JSON for method call of RemoveAttribute (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_ProfilesCmd)
+	xcode.RegisterServiceCmd(_ProfilesCmd)
 	_ProfilesCmd.AddCommand(
 		_Profiles_ListCmd,
 		_Profiles_ListCmd_gen,
@@ -2723,7 +2723,7 @@ var _MonitoringCmd = &cobra.Command{
 var _Monitoring_MetricsNPPCmd = &cobra.Command{
 	Use:   "metricsNPP",
 	Short: "Make the MetricsNPP method call, input-type: sonm.Empty output-type: sonm.NPPMetricsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"MetricsNPP",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -2736,12 +2736,12 @@ var _Monitoring_MetricsNPPCmd = &cobra.Command{
 var _Monitoring_MetricsNPPCmd_gen = &cobra.Command{
 	Use:   "metricsNPP-gen",
 	Short: "Generate JSON for method call of MetricsNPP (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_MonitoringCmd)
+	xcode.RegisterServiceCmd(_MonitoringCmd)
 	_MonitoringCmd.AddCommand(
 		_Monitoring_MetricsNPPCmd,
 		_Monitoring_MetricsNPPCmd_gen,

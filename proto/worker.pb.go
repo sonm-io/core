@@ -16,8 +16,8 @@ import (
 import (
 	"io"
 
+	"github.com/sonm-io/core/util/xcode"
 	"github.com/spf13/cobra"
-	"github.com/sshaman1101/grpccmd"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1574,7 +1574,7 @@ var _Worker_serviceDesc = grpc.ServiceDesc{
 }
 
 // Begin grpccmd
-var _ = grpccmd.RunE
+var _ = xcode.RunE
 
 // WorkerManagement
 var _WorkerManagementCmd = &cobra.Command{
@@ -1585,7 +1585,7 @@ var _WorkerManagementCmd = &cobra.Command{
 var _WorkerManagement_StatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Make the Status method call, input-type: sonm.Empty output-type: sonm.StatusReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Status",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1598,13 +1598,13 @@ var _WorkerManagement_StatusCmd = &cobra.Command{
 var _WorkerManagement_StatusCmd_gen = &cobra.Command{
 	Use:   "status-gen",
 	Short: "Generate JSON for method call of Status (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_DevicesCmd = &cobra.Command{
 	Use:   "devices",
 	Short: "Make the Devices method call, input-type: sonm.Empty output-type: sonm.DevicesReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Devices",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1617,13 +1617,13 @@ var _WorkerManagement_DevicesCmd = &cobra.Command{
 var _WorkerManagement_DevicesCmd_gen = &cobra.Command{
 	Use:   "devices-gen",
 	Short: "Generate JSON for method call of Devices (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_FreeDevicesCmd = &cobra.Command{
 	Use:   "freeDevices",
 	Short: "Make the FreeDevices method call, input-type: sonm.Empty output-type: sonm.DevicesReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"FreeDevices",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1636,13 +1636,13 @@ var _WorkerManagement_FreeDevicesCmd = &cobra.Command{
 var _WorkerManagement_FreeDevicesCmd_gen = &cobra.Command{
 	Use:   "freeDevices-gen",
 	Short: "Generate JSON for method call of FreeDevices (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_TasksCmd = &cobra.Command{
 	Use:   "tasks",
 	Short: "Make the Tasks method call, input-type: sonm.Empty output-type: sonm.TaskListReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Tasks",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1655,13 +1655,13 @@ var _WorkerManagement_TasksCmd = &cobra.Command{
 var _WorkerManagement_TasksCmd_gen = &cobra.Command{
 	Use:   "tasks-gen",
 	Short: "Generate JSON for method call of Tasks (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_AskPlansCmd = &cobra.Command{
 	Use:   "askPlans",
 	Short: "Make the AskPlans method call, input-type: sonm.Empty output-type: sonm.AskPlansReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"AskPlans",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1674,13 +1674,13 @@ var _WorkerManagement_AskPlansCmd = &cobra.Command{
 var _WorkerManagement_AskPlansCmd_gen = &cobra.Command{
 	Use:   "askPlans-gen",
 	Short: "Generate JSON for method call of AskPlans (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_CreateAskPlanCmd = &cobra.Command{
 	Use:   "createAskPlan",
 	Short: "Make the CreateAskPlan method call, input-type: sonm.AskPlan output-type: sonm.ID",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"CreateAskPlan",
 		"sonm.AskPlan",
 		func(c io.Closer) interface{} {
@@ -1693,13 +1693,13 @@ var _WorkerManagement_CreateAskPlanCmd = &cobra.Command{
 var _WorkerManagement_CreateAskPlanCmd_gen = &cobra.Command{
 	Use:   "createAskPlan-gen",
 	Short: "Generate JSON for method call of CreateAskPlan (input-type: sonm.AskPlan)",
-	RunE:  grpccmd.TypeToJson("sonm.AskPlan"),
+	RunE:  xcode.TypeToJson("sonm.AskPlan"),
 }
 
 var _WorkerManagement_RemoveAskPlanCmd = &cobra.Command{
 	Use:   "removeAskPlan",
 	Short: "Make the RemoveAskPlan method call, input-type: sonm.ID output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"RemoveAskPlan",
 		"sonm.ID",
 		func(c io.Closer) interface{} {
@@ -1712,13 +1712,13 @@ var _WorkerManagement_RemoveAskPlanCmd = &cobra.Command{
 var _WorkerManagement_RemoveAskPlanCmd_gen = &cobra.Command{
 	Use:   "removeAskPlan-gen",
 	Short: "Generate JSON for method call of RemoveAskPlan (input-type: sonm.ID)",
-	RunE:  grpccmd.TypeToJson("sonm.ID"),
+	RunE:  xcode.TypeToJson("sonm.ID"),
 }
 
 var _WorkerManagement_PurgeAskPlansCmd = &cobra.Command{
 	Use:   "purgeAskPlans",
 	Short: "Make the PurgeAskPlans method call, input-type: sonm.Empty output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"PurgeAskPlans",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1731,7 +1731,7 @@ var _WorkerManagement_PurgeAskPlansCmd = &cobra.Command{
 var _WorkerManagement_PurgeAskPlansCmd_gen = &cobra.Command{
 	Use:   "purgeAskPlans-gen",
 	Short: "Generate JSON for method call of PurgeAskPlans (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_PurgeAskPlansDetailedCmd = &cobra.Command{
@@ -1756,7 +1756,7 @@ var _WorkerManagement_PurgeAskPlansDetailedCmd_gen = &cobra.Command{
 var _WorkerManagement_ScheduleMaintenanceCmd = &cobra.Command{
 	Use:   "scheduleMaintenance",
 	Short: "Make the ScheduleMaintenance method call, input-type: sonm.Timestamp output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"ScheduleMaintenance",
 		"sonm.Timestamp",
 		func(c io.Closer) interface{} {
@@ -1769,13 +1769,13 @@ var _WorkerManagement_ScheduleMaintenanceCmd = &cobra.Command{
 var _WorkerManagement_ScheduleMaintenanceCmd_gen = &cobra.Command{
 	Use:   "scheduleMaintenance-gen",
 	Short: "Generate JSON for method call of ScheduleMaintenance (input-type: sonm.Timestamp)",
-	RunE:  grpccmd.TypeToJson("sonm.Timestamp"),
+	RunE:  xcode.TypeToJson("sonm.Timestamp"),
 }
 
 var _WorkerManagement_NextMaintenanceCmd = &cobra.Command{
 	Use:   "nextMaintenance",
 	Short: "Make the NextMaintenance method call, input-type: sonm.Empty output-type: sonm.Timestamp",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"NextMaintenance",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1788,13 +1788,13 @@ var _WorkerManagement_NextMaintenanceCmd = &cobra.Command{
 var _WorkerManagement_NextMaintenanceCmd_gen = &cobra.Command{
 	Use:   "nextMaintenance-gen",
 	Short: "Generate JSON for method call of NextMaintenance (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_DebugStateCmd = &cobra.Command{
 	Use:   "debugState",
 	Short: "Make the DebugState method call, input-type: sonm.Empty output-type: sonm.DebugStateReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"DebugState",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1807,13 +1807,13 @@ var _WorkerManagement_DebugStateCmd = &cobra.Command{
 var _WorkerManagement_DebugStateCmd_gen = &cobra.Command{
 	Use:   "debugState-gen",
 	Short: "Generate JSON for method call of DebugState (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _WorkerManagement_RemoveBenchmarkCmd = &cobra.Command{
 	Use:   "removeBenchmark",
 	Short: "Make the RemoveBenchmark method call, input-type: sonm.NumericID output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"RemoveBenchmark",
 		"sonm.NumericID",
 		func(c io.Closer) interface{} {
@@ -1826,13 +1826,13 @@ var _WorkerManagement_RemoveBenchmarkCmd = &cobra.Command{
 var _WorkerManagement_RemoveBenchmarkCmd_gen = &cobra.Command{
 	Use:   "removeBenchmark-gen",
 	Short: "Generate JSON for method call of RemoveBenchmark (input-type: sonm.NumericID)",
-	RunE:  grpccmd.TypeToJson("sonm.NumericID"),
+	RunE:  xcode.TypeToJson("sonm.NumericID"),
 }
 
 var _WorkerManagement_PurgeBenchmarksCmd = &cobra.Command{
 	Use:   "purgeBenchmarks",
 	Short: "Make the PurgeBenchmarks method call, input-type: sonm.Empty output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"PurgeBenchmarks",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -1845,12 +1845,12 @@ var _WorkerManagement_PurgeBenchmarksCmd = &cobra.Command{
 var _WorkerManagement_PurgeBenchmarksCmd_gen = &cobra.Command{
 	Use:   "purgeBenchmarks-gen",
 	Short: "Generate JSON for method call of PurgeBenchmarks (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_WorkerManagementCmd)
+	xcode.RegisterServiceCmd(_WorkerManagementCmd)
 	_WorkerManagementCmd.AddCommand(
 		_WorkerManagement_StatusCmd,
 		_WorkerManagement_StatusCmd_gen,
@@ -1892,7 +1892,7 @@ var _WorkerCmd = &cobra.Command{
 var _Worker_PushTaskCmd = &cobra.Command{
 	Use:   "pushTask",
 	Short: "Make the PushTask method call, input-type: sonm.Chunk output-type: sonm.Progress",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"PushTask",
 		"sonm.Chunk",
 		func(c io.Closer) interface{} {
@@ -1905,13 +1905,13 @@ var _Worker_PushTaskCmd = &cobra.Command{
 var _Worker_PushTaskCmd_gen = &cobra.Command{
 	Use:   "pushTask-gen",
 	Short: "Generate JSON for method call of PushTask (input-type: sonm.Chunk)",
-	RunE:  grpccmd.TypeToJson("sonm.Chunk"),
+	RunE:  xcode.TypeToJson("sonm.Chunk"),
 }
 
 var _Worker_PullTaskCmd = &cobra.Command{
 	Use:   "pullTask",
 	Short: "Make the PullTask method call, input-type: sonm.PullTaskRequest output-type: sonm.Chunk",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"PullTask",
 		"sonm.PullTaskRequest",
 		func(c io.Closer) interface{} {
@@ -1924,13 +1924,13 @@ var _Worker_PullTaskCmd = &cobra.Command{
 var _Worker_PullTaskCmd_gen = &cobra.Command{
 	Use:   "pullTask-gen",
 	Short: "Generate JSON for method call of PullTask (input-type: sonm.PullTaskRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.PullTaskRequest"),
+	RunE:  xcode.TypeToJson("sonm.PullTaskRequest"),
 }
 
 var _Worker_StartTaskCmd = &cobra.Command{
 	Use:   "startTask",
 	Short: "Make the StartTask method call, input-type: sonm.StartTaskRequest output-type: sonm.StartTaskReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"StartTask",
 		"sonm.StartTaskRequest",
 		func(c io.Closer) interface{} {
@@ -1943,13 +1943,13 @@ var _Worker_StartTaskCmd = &cobra.Command{
 var _Worker_StartTaskCmd_gen = &cobra.Command{
 	Use:   "startTask-gen",
 	Short: "Generate JSON for method call of StartTask (input-type: sonm.StartTaskRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.StartTaskRequest"),
+	RunE:  xcode.TypeToJson("sonm.StartTaskRequest"),
 }
 
 var _Worker_StopTaskCmd = &cobra.Command{
 	Use:   "stopTask",
 	Short: "Make the StopTask method call, input-type: sonm.ID output-type: sonm.Empty",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"StopTask",
 		"sonm.ID",
 		func(c io.Closer) interface{} {
@@ -1962,13 +1962,13 @@ var _Worker_StopTaskCmd = &cobra.Command{
 var _Worker_StopTaskCmd_gen = &cobra.Command{
 	Use:   "stopTask-gen",
 	Short: "Generate JSON for method call of StopTask (input-type: sonm.ID)",
-	RunE:  grpccmd.TypeToJson("sonm.ID"),
+	RunE:  xcode.TypeToJson("sonm.ID"),
 }
 
 var _Worker_TaskStatusCmd = &cobra.Command{
 	Use:   "taskStatus",
 	Short: "Make the TaskStatus method call, input-type: sonm.ID output-type: sonm.TaskStatusReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"TaskStatus",
 		"sonm.ID",
 		func(c io.Closer) interface{} {
@@ -1981,13 +1981,13 @@ var _Worker_TaskStatusCmd = &cobra.Command{
 var _Worker_TaskStatusCmd_gen = &cobra.Command{
 	Use:   "taskStatus-gen",
 	Short: "Generate JSON for method call of TaskStatus (input-type: sonm.ID)",
-	RunE:  grpccmd.TypeToJson("sonm.ID"),
+	RunE:  xcode.TypeToJson("sonm.ID"),
 }
 
 var _Worker_JoinNetworkCmd = &cobra.Command{
 	Use:   "joinNetwork",
 	Short: "Make the JoinNetwork method call, input-type: sonm.WorkerJoinNetworkRequest output-type: sonm.NetworkSpec",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"JoinNetwork",
 		"sonm.WorkerJoinNetworkRequest",
 		func(c io.Closer) interface{} {
@@ -2000,13 +2000,13 @@ var _Worker_JoinNetworkCmd = &cobra.Command{
 var _Worker_JoinNetworkCmd_gen = &cobra.Command{
 	Use:   "joinNetwork-gen",
 	Short: "Generate JSON for method call of JoinNetwork (input-type: sonm.WorkerJoinNetworkRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.WorkerJoinNetworkRequest"),
+	RunE:  xcode.TypeToJson("sonm.WorkerJoinNetworkRequest"),
 }
 
 var _Worker_TaskLogsCmd = &cobra.Command{
 	Use:   "taskLogs",
 	Short: "Make the TaskLogs method call, input-type: sonm.TaskLogsRequest output-type: sonm.TaskLogsChunk",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"TaskLogs",
 		"sonm.TaskLogsRequest",
 		func(c io.Closer) interface{} {
@@ -2019,13 +2019,13 @@ var _Worker_TaskLogsCmd = &cobra.Command{
 var _Worker_TaskLogsCmd_gen = &cobra.Command{
 	Use:   "taskLogs-gen",
 	Short: "Generate JSON for method call of TaskLogs (input-type: sonm.TaskLogsRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.TaskLogsRequest"),
+	RunE:  xcode.TypeToJson("sonm.TaskLogsRequest"),
 }
 
 var _Worker_GetDealInfoCmd = &cobra.Command{
 	Use:   "getDealInfo",
 	Short: "Make the GetDealInfo method call, input-type: sonm.ID output-type: sonm.DealInfoReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetDealInfo",
 		"sonm.ID",
 		func(c io.Closer) interface{} {
@@ -2038,12 +2038,12 @@ var _Worker_GetDealInfoCmd = &cobra.Command{
 var _Worker_GetDealInfoCmd_gen = &cobra.Command{
 	Use:   "getDealInfo-gen",
 	Short: "Generate JSON for method call of GetDealInfo (input-type: sonm.ID)",
-	RunE:  grpccmd.TypeToJson("sonm.ID"),
+	RunE:  xcode.TypeToJson("sonm.ID"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_WorkerCmd)
+	xcode.RegisterServiceCmd(_WorkerCmd)
 	_WorkerCmd.AddCommand(
 		_Worker_PushTaskCmd,
 		_Worker_PushTaskCmd_gen,

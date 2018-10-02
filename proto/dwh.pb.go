@@ -16,8 +16,8 @@ import (
 import (
 	"io"
 
+	"github.com/sonm-io/core/util/xcode"
 	"github.com/spf13/cobra"
-	"github.com/sshaman1101/grpccmd"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -2354,7 +2354,7 @@ var _DWH_serviceDesc = grpc.ServiceDesc{
 }
 
 // Begin grpccmd
-var _ = grpccmd.RunE
+var _ = xcode.RunE
 
 // DWH
 var _DWHCmd = &cobra.Command{
@@ -2365,7 +2365,7 @@ var _DWHCmd = &cobra.Command{
 var _DWH_GetDealsCmd = &cobra.Command{
 	Use:   "getDeals",
 	Short: "Make the GetDeals method call, input-type: sonm.DealsRequest output-type: sonm.DWHDealsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetDeals",
 		"sonm.DealsRequest",
 		func(c io.Closer) interface{} {
@@ -2378,13 +2378,13 @@ var _DWH_GetDealsCmd = &cobra.Command{
 var _DWH_GetDealsCmd_gen = &cobra.Command{
 	Use:   "getDeals-gen",
 	Short: "Generate JSON for method call of GetDeals (input-type: sonm.DealsRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.DealsRequest"),
+	RunE:  xcode.TypeToJson("sonm.DealsRequest"),
 }
 
 var _DWH_GetDealDetailsCmd = &cobra.Command{
 	Use:   "getDealDetails",
 	Short: "Make the GetDealDetails method call, input-type: sonm.BigInt output-type: sonm.DWHDeal",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetDealDetails",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2397,13 +2397,13 @@ var _DWH_GetDealDetailsCmd = &cobra.Command{
 var _DWH_GetDealDetailsCmd_gen = &cobra.Command{
 	Use:   "getDealDetails-gen",
 	Short: "Generate JSON for method call of GetDealDetails (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _DWH_GetDealConditionsCmd = &cobra.Command{
 	Use:   "getDealConditions",
 	Short: "Make the GetDealConditions method call, input-type: sonm.DealConditionsRequest output-type: sonm.DealConditionsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetDealConditions",
 		"sonm.DealConditionsRequest",
 		func(c io.Closer) interface{} {
@@ -2416,13 +2416,13 @@ var _DWH_GetDealConditionsCmd = &cobra.Command{
 var _DWH_GetDealConditionsCmd_gen = &cobra.Command{
 	Use:   "getDealConditions-gen",
 	Short: "Generate JSON for method call of GetDealConditions (input-type: sonm.DealConditionsRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.DealConditionsRequest"),
+	RunE:  xcode.TypeToJson("sonm.DealConditionsRequest"),
 }
 
 var _DWH_GetOrdersCmd = &cobra.Command{
 	Use:   "getOrders",
 	Short: "Make the GetOrders method call, input-type: sonm.OrdersRequest output-type: sonm.DWHOrdersReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetOrders",
 		"sonm.OrdersRequest",
 		func(c io.Closer) interface{} {
@@ -2435,13 +2435,13 @@ var _DWH_GetOrdersCmd = &cobra.Command{
 var _DWH_GetOrdersCmd_gen = &cobra.Command{
 	Use:   "getOrders-gen",
 	Short: "Generate JSON for method call of GetOrders (input-type: sonm.OrdersRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.OrdersRequest"),
+	RunE:  xcode.TypeToJson("sonm.OrdersRequest"),
 }
 
 var _DWH_GetMatchingOrdersCmd = &cobra.Command{
 	Use:   "getMatchingOrders",
 	Short: "Make the GetMatchingOrders method call, input-type: sonm.MatchingOrdersRequest output-type: sonm.DWHOrdersReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetMatchingOrders",
 		"sonm.MatchingOrdersRequest",
 		func(c io.Closer) interface{} {
@@ -2454,13 +2454,13 @@ var _DWH_GetMatchingOrdersCmd = &cobra.Command{
 var _DWH_GetMatchingOrdersCmd_gen = &cobra.Command{
 	Use:   "getMatchingOrders-gen",
 	Short: "Generate JSON for method call of GetMatchingOrders (input-type: sonm.MatchingOrdersRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.MatchingOrdersRequest"),
+	RunE:  xcode.TypeToJson("sonm.MatchingOrdersRequest"),
 }
 
 var _DWH_GetOrderDetailsCmd = &cobra.Command{
 	Use:   "getOrderDetails",
 	Short: "Make the GetOrderDetails method call, input-type: sonm.BigInt output-type: sonm.DWHOrder",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetOrderDetails",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2473,13 +2473,13 @@ var _DWH_GetOrderDetailsCmd = &cobra.Command{
 var _DWH_GetOrderDetailsCmd_gen = &cobra.Command{
 	Use:   "getOrderDetails-gen",
 	Short: "Generate JSON for method call of GetOrderDetails (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _DWH_GetProfilesCmd = &cobra.Command{
 	Use:   "getProfiles",
 	Short: "Make the GetProfiles method call, input-type: sonm.ProfilesRequest output-type: sonm.ProfilesReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetProfiles",
 		"sonm.ProfilesRequest",
 		func(c io.Closer) interface{} {
@@ -2492,13 +2492,13 @@ var _DWH_GetProfilesCmd = &cobra.Command{
 var _DWH_GetProfilesCmd_gen = &cobra.Command{
 	Use:   "getProfiles-gen",
 	Short: "Generate JSON for method call of GetProfiles (input-type: sonm.ProfilesRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.ProfilesRequest"),
+	RunE:  xcode.TypeToJson("sonm.ProfilesRequest"),
 }
 
 var _DWH_GetProfileInfoCmd = &cobra.Command{
 	Use:   "getProfileInfo",
 	Short: "Make the GetProfileInfo method call, input-type: sonm.EthID output-type: sonm.Profile",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetProfileInfo",
 		"sonm.EthID",
 		func(c io.Closer) interface{} {
@@ -2511,13 +2511,13 @@ var _DWH_GetProfileInfoCmd = &cobra.Command{
 var _DWH_GetProfileInfoCmd_gen = &cobra.Command{
 	Use:   "getProfileInfo-gen",
 	Short: "Generate JSON for method call of GetProfileInfo (input-type: sonm.EthID)",
-	RunE:  grpccmd.TypeToJson("sonm.EthID"),
+	RunE:  xcode.TypeToJson("sonm.EthID"),
 }
 
 var _DWH_GetBlacklistCmd = &cobra.Command{
 	Use:   "getBlacklist",
 	Short: "Make the GetBlacklist method call, input-type: sonm.BlacklistRequest output-type: sonm.BlacklistReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetBlacklist",
 		"sonm.BlacklistRequest",
 		func(c io.Closer) interface{} {
@@ -2530,13 +2530,13 @@ var _DWH_GetBlacklistCmd = &cobra.Command{
 var _DWH_GetBlacklistCmd_gen = &cobra.Command{
 	Use:   "getBlacklist-gen",
 	Short: "Generate JSON for method call of GetBlacklist (input-type: sonm.BlacklistRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.BlacklistRequest"),
+	RunE:  xcode.TypeToJson("sonm.BlacklistRequest"),
 }
 
 var _DWH_GetBlacklistsContainingUserCmd = &cobra.Command{
 	Use:   "getBlacklistsContainingUser",
 	Short: "Make the GetBlacklistsContainingUser method call, input-type: sonm.BlacklistRequest output-type: sonm.BlacklistsContainingUserReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetBlacklistsContainingUser",
 		"sonm.BlacklistRequest",
 		func(c io.Closer) interface{} {
@@ -2549,13 +2549,13 @@ var _DWH_GetBlacklistsContainingUserCmd = &cobra.Command{
 var _DWH_GetBlacklistsContainingUserCmd_gen = &cobra.Command{
 	Use:   "getBlacklistsContainingUser-gen",
 	Short: "Generate JSON for method call of GetBlacklistsContainingUser (input-type: sonm.BlacklistRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.BlacklistRequest"),
+	RunE:  xcode.TypeToJson("sonm.BlacklistRequest"),
 }
 
 var _DWH_GetValidatorsCmd = &cobra.Command{
 	Use:   "getValidators",
 	Short: "Make the GetValidators method call, input-type: sonm.ValidatorsRequest output-type: sonm.ValidatorsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetValidators",
 		"sonm.ValidatorsRequest",
 		func(c io.Closer) interface{} {
@@ -2568,13 +2568,13 @@ var _DWH_GetValidatorsCmd = &cobra.Command{
 var _DWH_GetValidatorsCmd_gen = &cobra.Command{
 	Use:   "getValidators-gen",
 	Short: "Generate JSON for method call of GetValidators (input-type: sonm.ValidatorsRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.ValidatorsRequest"),
+	RunE:  xcode.TypeToJson("sonm.ValidatorsRequest"),
 }
 
 var _DWH_GetDealChangeRequestsCmd = &cobra.Command{
 	Use:   "getDealChangeRequests",
 	Short: "Make the GetDealChangeRequests method call, input-type: sonm.BigInt output-type: sonm.DealChangeRequestsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetDealChangeRequests",
 		"sonm.BigInt",
 		func(c io.Closer) interface{} {
@@ -2587,13 +2587,13 @@ var _DWH_GetDealChangeRequestsCmd = &cobra.Command{
 var _DWH_GetDealChangeRequestsCmd_gen = &cobra.Command{
 	Use:   "getDealChangeRequests-gen",
 	Short: "Generate JSON for method call of GetDealChangeRequests (input-type: sonm.BigInt)",
-	RunE:  grpccmd.TypeToJson("sonm.BigInt"),
+	RunE:  xcode.TypeToJson("sonm.BigInt"),
 }
 
 var _DWH_GetChangeRequestsCmd = &cobra.Command{
 	Use:   "getChangeRequests",
 	Short: "Make the GetChangeRequests method call, input-type: sonm.ChangeRequestsRequest output-type: sonm.DealChangeRequestsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetChangeRequests",
 		"sonm.ChangeRequestsRequest",
 		func(c io.Closer) interface{} {
@@ -2606,13 +2606,13 @@ var _DWH_GetChangeRequestsCmd = &cobra.Command{
 var _DWH_GetChangeRequestsCmd_gen = &cobra.Command{
 	Use:   "getChangeRequests-gen",
 	Short: "Generate JSON for method call of GetChangeRequests (input-type: sonm.ChangeRequestsRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.ChangeRequestsRequest"),
+	RunE:  xcode.TypeToJson("sonm.ChangeRequestsRequest"),
 }
 
 var _DWH_GetWorkersCmd = &cobra.Command{
 	Use:   "getWorkers",
 	Short: "Make the GetWorkers method call, input-type: sonm.WorkersRequest output-type: sonm.WorkersReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetWorkers",
 		"sonm.WorkersRequest",
 		func(c io.Closer) interface{} {
@@ -2625,13 +2625,13 @@ var _DWH_GetWorkersCmd = &cobra.Command{
 var _DWH_GetWorkersCmd_gen = &cobra.Command{
 	Use:   "getWorkers-gen",
 	Short: "Generate JSON for method call of GetWorkers (input-type: sonm.WorkersRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.WorkersRequest"),
+	RunE:  xcode.TypeToJson("sonm.WorkersRequest"),
 }
 
 var _DWH_GetStatsCmd = &cobra.Command{
 	Use:   "getStats",
 	Short: "Make the GetStats method call, input-type: sonm.Empty output-type: sonm.DWHStatsReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetStats",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -2644,13 +2644,13 @@ var _DWH_GetStatsCmd = &cobra.Command{
 var _DWH_GetStatsCmd_gen = &cobra.Command{
 	Use:   "getStats-gen",
 	Short: "Generate JSON for method call of GetStats (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _DWH_GetOrdersByIDsCmd = &cobra.Command{
 	Use:   "getOrdersByIDs",
 	Short: "Make the GetOrdersByIDs method call, input-type: sonm.OrdersByIDsRequest output-type: sonm.DWHOrdersReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"GetOrdersByIDs",
 		"sonm.OrdersByIDsRequest",
 		func(c io.Closer) interface{} {
@@ -2663,12 +2663,12 @@ var _DWH_GetOrdersByIDsCmd = &cobra.Command{
 var _DWH_GetOrdersByIDsCmd_gen = &cobra.Command{
 	Use:   "getOrdersByIDs-gen",
 	Short: "Generate JSON for method call of GetOrdersByIDs (input-type: sonm.OrdersByIDsRequest)",
-	RunE:  grpccmd.TypeToJson("sonm.OrdersByIDsRequest"),
+	RunE:  xcode.TypeToJson("sonm.OrdersByIDsRequest"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_DWHCmd)
+	xcode.RegisterServiceCmd(_DWHCmd)
 	_DWHCmd.AddCommand(
 		_DWH_GetDealsCmd,
 		_DWH_GetDealsCmd_gen,

@@ -16,8 +16,8 @@ import (
 import (
 	"io"
 
+	"github.com/sonm-io/core/util/xcode"
 	"github.com/spf13/cobra"
-	"github.com/sshaman1101/grpccmd"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -416,7 +416,7 @@ var _Relay_serviceDesc = grpc.ServiceDesc{
 }
 
 // Begin grpccmd
-var _ = grpccmd.RunE
+var _ = xcode.RunE
 
 // Relay
 var _RelayCmd = &cobra.Command{
@@ -427,7 +427,7 @@ var _RelayCmd = &cobra.Command{
 var _Relay_ClusterCmd = &cobra.Command{
 	Use:   "cluster",
 	Short: "Make the Cluster method call, input-type: sonm.Empty output-type: sonm.RelayClusterReply",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Cluster",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -440,13 +440,13 @@ var _Relay_ClusterCmd = &cobra.Command{
 var _Relay_ClusterCmd_gen = &cobra.Command{
 	Use:   "cluster-gen",
 	Short: "Generate JSON for method call of Cluster (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _Relay_MetricsCmd = &cobra.Command{
 	Use:   "metrics",
 	Short: "Make the Metrics method call, input-type: sonm.Empty output-type: sonm.RelayMetrics",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Metrics",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -459,13 +459,13 @@ var _Relay_MetricsCmd = &cobra.Command{
 var _Relay_MetricsCmd_gen = &cobra.Command{
 	Use:   "metrics-gen",
 	Short: "Generate JSON for method call of Metrics (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 var _Relay_InfoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Make the Info method call, input-type: sonm.Empty output-type: sonm.RelayInfo",
-	RunE: grpccmd.RunE(
+	RunE: xcode.RunE(
 		"Info",
 		"sonm.Empty",
 		func(c io.Closer) interface{} {
@@ -478,12 +478,12 @@ var _Relay_InfoCmd = &cobra.Command{
 var _Relay_InfoCmd_gen = &cobra.Command{
 	Use:   "info-gen",
 	Short: "Generate JSON for method call of Info (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+	RunE:  xcode.TypeToJson("sonm.Empty"),
 }
 
 // Register commands with the root command and service command
 func init() {
-	grpccmd.RegisterServiceCmd(_RelayCmd)
+	xcode.RegisterServiceCmd(_RelayCmd)
 	_RelayCmd.AddCommand(
 		_Relay_ClusterCmd,
 		_Relay_ClusterCmd_gen,
