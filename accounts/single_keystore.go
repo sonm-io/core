@@ -29,6 +29,9 @@ func OpenSingleKeystore(path, pass string, pf PassPhraser) (*ecdsa.PrivateKey, e
 
 	if len(ks.Accounts()) == 0 {
 		acc, err = ks.NewAccount(pass)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		acc = ks.Accounts()[0]
 	}
