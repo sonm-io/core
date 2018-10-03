@@ -9,6 +9,7 @@ import (
 
 const separator = "@"
 
+// An Addr represents a parsed unified address.
 type Addr struct {
 	eth     *common.Address
 	netAddr string
@@ -22,8 +23,7 @@ func NewAddr(addr string) (*Addr, error) {
 		addr := parts[0]
 
 		if common.IsHexAddress(addr) {
-			eth := common.HexToAddress(addr)
-			return &Addr{eth: &eth}, nil
+			return NewETHAddr(common.HexToAddress(addr)), nil
 		} else {
 			return &Addr{netAddr: addr}, nil
 		}
@@ -45,10 +45,10 @@ func NewAddr(addr string) (*Addr, error) {
 	}
 }
 
-func NewAddrRaw(eth common.Address, netAddr string) Addr {
-	return Addr{
-		eth:     &eth,
-		netAddr: netAddr,
+// NewETHAddr constructs a new unified address from the given ETH address.
+func NewETHAddr(addr common.Address) *Addr {
+	return &Addr{
+		eth: &addr,
 	}
 }
 

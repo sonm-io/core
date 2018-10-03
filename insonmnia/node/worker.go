@@ -26,13 +26,11 @@ type workerAPI struct {
 func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
-		return &addr, nil
+		return auth.NewETHAddr(crypto.PubkeyToAddress(h.remotes.key.PublicKey)), nil
 	}
 	ctxAddrs, ok := md[util.WorkerAddressHeader]
 	if !ok {
-		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
-		return &addr, nil
+		return auth.NewETHAddr(crypto.PubkeyToAddress(h.remotes.key.PublicKey)), nil
 	}
 	if len(ctxAddrs) != 1 {
 		return nil, fmt.Errorf("worker address key in metadata has %d headers (exactly one required)", len(ctxAddrs))

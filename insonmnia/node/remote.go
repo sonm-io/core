@@ -66,8 +66,7 @@ func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) 
 }
 
 func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth string) (*workerClient, io.Closer, error) {
-	addr := auth.NewAddrRaw(common.HexToAddress(eth), "")
-	return re.workerCreator(ctx, &addr)
+	return re.workerCreator(ctx, auth.NewETHAddr(common.HexToAddress(eth)))
 }
 
 // isWorkerAvailable building worker client by eth address, then call .Status method
