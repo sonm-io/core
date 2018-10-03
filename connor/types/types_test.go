@@ -45,18 +45,21 @@ func TestCorder_AsBID(t *testing.T) {
 	null := NewCorderFactory("NULL", nullBenchmarkIndex, common.Address{}).FromParams(big.NewInt(100), 550, newBenchmarksWithGPUMem(1e6))
 
 	hashrate, ok := eth.AsBID().GetResources().GetBenchmarks()["gpu-eth-hashrate"]
+	require.True(t, ok)
 	gpuMem, ok := eth.AsBID().GetResources().GetBenchmarks()["gpu-mem"]
 	require.True(t, ok)
 	assert.Equal(t, hashrate, uint64(1000))
 	assert.Equal(t, gpuMem, uint64(3000e6))
 
 	hashrate, ok = zec.AsBID().GetResources().GetBenchmarks()["gpu-cash-hashrate"]
+	require.True(t, ok)
 	gpuMem, ok = zec.AsBID().GetResources().GetBenchmarks()["gpu-mem"]
 	require.True(t, ok)
 	assert.Equal(t, hashrate, uint64(130))
 	assert.Equal(t, gpuMem, uint64(900e6))
 
 	hashrate, ok = null.AsBID().GetResources().GetBenchmarks()["gpu-redshift"]
+	require.True(t, ok)
 	gpuMem, ok = null.AsBID().GetResources().GetBenchmarks()["gpu-mem"]
 	require.True(t, ok)
 	assert.Equal(t, hashrate, uint64(550))
