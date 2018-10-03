@@ -78,6 +78,5 @@ func NewConfig(path string) (*Config, error) {
 }
 
 type SuperusersConfig struct {
-	URL          string        `yaml:"url" default:"http://localhost:8080/superusers.json"`
 	UpdatePeriod time.Duration `yaml:"update_period" default:"1m"`
 }

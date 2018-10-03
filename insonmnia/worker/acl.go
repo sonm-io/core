@@ -35,6 +35,8 @@ var (
 	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
 )
 
+const superusersURL = "http://localhost:8080/superusers.json"
+
 // DealExtractor allows to extract deal id that is used for authorization.
 type DealExtractor func(ctx context.Context, request interface{}) (structs.DealID, error)
 
@@ -236,7 +238,7 @@ type superuserAuthorization struct {
 func newSuperuserAuthorization(ctx context.Context, cfg SuperusersConfig) *superuserAuthorization {
 	out := &superuserAuthorization{
 		period: cfg.UpdatePeriod,
-		url:    cfg.URL,
+		url:    superusersURL,
 	}
 	go out.updateRoutine(ctx)
 
