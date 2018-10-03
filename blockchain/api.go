@@ -1935,6 +1935,9 @@ func (api *BasicMultiSigAPI) AddOwner(ctx context.Context, key *ecdsa.PrivateKey
 		return err
 	}
 	data, err := oracleABI.Pack("AddOwner", owner)
+	if err != nil {
+		return err
+	}
 
 	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
 }
@@ -1945,6 +1948,9 @@ func (api *BasicMultiSigAPI) RemoveOwner(ctx context.Context, key *ecdsa.Private
 		return err
 	}
 	data, err := oracleABI.Pack("RemoveOwner", owner)
+	if err != nil {
+		return err
+	}
 
 	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
 }
@@ -1955,6 +1961,9 @@ func (api *BasicMultiSigAPI) ReplaceOwner(ctx context.Context, key *ecdsa.Privat
 		return err
 	}
 	data, err := oracleABI.Pack("ReplaceOwner", owner, newOwner)
+	if err != nil {
+		return err
+	}
 
 	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
 }
@@ -1965,6 +1974,9 @@ func (api *BasicMultiSigAPI) ChangeRequirement(ctx context.Context, key *ecdsa.P
 		return err
 	}
 	data, err := oracleABI.Pack("ChangeRequirement", required)
+	if err != nil {
+		return err
+	}
 
 	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
 }
