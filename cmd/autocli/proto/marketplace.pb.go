@@ -12,6 +12,14 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// grpccmd imports
+import (
+	"io"
+
+	"github.com/sonm-io/core/util/xcode"
+	"github.com/spf13/cobra"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -997,6 +1005,171 @@ var _Market_serviceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "marketplace.proto",
 }
+
+// Begin grpccmd
+var _ = xcode.RunE
+
+// Market
+var _MarketCmd = &cobra.Command{
+	Use:   "market [method]",
+	Short: "Subcommand for the Market service.",
+}
+
+var _Market_GetOrdersCmd = &cobra.Command{
+	Use:   "getOrders",
+	Short: "Make the GetOrders method call, input-type: sonm.Count output-type: sonm.GetOrdersReply",
+	RunE: xcode.RunE(
+		"GetOrders",
+		"sonm.Count",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMarketClient(cc)
+		},
+	),
+}
+
+var _Market_GetOrdersCmd_gen = &cobra.Command{
+	Use:   "getOrders-gen",
+	Short: "Generate JSON for method call of GetOrders (input-type: sonm.Count)",
+	RunE:  xcode.TypeToJson("sonm.Count"),
+}
+
+var _Market_CreateOrderCmd = &cobra.Command{
+	Use:   "createOrder",
+	Short: "Make the CreateOrder method call, input-type: sonm.BidOrder output-type: sonm.Order",
+	RunE: xcode.RunE(
+		"CreateOrder",
+		"sonm.BidOrder",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMarketClient(cc)
+		},
+	),
+}
+
+var _Market_CreateOrderCmd_gen = &cobra.Command{
+	Use:   "createOrder-gen",
+	Short: "Generate JSON for method call of CreateOrder (input-type: sonm.BidOrder)",
+	RunE:  xcode.TypeToJson("sonm.BidOrder"),
+}
+
+var _Market_GetOrderByIDCmd = &cobra.Command{
+	Use:   "getOrderByID",
+	Short: "Make the GetOrderByID method call, input-type: sonm.ID output-type: sonm.Order",
+	RunE: xcode.RunE(
+		"GetOrderByID",
+		"sonm.ID",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMarketClient(cc)
+		},
+	),
+}
+
+var _Market_GetOrderByIDCmd_gen = &cobra.Command{
+	Use:   "getOrderByID-gen",
+	Short: "Generate JSON for method call of GetOrderByID (input-type: sonm.ID)",
+	RunE:  xcode.TypeToJson("sonm.ID"),
+}
+
+var _Market_CancelOrderCmd = &cobra.Command{
+	Use:   "cancelOrder",
+	Short: "Make the CancelOrder method call, input-type: sonm.ID output-type: sonm.Empty",
+	RunE: xcode.RunE(
+		"CancelOrder",
+		"sonm.ID",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMarketClient(cc)
+		},
+	),
+}
+
+var _Market_CancelOrderCmd_gen = &cobra.Command{
+	Use:   "cancelOrder-gen",
+	Short: "Generate JSON for method call of CancelOrder (input-type: sonm.ID)",
+	RunE:  xcode.TypeToJson("sonm.ID"),
+}
+
+var _Market_CancelOrdersCmd = &cobra.Command{
+	Use:   "cancelOrders",
+	Short: "Make the CancelOrders method call, input-type: sonm.OrderIDs output-type: sonm.ErrorByID",
+	RunE: xcode.RunE(
+		"CancelOrders",
+		"sonm.OrderIDs",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMarketClient(cc)
+		},
+	),
+}
+
+var _Market_CancelOrdersCmd_gen = &cobra.Command{
+	Use:   "cancelOrders-gen",
+	Short: "Generate JSON for method call of CancelOrders (input-type: sonm.OrderIDs)",
+	RunE:  xcode.TypeToJson("sonm.OrderIDs"),
+}
+
+var _Market_PurgeCmd = &cobra.Command{
+	Use:   "purge",
+	Short: "Make the Purge method call, input-type: sonm.Empty output-type: sonm.Empty",
+	RunE: xcode.RunE(
+		"Purge",
+		"sonm.Empty",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMarketClient(cc)
+		},
+	),
+}
+
+var _Market_PurgeCmd_gen = &cobra.Command{
+	Use:   "purge-gen",
+	Short: "Generate JSON for method call of Purge (input-type: sonm.Empty)",
+	RunE:  xcode.TypeToJson("sonm.Empty"),
+}
+
+var _Market_PurgeVerboseCmd = &cobra.Command{
+	Use:   "purgeVerbose",
+	Short: "Make the PurgeVerbose method call, input-type: sonm.Empty output-type: sonm.ErrorByID",
+	RunE: xcode.RunE(
+		"PurgeVerbose",
+		"sonm.Empty",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMarketClient(cc)
+		},
+	),
+}
+
+var _Market_PurgeVerboseCmd_gen = &cobra.Command{
+	Use:   "purgeVerbose-gen",
+	Short: "Generate JSON for method call of PurgeVerbose (input-type: sonm.Empty)",
+	RunE:  xcode.TypeToJson("sonm.Empty"),
+}
+
+// Register commands with the root command and service command
+func init() {
+	xcode.RegisterServiceCmd(_MarketCmd)
+	_MarketCmd.AddCommand(
+		_Market_GetOrdersCmd,
+		_Market_GetOrdersCmd_gen,
+		_Market_CreateOrderCmd,
+		_Market_CreateOrderCmd_gen,
+		_Market_GetOrderByIDCmd,
+		_Market_GetOrderByIDCmd_gen,
+		_Market_CancelOrderCmd,
+		_Market_CancelOrderCmd_gen,
+		_Market_CancelOrdersCmd,
+		_Market_CancelOrdersCmd_gen,
+		_Market_PurgeCmd,
+		_Market_PurgeCmd_gen,
+		_Market_PurgeVerboseCmd,
+		_Market_PurgeVerboseCmd_gen,
+	)
+}
+
+// End grpccmd
 
 func init() { proto.RegisterFile("marketplace.proto", fileDescriptor7) }
 

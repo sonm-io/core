@@ -12,6 +12,14 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// grpccmd imports
+import (
+	"io"
+
+	"github.com/sonm-io/core/util/xcode"
+	"github.com/spf13/cobra"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -88,6 +96,45 @@ var _OrderPredictor_serviceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "optimus.proto",
 }
+
+// Begin grpccmd
+var _ = xcode.RunE
+
+// OrderPredictor
+var _OrderPredictorCmd = &cobra.Command{
+	Use:   "orderPredictor [method]",
+	Short: "Subcommand for the OrderPredictor service.",
+}
+
+var _OrderPredictor_PredictCmd = &cobra.Command{
+	Use:   "predict",
+	Short: "Make the Predict method call, input-type: sonm.BidResources output-type: sonm.Price",
+	RunE: xcode.RunE(
+		"Predict",
+		"sonm.BidResources",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewOrderPredictorClient(cc)
+		},
+	),
+}
+
+var _OrderPredictor_PredictCmd_gen = &cobra.Command{
+	Use:   "predict-gen",
+	Short: "Generate JSON for method call of Predict (input-type: sonm.BidResources)",
+	RunE:  xcode.TypeToJson("sonm.BidResources"),
+}
+
+// Register commands with the root command and service command
+func init() {
+	xcode.RegisterServiceCmd(_OrderPredictorCmd)
+	_OrderPredictorCmd.AddCommand(
+		_OrderPredictor_PredictCmd,
+		_OrderPredictor_PredictCmd_gen,
+	)
+}
+
+// End grpccmd
 
 func init() { proto.RegisterFile("optimus.proto", fileDescriptor10) }
 

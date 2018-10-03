@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/sonm-io/core/proto"
+	_ "github.com/sonm-io/core/cmd/autocli/proto"
 	"github.com/sonm-io/core/util/xcode"
 )
 
