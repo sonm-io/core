@@ -2,18 +2,27 @@ package worker
 
 import (
 	"context"
+	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/util"
 	// alias here is required for dumb gomock
+	"encoding/json"
+	"fmt"
+	"io"
+	"sync"
+
 	sonm "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -215,4 +224,99 @@ func (a *allOfAuth) Authorize(ctx context.Context, request interface{}) error {
 
 func newAllOfAuth(a ...auth.Authorization) auth.Authorization {
 	return &allOfAuth{authorizers: a}
+}
+
+type superuserAuthorization struct {
+	mu         sync.RWMutex
+	period     time.Duration
+	url        string
+	superusers []common.Address
+}
+
+func newSuperuserAuthorization(ctx context.Context, cfg *SuperusersConfig) *superuserAuthorization {
+	out := &superuserAuthorization{
+		period: cfg.UpdatePeriod,
+		url:    cfg.URL,
+	}
+	go out.updateRoutine(ctx)
+
+	return out
+}
+
+func (m *superuserAuthorization) updateRoutine(ctx context.Context) error {
+	ticker := util.NewImmediateTicker(m.period)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			err := m.load(ctx, m.url)
+			if err != nil {
+				log.G(ctx).Error("could not load whitelist", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (m *superuserAuthorization) load(ctx context.Context, url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	log.G(ctx).Info("fetched whitelist")
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("failed to download whitelist - got %s", resp.Status)
+	}
+
+	return m.readList(ctx, resp.Body)
+}
+
+func (m *superuserAuthorization) readList(ctx context.Context, jsonReader io.Reader) error {
+	decoder := json.NewDecoder(jsonReader)
+	rawAddresses := make([]string, 0)
+	err := decoder.Decode(&rawAddresses)
+	if err != nil {
+		return fmt.Errorf("could not decode whitelist data: %v", err)
+	}
+
+	var superusers = make([]common.Address, len(rawAddresses))
+	for idx, address := range rawAddresses {
+		superuser, err := util.HexToAddress(address)
+		if err != nil {
+			return fmt.Errorf("failed to decode %s into common.Address: %v", address, err)
+		}
+		superusers[idx] = superuser
+	}
+
+	m.mu.Lock()
+	m.superusers = superusers
+	m.mu.Unlock()
+
+	return nil
+}
+
+func (m *superuserAuthorization) Authorize(ctx context.Context, request interface{}) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	peerInfo, ok := peer.FromContext(ctx)
+	if !ok {
+		return status.Error(codes.Unauthenticated, "no peer info")
+	}
+
+	switch authInfo := peerInfo.AuthInfo.(type) {
+	case auth.EthAuthInfo:
+		for _, superuser := range m.superusers {
+			if authInfo.Wallet == superuser {
+				return nil
+			}
+		}
+		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", authInfo.Wallet.Hex())
+	default:
+		return status.Error(codes.Unauthenticated, "unknown auth info")
+	}
 }

@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -55,6 +57,7 @@ type Config struct {
 	Development       *DevConfig          `yaml:"development"`
 	Admin             *common.Address     `yaml:"admin"`
 	Debug             *debug.Config       `yaml:"debug"`
+	Superusers        *SuperusersConfig   `yaml: "superusers"`
 }
 
 // NewConfig creates a new Worker config from the specified YAML file.
@@ -72,4 +75,9 @@ func NewConfig(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+type SuperusersConfig struct {
+	URL          string        `yaml:"url" default:"http://localhost:8080"`
+	UpdatePeriod time.Duration `yaml:"update_period" default:"1m"`
 }
