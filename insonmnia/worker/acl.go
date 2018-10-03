@@ -233,7 +233,7 @@ type superuserAuthorization struct {
 	superusers []common.Address
 }
 
-func newSuperuserAuthorization(ctx context.Context, cfg *SuperusersConfig) *superuserAuthorization {
+func newSuperuserAuthorization(ctx context.Context, cfg SuperusersConfig) *superuserAuthorization {
 	out := &superuserAuthorization{
 		period: cfg.UpdatePeriod,
 		url:    cfg.URL,
@@ -252,9 +252,8 @@ func (m *superuserAuthorization) updateRoutine(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			err := m.load(ctx, m.url)
-			if err != nil {
-				log.G(ctx).Error("could not load whitelist", zap.Error(err))
+			if err := m.load(ctx, m.url); err != nil {
+				log.G(ctx).Error("could not load superusers", zap.Error(err))
 			}
 		}
 	}
@@ -263,7 +262,7 @@ func (m *superuserAuthorization) updateRoutine(ctx context.Context) error {
 func (m *superuserAuthorization) load(ctx context.Context, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send request: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -280,7 +279,7 @@ func (m *superuserAuthorization) readList(ctx context.Context, jsonReader io.Rea
 	rawAddresses := make([]string, 0)
 	err := decoder.Decode(&rawAddresses)
 	if err != nil {
-		return fmt.Errorf("could not decode whitelist data: %v", err)
+		return fmt.Errorf("could not decode superusers data: %v", err)
 	}
 
 	var superusers = make([]common.Address, len(rawAddresses))

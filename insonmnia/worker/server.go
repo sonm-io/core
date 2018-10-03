@@ -350,16 +350,12 @@ func (m *Worker) setupAuthorization() error {
 		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
 			return structs.DealID(request.(*sonm.ID).GetId()), nil
 		}))),
-		auth.Allow(taskAPIPrefix+"Devices").With(newSuperuserAuthorization(m.ctx, m.cfg.Superusers)),
+		auth.Allow(workerAPIPrefix+"Devices").With(newSuperuserAuthorization(m.ctx, m.cfg.Superusers)),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 
 	m.eventAuthorization = authorization
 	return nil
-}
-
-func (m *Worker) getSuperusersList(superusersAddress string) ([]common.Address, error) {
-
 }
 
 func (m *Worker) setupControlGroup() error {
