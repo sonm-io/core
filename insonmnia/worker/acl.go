@@ -35,7 +35,7 @@ var (
 	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
 )
 
-const superusersURL = "http://localhost:8080/superusers.json"
+const superusersURL = "https://raw.githubusercontent.com/sonm-io/core/master/superusers.json"
 
 // DealExtractor allows to extract deal id that is used for authorization.
 type DealExtractor func(ctx context.Context, request interface{}) (structs.DealID, error)
