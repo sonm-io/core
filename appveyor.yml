@@ -1,4 +1,4 @@
-version: 0.4.0.{build}
+version: 0.4.12.{build}
 
 platform: x86
 
@@ -10,6 +10,7 @@ clone_folder: c:\gopath\src\github.com\sonm-io\core
 
 environment:
   GOPATH: c:\gopath
+  GO111MODULE: on
 
 install:
   - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
