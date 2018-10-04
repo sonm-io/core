@@ -82,15 +82,6 @@ func (m *PredictorService) PredictSupplier(ctx context.Context, request *sonm.Pr
 		Optimization: OptimizationConfig{
 			Model: optimizationMethodFactory{
 				OptimizationMethodFactory: &defaultOptimizationMethodFactory{},
-				//OptimizationMethodFactory: &GreedyLinearRegressionModelFactory{
-				//	GreedyLinearRegressionModelConfig: GreedyLinearRegressionModelConfig{
-				//		WeightLimit:     1e-3,
-				//		ExhaustionLimit: 128,
-				//		Model: regressionModelFactory{
-				//			RegressionModelFactory: &SCAKKTModel{},
-				//		},
-				//	},
-				//},
 			},
 		},
 	}
