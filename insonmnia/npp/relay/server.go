@@ -198,7 +198,7 @@ func newMeetingHall(newMeetingHandler meetingHandlerFactory, log *zap.Logger) *m
 	}
 }
 
-func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) (<-chan error, deleter) {
+func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) <-chan error {
 	c := make(chan error, 1)
 
 	m.mu.Lock()
@@ -226,13 +226,10 @@ func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, co
 		m.meetingRoom[id] = meeting
 	}
 
-	return c, func() {
-		m.removeServerWatch(id, connID)
-		close(c)
-	}
+	return c
 }
 
-func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) (<-chan error, deleter) {
+func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) <-chan error {
 	c := make(chan error, 1)
 
 	m.mu.Lock()
@@ -259,10 +256,7 @@ func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, co
 		m.meetingRoom[id] = meeting
 	}
 
-	return c, func() {
-		m.removeClientWatch(id, connID)
-		close(c)
-	}
+	return c
 }
 
 func (m *meetingHall) executeMeeting(ctx context.Context, id nppc.ResourceID, server, client net.Conn) error {
@@ -697,14 +691,14 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 
 		m.continuum.Track(addr) // TODO: Also undo tracking.
 
-		rx, deleter := m.meetingRoom.addClientWatch(ctx, addr, id, conn)
-		defer deleter()
+		rx := m.meetingRoom.addClientWatch(ctx, addr, id, conn)
+		defer m.meetingRoom.removeClientWatch(addr, id)
 
 		select {
 		case <-timer.C:
 			return errTimeout()
-		case err, ok := <-rx:
-			if ok && err != nil {
+		case err := <-rx:
+			if err != nil {
 				return err
 			}
 		}
@@ -712,14 +706,14 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		timer := time.NewTimer(30 * time.Second)
 		defer timer.Stop()
 
-		rx, deleter := m.meetingRoom.addServerWatch(ctx, addr, id, conn)
-		defer deleter()
+		rx := m.meetingRoom.addServerWatch(ctx, addr, id, conn)
+		defer m.meetingRoom.removeServerWatch(addr, id)
 
 		select {
 		case <-timer.C:
 			return errTimeout()
-		case err, ok := <-rx:
-			if ok && err != nil {
+		case err := <-rx:
+			if err != nil {
 				return err
 			}
 		}
