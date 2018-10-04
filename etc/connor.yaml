@@ -16,7 +16,7 @@ market:
   # set to true if Connor should adapt excess orders
   # (which are not fits in the target set), otherwise, orders will be canceled.
   # Default: false
-  # no_cancel: false
+  # adopt_orders: false
 
   price_control:
     # what part of the real market price will be used to
