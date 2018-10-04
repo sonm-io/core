@@ -19,7 +19,7 @@ import (
 )
 
 type dwarfPoolProcessor struct {
-	cfg      *ProcessorConfig
+	cfg      *PoolProcessorConfig
 	log      *zap.Logger
 	wallet   common.Address
 	taskID   string
@@ -32,7 +32,7 @@ type dwarfPoolProcessor struct {
 	hashrateQueue   *lane.Queue
 }
 
-func newDwarfPoolProcessor(cfg *ProcessorConfig, log *zap.Logger, deal *types.Deal, taskID string) *dwarfPoolProcessor {
+func newDwarfPoolProcessor(cfg *PoolProcessorConfig, log *zap.Logger, deal *types.Deal, taskID string) *dwarfPoolProcessor {
 	workerID := fmt.Sprintf("c%s", deal.GetId().Unwrap().String())
 	l := log.Named("dwarfpool").With(
 		zap.String("deal_id", deal.GetId().Unwrap().String()),

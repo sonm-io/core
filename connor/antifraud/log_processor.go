@@ -22,11 +22,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-type logParseFunc func(context.Context, *commonLogProcessor, io.Reader)
-
-type commonLogProcessor struct {
+type logProcessor struct {
 	log          *zap.Logger
-	cfg          *ProcessorConfig
+	cfg          *LogProcessorConfig
 	deal         *types.Deal
 	taskID       string
 	taskClient   sonm.TaskManagementClient
@@ -34,20 +32,18 @@ type commonLogProcessor struct {
 	startTime    time.Time
 
 	hashrate    *atomic.Float64
-	logParser   logParseFunc
 	historyFile *os.File
 }
 
-func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientConn, deal *types.Deal, taskID string, lp logParseFunc) Processor {
+func newLogProcessor(cfg *LogProcessorConfig, log *zap.Logger, conn *grpc.ClientConn, deal *types.Deal, taskID string) Processor {
 	log = log.Named("task-logs").With(zap.String("task_id", taskID),
 		zap.String("deal_id", deal.GetId().Unwrap().String()))
 
-	return &commonLogProcessor{
+	return &logProcessor{
 		log:          log,
 		cfg:          cfg,
 		deal:         deal,
 		taskID:       taskID,
-		logParser:    lp,
 		taskClient:   sonm.NewTaskManagementClient(conn),
 		hashrateEWMA: metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
 		startTime:    time.Now(),
@@ -55,18 +51,18 @@ func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientCon
 	}
 }
 
-func (m *commonLogProcessor) TaskQuality() (bool, float64) {
+func (m *logProcessor) TaskQuality() (bool, float64) {
 	accurate := m.startTime.Add(m.cfg.TaskWarmupDelay).Before(time.Now())
 	desired := float64(m.deal.BenchmarkValue())
 	actual := m.hashrateEWMA.Rate()
 	return accurate, actual / desired
 }
 
-func (m *commonLogProcessor) TaskID() string {
+func (m *logProcessor) TaskID() string {
 	return m.taskID
 }
 
-func (m *commonLogProcessor) Run(ctx context.Context) error {
+func (m *logProcessor) Run(ctx context.Context) error {
 	m.hashrateEWMA.Update(int64(m.hashrate.Load() * 5.))
 	m.hashrateEWMA.Tick()
 
@@ -101,7 +97,7 @@ func (m *commonLogProcessor) Run(ctx context.Context) error {
 	}
 }
 
-func (m *commonLogProcessor) maybeOpenHistoryFile() error {
+func (m *logProcessor) maybeOpenHistoryFile() error {
 	if len(m.cfg.LogDir) == 0 {
 		return fmt.Errorf("task logs saving is not configured")
 	}
@@ -118,7 +114,7 @@ func (m *commonLogProcessor) maybeOpenHistoryFile() error {
 	return nil
 }
 
-func (m *commonLogProcessor) maybeSaveLogLine(line string) {
+func (m *logProcessor) maybeSaveLogLine(line string) {
 	if m.historyFile != nil {
 		withTimestamp := fmt.Sprintf("%s: %s\n", time.Now().Format(time.RFC3339), line)
 		if _, err := m.historyFile.WriteString(withTimestamp); err != nil {
@@ -127,7 +123,7 @@ func (m *commonLogProcessor) maybeSaveLogLine(line string) {
 	}
 }
 
-func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
+func (m *logProcessor) fetchLogs(ctx context.Context) error {
 	request := &sonm.TaskLogsRequest{
 		Type:   sonm.TaskLogsRequest_BOTH,
 		Id:     m.taskID,
@@ -165,7 +161,7 @@ func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 		logReader := sonm.NewLogReader(cli)
 		reader, writer := io.Pipe()
 
-		go m.logParser(ctx, m, reader)
+		go m.logParser(ctx, reader)
 
 		_, err = stdcopy.StdCopy(writer, writer, logReader)
 		m.log.Warn("stop reading logs for task", zap.Error(err), zap.Int("count", failureCount))
@@ -174,11 +170,7 @@ func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 	}
 }
 
-func newClaymoreLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *types.Deal, taskID string) Processor {
-	return newLogProcessor(cfg, log, nodeConnection, deal, taskID, claymoreLogParser)
-}
-
-func claymoreLogParser(ctx context.Context, m *commonLogProcessor, reader io.Reader) {
+func (m *logProcessor) logParser(ctx context.Context, reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		if ctx.Err() != nil {
@@ -189,53 +181,9 @@ func claymoreLogParser(ctx context.Context, m *commonLogProcessor, reader io.Rea
 		line := scanner.Text()
 		m.maybeSaveLogLine(line)
 
-		if strings.Contains(line, "Total Speed: ") {
+		if strings.Contains(line, m.cfg.Pattern) {
 			fields := strings.Fields(line)
-			if len(fields) != 13 {
-				m.log.Warn("invalid claymore log line", zap.String("line", line), zap.Int("fields_count", len(fields)))
-				return
-			}
-
-			hashrateStr := fields[4]
-			hashrate, err := strconv.ParseFloat(hashrateStr, 64)
-			if err != nil {
-				m.log.Warn("failed to parse hashrate",
-					zap.String("line", line),
-					zap.String("field", hashrateStr),
-					zap.Error(err))
-				return
-			}
-
-			m.hashrate.Store(hashrate * 1e6)
-		}
-	}
-
-	m.log.Debug("finished reading logs", zap.Error(scanner.Err()))
-}
-
-func newXmrigLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *types.Deal, taskID string) Processor {
-	return newLogProcessor(cfg, log, nodeConnection, deal, taskID, xmrigLogParser)
-}
-
-func xmrigLogParser(ctx context.Context, m *commonLogProcessor, reader io.Reader) {
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		if ctx.Err() != nil {
-			m.log.Debug("stop reading logs: context cancelled")
-			return
-		}
-
-		line := scanner.Text()
-		m.maybeSaveLogLine(line)
-
-		if strings.Contains(line, "speed 10s/60s/15m") {
-			fields := strings.Fields(line)
-			if len(fields) != 11 {
-				m.log.Warn("invalid xmrig log line", zap.String("line", line), zap.Int("fields_count", len(fields)))
-				return
-			}
-
-			raw := fields[4]
+			raw := fields[m.cfg.Field]
 			hashrate, err := strconv.ParseFloat(raw, 64)
 			if err != nil {
 				m.log.Warn("failed to parse hashrate", zap.String("line", line),
@@ -243,7 +191,7 @@ func xmrigLogParser(ctx context.Context, m *commonLogProcessor, reader io.Reader
 				return
 			}
 
-			m.hashrate.Store(hashrate)
+			m.hashrate.Store(hashrate * m.cfg.Multiplier)
 		}
 	}
 }
