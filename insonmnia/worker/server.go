@@ -68,6 +68,7 @@ var (
 		workerAPIPrefix + "CreateAskPlan",
 		workerAPIPrefix + "RemoveAskPlan",
 		workerAPIPrefix + "PurgeAskPlans",
+		workerAPIPrefix + "PurgeAskPlansDetailed",
 		workerAPIPrefix + "ScheduleMaintenance",
 		workerAPIPrefix + "NextMaintenance",
 		workerAPIPrefix + "DebugState",
@@ -183,12 +184,12 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 		return nil, err
 	}
 
-	if err := m.setupSalesman(); err != nil {
+	if err := m.setupRunningContainers(); err != nil {
 		m.Close()
 		return nil, err
 	}
 
-	if err := m.setupRunningContainers(); err != nil {
+	if err := m.setupSalesman(); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -393,22 +394,7 @@ func (m *Worker) setupHardware() error {
 	return nil
 }
 
-func (m *Worker) listenDeals(dealsCh <-chan *sonm.Deal) {
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case deal := <-dealsCh:
-			if deal.Status == sonm.DealStatus_DEAL_CLOSED {
-				if err := m.cancelDealTasks(deal.GetId()); err != nil {
-					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s: %s", deal.GetId().Unwrap().String(), err)
-				}
-			}
-		}
-	}
-}
-
-func (m *Worker) cancelDealTasks(dealID *sonm.BigInt) error {
+func (m *Worker) CancelDealTasks(dealID *sonm.BigInt) error {
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
@@ -820,7 +806,7 @@ func (m *Worker) StartTask(ctx context.Context, request *sonm.StartTaskRequest) 
 	deal, err := m.salesman.Deal(dealID)
 	if err != nil || deal.Status != sonm.DealStatus_DEAL_ACCEPTED {
 		log.G(m.ctx).Warn("deal was closed before task was spawned")
-		if err := m.cancelDealTasks(dealID); err != nil {
+		if err := m.CancelDealTasks(dealID); err != nil {
 			log.S(m.ctx).Errorf("failed to drop tasks of closed deals: %s", err)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to start task: corresponding deal was closed")
@@ -989,6 +975,7 @@ func (m *Worker) setupResources() error {
 
 func (m *Worker) setupSalesman() error {
 	s, err := salesman.NewSalesman(
+		m.ctx,
 		salesman.WithLogger(log.S(m.ctx).With("source", "salesman")),
 		salesman.WithStorage(m.storage),
 		salesman.WithResources(m.resources),
@@ -998,14 +985,14 @@ func (m *Worker) setupSalesman() error {
 		salesman.WithMatcher(m.matcher),
 		salesman.WithEthkey(m.key),
 		salesman.WithConfig(&m.cfg.Salesman),
+		salesman.WithDealDestroyer(m),
 	)
 	if err != nil {
 		return err
 	}
 	m.salesman = s
 
-	ch := m.salesman.Run(m.ctx)
-	go m.listenDeals(ch)
+	m.salesman.Run(m.ctx)
 	return nil
 }
 
@@ -1091,7 +1078,7 @@ func (m *Worker) setupRunningContainers() error {
 	}
 
 	for _, deal := range closedDeals {
-		if err := m.cancelDealTasks(deal.GetId()); err != nil {
+		if err := m.CancelDealTasks(deal.GetId()); err != nil {
 			return fmt.Errorf("failed to cancel tasks for deal %s: %v", deal.Id.Unwrap().String(), err)
 		}
 	}
@@ -1479,26 +1466,19 @@ func (m *Worker) CreateAskPlan(ctx context.Context, request *sonm.AskPlan) (*son
 }
 
 func (m *Worker) RemoveAskPlan(ctx context.Context, request *sonm.ID) (*sonm.Empty, error) {
-	if err := m.salesman.RemoveAskPlan(request.GetId()); err != nil {
+	if err := m.salesman.RemoveAskPlan(ctx, request.GetId()); err != nil {
 		return nil, err
 	}
 	return &sonm.Empty{}, nil
 }
 
 func (m *Worker) PurgeAskPlans(ctx context.Context, _ *sonm.Empty) (*sonm.Empty, error) {
-	plans := m.salesman.AskPlans()
-
-	result := multierror.NewMultiError()
-	for id := range plans {
-		err := m.salesman.RemoveAskPlan(id)
-		result = multierror.Append(result, err)
-	}
-
-	if result.ErrorOrNil() != nil {
-		return nil, result.ErrorOrNil()
-	}
-
+	m.salesman.PurgeAskPlans(ctx)
 	return &sonm.Empty{}, nil
+}
+
+func (m *Worker) PurgeAskPlansDetailed(ctx context.Context, _ *sonm.Empty) (*sonm.ErrorByStringID, error) {
+	return m.salesman.PurgeAskPlans(ctx)
 }
 
 func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *sonm.Timestamp) (*sonm.Empty, error) {

@@ -209,11 +209,14 @@ func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, co
 		// Notify both sides immediately if there is match between candidates.
 		if server := meeting.popRandomServer(); server != nil {
 			m.log.Infow("providing remote server", zap.Stringer("remoteAddr", server.conn.RemoteAddr()))
-			err := m.executeMeeting(ctx, id, server.conn, conn)
 
-			// Notify both watchers.
-			c <- err
-			server.C <- err
+			go func() {
+				err := m.executeMeeting(ctx, id, server.conn, conn)
+
+				// Notify both watchers.
+				c <- err
+				server.C <- err
+			}()
 		} else {
 			meeting.putClient(connID, conn, c)
 		}
@@ -240,11 +243,13 @@ func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, co
 		if client := meeting.popRandomClient(); client != nil {
 			m.log.Infow("providing remote client", zap.Stringer("remoteAddr", client.conn.RemoteAddr()))
 
-			err := m.executeMeeting(ctx, id, conn, client.conn)
+			go func() {
+				err := m.executeMeeting(ctx, id, conn, client.conn)
 
-			// Notify both watchers.
-			client.C <- err
-			c <- err
+				// Notify both watchers.
+				client.C <- err
+				c <- err
+			}()
 		} else {
 			meeting.putServer(connID, conn, c)
 		}
