@@ -709,7 +709,7 @@ func (m *defaultOptimizationMethodFactory) Config() interface{} {
 }
 
 func (m *defaultOptimizationMethodFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
-	if len(matchedOrders) < 128 {
+	if len(matchedOrders) < 64 {
 		return &BranchBoundModel{
 			Log: log.With(zap.String("model", "BBM")),
 		}
