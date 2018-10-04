@@ -845,8 +845,16 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 		e.RestoreOrder(ctx, ord)
 	}
 
-	for _, ord := range set.Cancel {
-		e.CancelOrder(ord)
+	if e.cfg.Market.NoCancel {
+		e.log.Debug("no_cancel option is enabled, restoring excess orders")
+		for _, ord := range set.Cancel {
+			e.RestoreOrder(ctx, ord)
+		}
+	} else {
+		e.log.Debug("no_cancel option is disabled, cancelling excess orders")
+		for _, ord := range set.Cancel {
+			e.CancelOrder(ord)
+		}
 	}
 
 	return nil

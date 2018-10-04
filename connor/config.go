@@ -34,6 +34,7 @@ type marketConfig struct {
 	Counterparty common.Address     `yaml:"counterparty"`
 	PriceControl priceControlConfig `yaml:"price_control"`
 	Benchmarks   map[string]uint64  `yaml:"benchmarks" required:"true"`
+	NoCancel     bool               `yaml:"no_cancel"`
 
 	benchmarkID int
 }
