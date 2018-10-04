@@ -77,7 +77,7 @@ var askPlanPurgeCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Purge all exiting ask-plans on worker",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := worker.PurgeAskPlans(workerCtx, &sonm.Empty{})
+		_, err := worker.PurgeAskPlansDetailed(workerCtx, &sonm.Empty{})
 		if err != nil {
 			return fmt.Errorf("cannot purge ask plans: %v", err)
 		}

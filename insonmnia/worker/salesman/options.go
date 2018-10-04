@@ -10,9 +10,14 @@ import (
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 )
+
+type DealDestroyer interface {
+	CancelDealTasks(dealID *sonm.BigInt) error
+}
 
 type options struct {
 	log           *zap.SugaredLogger
@@ -24,6 +29,7 @@ type options struct {
 	matcher       matcher.Matcher
 	ethkey        *ecdsa.PrivateKey
 	config        *YAMLConfig
+	dealDestroyer DealDestroyer
 }
 
 func WithLogger(log *zap.SugaredLogger) Option {
@@ -70,6 +76,11 @@ func WithEthkey(ethkey *ecdsa.PrivateKey) Option {
 func WithConfig(config *YAMLConfig) Option {
 	return func(opts *options) {
 		opts.config = config
+	}
+}
+func WithDealDestroyer(destroyer DealDestroyer) Option {
+	return func(opts *options) {
+		opts.dealDestroyer = destroyer
 	}
 }
 func (m *options) Validate() error {

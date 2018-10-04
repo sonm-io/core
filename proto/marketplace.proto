@@ -40,6 +40,14 @@ message ErrorByID {
     repeated Item response = 1;
 }
 
+message ErrorByStringID {
+    message Item {
+        string ID = 1;
+        string error = 2;
+    }
+    repeated Item response = 1;
+}
+
 message OrderIDs {
     repeated BigInt ids = 1;
 }
