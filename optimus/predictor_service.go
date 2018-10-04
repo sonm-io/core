@@ -3,7 +3,10 @@ package optimus
 import (
 	"fmt"
 	"math/big"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -33,13 +36,13 @@ func (m *PredictorService) Predict(ctx context.Context, request *sonm.BidResourc
 		benchmarksValues[bench.GetID()] = value
 	}
 
-	benchmarks, err := sonm.NewBenchmarks(benchmarksValues)
+	orderBenchmarks, err := sonm.NewBenchmarks(benchmarksValues)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse benchmark values: %s", err)
 	}
 
 	order := &sonm.Order{
-		Benchmarks: benchmarks,
+		Benchmarks: orderBenchmarks,
 	}
 
 	price, err := classification.Predictor.PredictPrice(&MarketOrder{
@@ -57,4 +60,54 @@ func (m *PredictorService) Predict(ctx context.Context, request *sonm.BidResourc
 	return &sonm.Price{
 		PerSecond: sonm.NewBigInt(priceBigI),
 	}, nil
+}
+
+func (m *PredictorService) PredictSupplier(ctx context.Context, request *sonm.PredictSupplierRequest) (*sonm.PredictSupplierReply, error) {
+	priceThresholdValue, err := NewRelativePriceThreshold(5.0)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &workerConfig{
+		PrivateKey:  m.cfg.Marketplace.PrivateKey,
+		Epoch:       60 * time.Second,
+		OrderPolicy: 0,
+		DryRun:      false,
+		Identity:    sonm.IdentityLevel_ANONYMOUS,
+		PriceThreshold: priceThreshold{
+			PriceThreshold: priceThresholdValue,
+		},
+		StaleThreshold: 5 * time.Minute,
+		PreludeTimeout: 30 * time.Second,
+		Optimization: OptimizationConfig{
+			Model: optimizationMethodFactory{
+				OptimizationMethodFactory: &defaultOptimizationMethodFactory{},
+				//OptimizationMethodFactory: &GreedyLinearRegressionModelFactory{
+				//	GreedyLinearRegressionModelConfig: GreedyLinearRegressionModelConfig{
+				//		WeightLimit:     1e-3,
+				//		ExhaustionLimit: 128,
+				//		Model: regressionModelFactory{
+				//			RegressionModelFactory: &SCAKKTModel{},
+				//		},
+				//	},
+				//},
+			},
+		},
+	}
+
+	blacklist := newEmptyBlacklist()
+	worker := newMockWorker(request.GetDevices())
+	benchmarkMapping := benchmarks.NewArrayMapping(m.benchmarks, m.benchmarks.Max())
+	tagger := newTagger("predictor")
+
+	engine, err := newWorkerEngine(cfg, common.Address{}, common.Address{}, blacklist, worker, m.market, m.marketCache, benchmarkMapping, tagger, m.log)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := engine.execute(ctx); err != nil {
+		return nil, err
+	}
+
+	return &sonm.PredictSupplierReply{Price: sonm.SumPrice(worker.Result)}, nil
 }

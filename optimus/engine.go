@@ -160,7 +160,7 @@ type workerEngine struct {
 	tagger *Tagger
 }
 
-func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache MarketScanner, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker WorkerManagementClientAPI, market blockchain.MarketAPI, marketCache MarketScanner, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
 	if cfg.DryRun {
 		log.Infof("activated dry-run mode for this worker")
 		worker = NewReadOnlyWorker(worker)
@@ -624,7 +624,9 @@ func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *son
 
 	for _, order := range orders {
 		if err := filter.Filter(order.GetOrder()); err != nil {
-			log.Debugf("exclude order %s from matching: %v", order.GetOrder().GetId(), err)
+			if m.cfg.VerboseLog {
+				log.Debugf("exclude order %s from matching: %v", order.GetOrder().GetId(), err)
+			}
 			continue
 		}
 

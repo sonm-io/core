@@ -32,13 +32,13 @@ func (m *loader) Load(ctx context.Context) (Mapping, error) {
 
 	maxID := benchmarkList.Max()
 	if maxID <= arrayMappingThreshold {
-		return newArrayMapping(benchmarkList, maxID), nil
+		return NewArrayMapping(benchmarkList, maxID), nil
 	}
 
-	return newMapMapping(benchmarkList), nil
+	return NewMapMapping(benchmarkList), nil
 }
 
-func newArrayMapping(benchmarks BenchList, maxID uint64) Mapping {
+func NewArrayMapping(benchmarks BenchList, maxID uint64) Mapping {
 	deviceTypes := make([]sonm.DeviceType, maxID+1)
 	splittingAlgorithms := make([]sonm.SplittingAlgorithm, maxID+1)
 
@@ -52,7 +52,7 @@ func newArrayMapping(benchmarks BenchList, maxID uint64) Mapping {
 	}
 }
 
-func newMapMapping(benchmarks BenchList) Mapping {
+func NewMapMapping(benchmarks BenchList) Mapping {
 	deviceTypes := map[uint64]sonm.DeviceType{}
 	splittingAlgorithms := map[uint64]sonm.SplittingAlgorithm{}
 	for _, benchmarks := range benchmarks.MapByDeviceType() {

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -13,6 +15,8 @@ import (
 )
 
 type PredictorConfig struct {
+	Blockchain  *blockchain.Config
+	DWH         *dwh.DWHConfig
 	Marketplace marketplaceConfig
 }
 
@@ -21,6 +25,8 @@ type PredictorService struct {
 	log *zap.SugaredLogger
 
 	mu             sync.RWMutex
+	market         blockchain.MarketAPI
+	marketCache    *MarketCache
 	benchmarks     benchmarks.BenchList
 	regression     *regressionClassifier
 	classification *OrderClassification
@@ -28,7 +34,7 @@ type PredictorService struct {
 
 // NewPredictorService constructs a new order price predictor service.
 // Returns nil when nil "cfg" is passed.
-func NewPredictorService(cfg *PredictorConfig, benchmarks benchmarks.BenchList, log *zap.SugaredLogger) *PredictorService {
+func NewPredictorService(cfg *PredictorConfig, market blockchain.MarketAPI, benchmarks benchmarks.BenchList, dwh sonm.DWHClient, log *zap.SugaredLogger) *PredictorService {
 	if cfg == nil {
 		return nil
 	}
@@ -41,10 +47,12 @@ func NewPredictorService(cfg *PredictorConfig, benchmarks benchmarks.BenchList, 
 	}
 
 	m := &PredictorService{
-		cfg:        cfg,
-		log:        log,
-		benchmarks: benchmarks,
-		regression: regression,
+		cfg:         cfg,
+		log:         log,
+		market:      market,
+		marketCache: newMarketCache(newMarketScanner(cfg.Marketplace, dwh), cfg.Marketplace.Interval),
+		benchmarks:  benchmarks,
+		regression:  regression,
 	}
 
 	return m
