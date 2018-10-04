@@ -4,7 +4,7 @@ sudo: "required"
 language: "go"
 
 go:
-    - 1.9.x
+    - 1.11
 
 env:
   - BUILD_TYPE=Tests

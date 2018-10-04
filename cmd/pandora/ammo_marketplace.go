@@ -129,14 +129,14 @@ func order() *sonm.Order {
 				uint64(rand.Int63n(20000)),      // cpu-sysbench-one
 				1 + uint64(rand.Int63n(16)),     // sys-cores
 				1e9 + uint64(rand.Int63n(1e10)), // size-ram
-				0, //uint64(rand.Int63n(1e12)),       // size-stor
-				uint64(rand.Int63n(1e3)), // download-net
-				uint64(rand.Int63n(1e3)), // upload-net
-				0, //1 + uint64(rand.Int63n(16)),     // count-gpu
-				0, //1e9 + uint64(rand.Int63n(1e11)), // mem-gpu
-				0, //uint64(rand.Int63n(1e9)),
-				0, //uint64(rand.Int63n(1e9)),
-				0, //uint64(rand.Int63n(1e9)),
+				0,                               //uint64(rand.Int63n(1e12)),       // size-stor
+				uint64(rand.Int63n(1e3)),        // download-net
+				uint64(rand.Int63n(1e3)),        // upload-net
+				0,                               //1 + uint64(rand.Int63n(16)),     // count-gpu
+				0,                               //1e9 + uint64(rand.Int63n(1e11)), // mem-gpu
+				0,                               //uint64(rand.Int63n(1e9)),
+				0,                               //uint64(rand.Int63n(1e9)),
+				0,                               //uint64(rand.Int63n(1e9)),
 			},
 		},
 	}
