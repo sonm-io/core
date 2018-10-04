@@ -12,14 +12,6 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-// grpccmd imports
-import (
-	"io"
-
-	"github.com/spf13/cobra"
-	"github.com/sshaman1101/grpccmd"
-)
-
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -414,87 +406,6 @@ var _Relay_serviceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "relay.proto",
 }
-
-// Begin grpccmd
-var _ = grpccmd.RunE
-
-// Relay
-var _RelayCmd = &cobra.Command{
-	Use:   "relay [method]",
-	Short: "Subcommand for the Relay service.",
-}
-
-var _Relay_ClusterCmd = &cobra.Command{
-	Use:   "cluster",
-	Short: "Make the Cluster method call, input-type: sonm.Empty output-type: sonm.RelayClusterReply",
-	RunE: grpccmd.RunE(
-		"Cluster",
-		"sonm.Empty",
-		func(c io.Closer) interface{} {
-			cc := c.(*grpc.ClientConn)
-			return NewRelayClient(cc)
-		},
-	),
-}
-
-var _Relay_ClusterCmd_gen = &cobra.Command{
-	Use:   "cluster-gen",
-	Short: "Generate JSON for method call of Cluster (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
-}
-
-var _Relay_MetricsCmd = &cobra.Command{
-	Use:   "metrics",
-	Short: "Make the Metrics method call, input-type: sonm.Empty output-type: sonm.RelayMetrics",
-	RunE: grpccmd.RunE(
-		"Metrics",
-		"sonm.Empty",
-		func(c io.Closer) interface{} {
-			cc := c.(*grpc.ClientConn)
-			return NewRelayClient(cc)
-		},
-	),
-}
-
-var _Relay_MetricsCmd_gen = &cobra.Command{
-	Use:   "metrics-gen",
-	Short: "Generate JSON for method call of Metrics (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
-}
-
-var _Relay_InfoCmd = &cobra.Command{
-	Use:   "info",
-	Short: "Make the Info method call, input-type: sonm.Empty output-type: sonm.RelayInfo",
-	RunE: grpccmd.RunE(
-		"Info",
-		"sonm.Empty",
-		func(c io.Closer) interface{} {
-			cc := c.(*grpc.ClientConn)
-			return NewRelayClient(cc)
-		},
-	),
-}
-
-var _Relay_InfoCmd_gen = &cobra.Command{
-	Use:   "info-gen",
-	Short: "Generate JSON for method call of Info (input-type: sonm.Empty)",
-	RunE:  grpccmd.TypeToJson("sonm.Empty"),
-}
-
-// Register commands with the root command and service command
-func init() {
-	grpccmd.RegisterServiceCmd(_RelayCmd)
-	_RelayCmd.AddCommand(
-		_Relay_ClusterCmd,
-		_Relay_ClusterCmd_gen,
-		_Relay_MetricsCmd,
-		_Relay_MetricsCmd_gen,
-		_Relay_InfoCmd,
-		_Relay_InfoCmd_gen,
-	)
-}
-
-// End grpccmd
 
 func init() { proto.RegisterFile("relay.proto", fileDescriptor11) }
 

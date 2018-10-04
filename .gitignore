@@ -28,15 +28,6 @@ _testmain.go
 coverage*
 !.ci/coverage.sh
 
-sonmcli
-sonmcli_win32.exe
-sonmworker
-sonmbootnode
-sonmmarketplace
-sonmnode
-autocli
-sonmrendezvous
-lsgpu
 target/
 release/
 .idea/

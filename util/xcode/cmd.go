@@ -1,4 +1,4 @@
-package grpccmd
+package xcode
 
 import (
 	"crypto/ecdsa"
@@ -20,38 +20,44 @@ import (
 )
 
 var (
-	rootCmd = &cobra.Command{}
-	remote  = new(string)
-	input   = new(string)
+	rootCmd = &cobra.Command{
+		Use:   "autocli [command]",
+		Short: "Call SONM services directly",
+	}
+	remote = new(string)
+	input  = new(string)
+	key    *ecdsa.PrivateKey
 )
 
 func init() {
 	rootCmd.SetOutput(os.Stdout)
-
 	rootCmd.PersistentFlags().StringVar(remote, "remote", "", "gRPC server endpoint")
 	rootCmd.PersistentFlags().StringVar(input, "input", "", "JSON file with request body")
+
+	cobra.OnInitialize(func() {
+		cfg, err := config.NewConfig()
+		if err != nil {
+			fmt.Printf("failed to load cli.yaml: %v\r\n", err)
+			os.Exit(1)
+		}
+
+		key, err = accounts.OpenSingleKeystore(cfg.KeyStore(), cfg.PassPhrase(), accounts.NewInteractivePassPhraser())
+		if err != nil {
+			fmt.Printf("failed to open eth keys: %v\r\n", err)
+			os.Exit(1)
+		}
+	})
 }
-func SetCmdInfo(name, short string) {
-	rootCmd.Use = fmt.Sprintf("%s [command]", name)
-	rootCmd.Short = short
-}
+
+func Execute() error { return rootCmd.Execute() }
 
 func RegisterServiceCmd(cmd *cobra.Command) {
 	rootCmd.AddCommand(cmd)
 }
 
-func Execute() error {
-	return rootCmd.Execute()
-}
-
 func RunE(method, inT string, newClient func(closer io.Closer) interface{}) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
-		key, err := openConfigAndLoadEthKey()
-		if err != nil {
-			return fmt.Errorf("cannot open eth key: %v", err)
-		}
-
-		conn, err := dial(key)
+		conn, err := dial()
 		if err != nil {
 			return err
 		}
@@ -117,7 +123,7 @@ func TypeToJson(inT string) func(cmd *cobra.Command, args []string) error {
 		in := reflect.New(proto.MessageType(inT).Elem()).Interface().(proto.Message)
 		s, err := m.MarshalToString(in)
 		if err != nil {
-			cmd.Printf("Cannot marshal %s to string: %s\r\n", inT, err)
+			cmd.Printf("cannot marshal %s to string: %s\r\n", inT, err)
 			os.Exit(1)
 		}
 
@@ -127,7 +133,7 @@ func TypeToJson(inT string) func(cmd *cobra.Command, args []string) error {
 }
 
 // dial build ClientConn wrapper with SONM Wallet auth
-func dial(key *ecdsa.PrivateKey) (io.Closer, error) {
+func dial() (io.Closer, error) {
 	if *remote == "" {
 		return nil, fmt.Errorf("remote endpoint address is required")
 	}
@@ -141,13 +147,4 @@ func dial(key *ecdsa.PrivateKey) (io.Closer, error) {
 
 	creds := util.NewTLS(TLSConfig)
 	return xgrpc.NewClient(ctx, *remote, creds)
-}
-
-func openConfigAndLoadEthKey() (*ecdsa.PrivateKey, error) {
-	cfg, err := config.NewConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	return accounts.OpenSingleKeystore(cfg.KeyStore(), cfg.PassPhrase(), accounts.NewInteractivePassPhraser())
 }
