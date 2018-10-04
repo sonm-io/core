@@ -192,7 +192,6 @@ func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info 
 	wg := errgroup.Group{}
 	wg.Go(func() error {
 		if !info.IsClientStream {
-			m.log.Info("not a client stream")
 			return nil
 		}
 		for {
@@ -200,11 +199,11 @@ func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info 
 			if err := ss.RecvMsg(sendVar.Interface()); err != nil {
 				//TODO: CloseAndRecv for 3d case
 				if err == io.EOF {
-					return callErrMethod(streamCli, "CloseSend")
+					return streamCli.Interface().(grpc.ClientStream).CloseSend()
 				}
 				return err
 			}
-			if err := callErrMethod(streamCli, "Send", sendVar); err != nil {
+			if err := streamCli.Interface().(grpc.ClientStream).SendMsg(sendVar.Interface()); err != nil {
 				return err
 			}
 		}
@@ -214,17 +213,17 @@ func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info 
 		if !info.IsServerStream {
 			return nil
 		}
-		headers, err := callBinMethod(streamCli, "Header")
+		headers, err := streamCli.Interface().(grpc.ClientStream).Header()
 		if err != nil {
 			return err
 		}
-		if err := ss.SendHeader(headers.Interface().(metadata.MD)); err != nil {
+		if err := ss.SendHeader(headers); err != nil {
 			return fmt.Errorf("failed to send metadata back to client: %s", err)
 		}
 		for {
 			progress, err := callBinMethod(streamCli, "Recv")
 			if err == io.EOF {
-				trailer := callMethod(streamCli, "Trailer")[0].Interface().(metadata.MD)
+				trailer := streamCli.Interface().(grpc.ClientStream).Trailer()
 				ss.SetTrailer(trailer)
 				return nil
 			}
@@ -235,6 +234,7 @@ func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info 
 				return err
 			}
 		}
+
 	})
 	return wg.Wait()
 }
