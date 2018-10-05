@@ -19,9 +19,8 @@ func mklog(n int) string {
 	return s
 }
 
-func TestClaymoreLogParser(t *testing.T) {
-	rd := strings.NewReader(`ETH - Total Speed: 100.000 Mh/s, Total Shares: 127, Rejected: 0, Time: 00:02`)
-	p := &logProcessor{
+func newTestProcessor() *logProcessor {
+	return &logProcessor{
 		log:      zap.NewNop(),
 		hashrate: atomic.NewFloat64(0),
 		cfg: &LogProcessorConfig{
@@ -30,6 +29,11 @@ func TestClaymoreLogParser(t *testing.T) {
 			Multiplier: 1000000,
 		},
 	}
+}
+
+func TestClaymoreLogParser(t *testing.T) {
+	rd := strings.NewReader(`ETH - Total Speed: 100.000 Mh/s, Total Shares: 127, Rejected: 0, Time: 00:02`)
+	p := newTestProcessor()
 
 	p.logParser(context.Background(), rd)
 	assert.Equal(t, float64(100e6), p.hashrate.Load(), "new value should be parsed and set")
@@ -37,18 +41,19 @@ func TestClaymoreLogParser(t *testing.T) {
 
 func TestClaymoreLogParser_InvalidLine(t *testing.T) {
 	rd := strings.NewReader(`Oops! Claymore failed`)
-	p := &logProcessor{
-		log:      zap.NewNop(),
-		hashrate: atomic.NewFloat64(100500),
-		cfg: &LogProcessorConfig{
-			Pattern:    "Total Speed:",
-			Field:      4,
-			Multiplier: 1000000,
-		},
-	}
+	p := newTestProcessor()
+	p.hashrate = atomic.NewFloat64(100500)
 
 	p.logParser(context.Background(), rd)
 	assert.Equal(t, float64(100500), p.hashrate.Load(), "previous value should be kept")
+}
+
+func TestClaymoreLogParser_ShortLine(t *testing.T) {
+	rd := strings.NewReader(`Total Speed:`)
+	p := newTestProcessor()
+
+	p.logParser(context.Background(), rd)
+	assert.Equal(t, float64(0), p.hashrate.Load(), "previous value should be kept")
 }
 
 func TestClaymoreLogParser_ContextCancel(t *testing.T) {

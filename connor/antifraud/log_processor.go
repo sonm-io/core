@@ -183,6 +183,14 @@ func (m *logProcessor) logParser(ctx context.Context, reader io.Reader) {
 
 		if strings.Contains(line, m.cfg.Pattern) {
 			fields := strings.Fields(line)
+
+			if m.cfg.Field >= len(fields) {
+				m.log.Warn("fields count is less than required",
+					zap.String("line", line),
+					zap.Int("fields_count", len(fields)))
+				continue
+			}
+
 			raw := fields[m.cfg.Field]
 			hashrate, err := strconv.ParseFloat(raw, 64)
 			if err != nil {
