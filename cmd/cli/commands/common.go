@@ -142,15 +142,15 @@ func newCommandError(message string, err error) *commandError {
 }
 
 // ShowError prints message and chained error in requested format
-func ShowError(cmd *cobra.Command, message string, err error) {
+func ShowError(printer Printer, message string, err error) {
 	if isSimpleFormat() {
 		if err != nil {
-			cmd.Printf("[ERR] %s: %s\r\n", message, err.Error())
+			printer.Printf("[ERR] %s: %s\r\n", message, err.Error())
 		} else {
-			cmd.Printf("[ERR] %s\r\n", message)
+			printer.Printf("[ERR] %s\r\n", message)
 		}
 	} else {
-		cmd.Println(newCommandError(message, err).ToJSONString())
+		printer.Println(newCommandError(message, err).ToJSONString())
 	}
 }
 

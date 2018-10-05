@@ -53,6 +53,12 @@ var taskRootCmd = &cobra.Command{
 	PersistentPreRunE: loadKeyStoreWrapper,
 }
 
+func newDealContext(ctx context.Context, dealID string) context.Context {
+	return metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
+		"deal": dealID,
+	}))
+}
+
 func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
 	dealCli, err := newDealsClient(ctx)
 	if err != nil {
@@ -119,17 +125,26 @@ var taskListCmd = &cobra.Command{
 			return nil
 		}
 
+		var printer Printer = cmd
+		if isSimpleFormat() {
+			printer = &IndentPrinter{
+				Subprinter: printer,
+				IdentCount: 2,
+				Ident:      ' ',
+			}
+		}
 		for k, dealID := range dealIDs {
 			timeoutCtx, cancel := context.WithTimeout(ctx, timeoutFlag)
 			if isSimpleFormat() {
 				cmd.Printf("Deal %s (%d/%d):\n", dealID.String(), k+1, len(dealIDs))
 			}
 
-			list, err := node.List(timeoutCtx, &sonm.TaskListRequest{DealID: sonm.NewBigInt(dealID)})
+			ctx := newDealContext(timeoutCtx, dealID.String())
+			list, err := node.GetDealInfo(ctx, &sonm.ID{Id: dealID.String()})
 			if err != nil {
-				ShowError(cmd, "cannot get task list for deal", err)
+				ShowError(printer, "cannot get task list for deal", err)
 			} else {
-				printNodeTaskStatus(cmd, list.GetInfo())
+				printNodeTaskStatus(printer, list)
 			}
 			cancel()
 		}
@@ -168,7 +183,8 @@ var taskStartCmd = &cobra.Command{
 			Spec:   spec,
 		}
 
-		reply, err := node.Start(ctx, request)
+		ctx = newDealContext(ctx, dealID)
+		reply, err := node.StartTask(ctx, request)
 		if err != nil {
 			return fmt.Errorf("cannot start task: %v", err)
 		}
@@ -186,23 +202,25 @@ var taskStatusCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
+		dealIDStr := args[0]
+		// Check if passed value is valid bigint
+		_, err := sonm.NewBigIntFromString(dealIDStr)
+		if err != nil {
+			return err
+		}
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := sonm.NewBigIntFromString(args[0])
-		if err != nil {
-			return err
-		}
+		ctx = newDealContext(ctx, dealIDStr)
 
 		taskID := args[1]
-		req := &sonm.TaskID{
-			Id:     taskID,
-			DealID: dealID,
+		req := &sonm.ID{
+			Id: taskID,
 		}
 
-		status, err := node.Status(ctx, req)
+		status, err := node.TaskStatus(ctx, req)
 		if err != nil {
 			return fmt.Errorf("cannot get task status: %v", err)
 		}
@@ -220,23 +238,23 @@ var taskJoinNetworkCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
+		dealIDStr := args[0]
+		// Check if passed dealID value is valid bigint
+		_, err := sonm.NewBigIntFromString(dealIDStr)
+		if err != nil {
+			return err
+		}
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := sonm.NewBigIntFromString(args[0])
-		if err != nil {
-			return err
-		}
-
 		taskID := args[1]
 		netID := args[2]
-		spec, err := node.JoinNetwork(ctx, &sonm.JoinNetworkRequest{
-			TaskID: &sonm.TaskID{
-				Id:     taskID,
-				DealID: dealID,
-			},
+		ctx = newDealContext(ctx, dealIDStr)
+		spec, err := node.JoinNetwork(ctx, &sonm.WorkerJoinNetworkRequest{
+			TaskID:    taskID,
 			NetworkID: netID,
 		})
 		if err != nil {
@@ -279,6 +297,11 @@ var taskLogsCmd = &cobra.Command{
 	Short: "Retrieve task logs",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		dealIDStr := args[0]
+		dealID, err := util.ParseBigInt(dealIDStr)
+		if err != nil {
+			return err
+		}
 		var ctx context.Context
 		var cancel context.CancelFunc
 		if follow {
@@ -291,11 +314,6 @@ var taskLogsCmd = &cobra.Command{
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			return fmt.Errorf("cannot create client connection: %v", err)
-		}
-
-		dealID, err := util.ParseBigInt(args[0])
-		if err != nil {
-			return err
 		}
 
 		logType, err := parseType(logType)
@@ -314,7 +332,8 @@ var taskLogsCmd = &cobra.Command{
 			Details:       details,
 		}
 
-		logClient, err := node.Logs(ctx, req)
+		ctx = newDealContext(ctx, dealIDStr)
+		logClient, err := node.TaskLogs(ctx, req)
 		if err != nil {
 			return fmt.Errorf("cannot get task logs: %v", err)
 		}
@@ -343,23 +362,24 @@ var taskStopCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
+		dealIDStr := args[0]
+		_, err := sonm.NewBigIntFromString(dealIDStr)
+		if err != nil {
+			return err
+		}
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := sonm.NewBigIntFromString(args[0])
-		if err != nil {
-			return nil
+		req := &sonm.ID{
+			Id: args[1],
 		}
+		ctx = newDealContext(ctx, dealIDStr)
 
-		req := &sonm.TaskID{
-			Id:     args[1],
-			DealID: dealID,
-		}
-
-		if _, err := node.Stop(ctx, req); err != nil {
-			return fmt.Errorf("cannot stop status: %v", err)
+		if _, err := node.StopTask(ctx, req); err != nil {
+			return fmt.Errorf("cannot stop task: %v", err)
 		}
 
 		showOk(cmd)

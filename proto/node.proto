@@ -16,6 +16,7 @@ package sonm;
 
 // TaskManagement describe a bunch of methods
 // to manage tasks running into the SONM network
+// Deprecated: use serviceWorker instead and pass dealID via context
 service TaskManagement {
     // List produces a list of all tasks running on different SONM nodes
     rpc List(TaskListRequest) returns (TaskListReply) {}
