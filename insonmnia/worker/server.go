@@ -320,6 +320,7 @@ func (m *Worker) setupAuthorization() error {
 
 	managementAuth := newAnyOfAuth(managementAuthOptions...)
 
+	superusersAuth := newSuperuserAuthorization(m.ctx, m.cfg.Superusers)
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),
 		// Note: need to refactor auth router to support multiple prefixes for methods.
@@ -350,7 +351,10 @@ func (m *Worker) setupAuthorization() error {
 		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
 			return structs.DealID(request.(*sonm.ID).GetId()), nil
 		}))),
-		auth.Allow(workerAPIPrefix+"Devices").With(newSuperuserAuthorization(m.ctx, m.cfg.Superusers)),
+		auth.Allow(workerAPIPrefix+"Devices").With(superusersAuth),
+		auth.Allow(workerAPIPrefix+"FreeDevices").With(superusersAuth),
+		auth.Allow(workerAPIPrefix+"DebugState").With(superusersAuth),
+		auth.Allow(workerAPIPrefix+"AskPlans").With(superusersAuth),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 
