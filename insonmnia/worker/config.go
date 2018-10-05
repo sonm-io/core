@@ -57,7 +57,7 @@ type Config struct {
 	Development       *DevConfig          `yaml:"development"`
 	Admin             *common.Address     `yaml:"admin"`
 	Debug             *debug.Config       `yaml:"debug"`
-	Superusers        SuperusersConfig    `yaml: "superusers"`
+	Superusers        SuperusersConfig    `yaml:"superusers"`
 }
 
 // NewConfig creates a new Worker config from the specified YAML file.
