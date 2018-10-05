@@ -242,6 +242,7 @@ func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
 		return err
 	}
 
+	wasEmpty := false
 	if !ask.DealID.IsZero() {
 		if err := m.closeDeal(ctx, ask.DealID); err != nil {
 			return fmt.Errorf("failed to remove ask plan %s: failed to close deal: %s", planID, err)
@@ -250,6 +251,8 @@ func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
 		if err := m.cancelOrder(ctx, ask.OrderID); err != nil {
 			return fmt.Errorf("failed to remove ask plan %s: failed to cancel order: %s", planID, err)
 		}
+	} else {
+		wasEmpty = true
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -260,7 +263,7 @@ func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
 		// so we check again if the plan was removed already
 		return nil
 	}
-	if !ask.GetDealID().IsZero() || !ask.GetOrderID().IsZero() {
+	if wasEmpty && (!ask.GetDealID().IsZero() || !ask.GetOrderID().IsZero()) {
 		return fmt.Errorf("failed to remove ask plan %s: concurrent order or deal was placed", planID)
 	}
 	if err := m.resources.Release(planID); err != nil {
@@ -269,10 +272,10 @@ func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
 	}
 
 	if err := m.dropNetwork(planID); err != nil {
-		return fmt.Errorf("failed to remove ask plan %s: failed to remove network: %s", planID, err)
+		m.log.Errorf("failed to remove ask plan %s: failed to remove network: %s", planID, err)
 	}
 	if err := m.dropCGroup(planID); err != nil {
-		return fmt.Errorf("failed to remove ask plan %s: failed to remove cgroup: %s", planID, err)
+		m.log.Errorf("failed to remove ask plan %s: failed to remove cgroup: %s", planID, err)
 	}
 	delete(m.askPlans, planID)
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
@@ -405,7 +408,7 @@ func (m *Salesman) restoreState(ctx context.Context) error {
 
 	for _, plan := range m.askPlans {
 		if err := m.resources.Consume(plan); err != nil {
-			m.log.Warnf("dropping ask plan due to resource changes")
+			m.log.Warnf("dropping ask plan %s due to resource changes", plan.ID)
 			//Ignore error here, as resources that were not consumed can not be released.
 			m.RemoveAskPlan(ctx, plan.ID)
 		} else {
