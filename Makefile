@@ -175,7 +175,7 @@ grpc:
 	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
 
 build_mockgen:
-	cd ./vendor/github.com/golang/mock/mockgen/ && go install
+	@go get github.com/golang/mock/mockgen
 
 mock: build_mockgen
 	mockgen -package worker -destination insonmnia/worker/overseer_mock.go -source insonmnia/worker/overseer.go
@@ -192,6 +192,7 @@ clean:
 	find . -name "*_mock.go" | xargs rm -f
 
 deb:
+	go mod download
 	debuild --no-lintian --preserve-env -uc -us -i -I -b
 	debuild clean
 

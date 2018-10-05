@@ -7,9 +7,12 @@ go:
     - 1.11
 
 env:
-  - BUILD_TYPE=Tests
-  - BUILD_TYPE=Debian
-  - BUILD_TYPE=Contracts
+  global:
+    - GO111MODULE=on
+  matrix:
+    - BUILD_TYPE=Tests
+    - BUILD_TYPE=Debian
+    - BUILD_TYPE=Contracts
 #  - BUILD_TYPE=Coverage
 
 services:
