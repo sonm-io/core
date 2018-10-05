@@ -213,6 +213,7 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(err.Error()))
 		} else {
+			rw.Header().Set("content-type", "application/json")
 			rw.WriteHeader(http.StatusOK)
 			rw.Write(data)
 		}
