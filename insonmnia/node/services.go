@@ -34,7 +34,7 @@ func newServices(options *remoteOptions) *services {
 		blacklist:      newBlacklistAPI(options),
 		profile:        newProfileAPI(options),
 		monitoring:     newMonitoringAPI(options),
-		orderPredictor: optimus.NewPredictorService(options.cfg.Predictor, options.benchList, options.log),
+		orderPredictor: optimus.NewPredictorService(options.cfg.Predictor, options.eth.Market(), options.benchList, options.dwh, options.log),
 	}
 }
 

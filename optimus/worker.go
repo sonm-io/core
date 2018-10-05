@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -58,15 +59,23 @@ func (m *namedErrorGroup) ErrorOrNil() error {
 	return m
 }
 
+type WorkerManagementClientAPI interface {
+	Devices(ctx context.Context, request *sonm.Empty, opts ...grpc.CallOption) (*sonm.DevicesReply, error)
+	AskPlans(ctx context.Context, request *sonm.Empty, opts ...grpc.CallOption) (*sonm.AskPlansReply, error)
+	CreateAskPlan(ctx context.Context, request *sonm.AskPlan, opts ...grpc.CallOption) (*sonm.ID, error)
+	RemoveAskPlan(ctx context.Context, request *sonm.ID, opts ...grpc.CallOption) (*sonm.Empty, error)
+	NextMaintenance(ctx context.Context, request *sonm.Empty, opts ...grpc.CallOption) (*sonm.Timestamp, error)
+}
+
 // WorkerManagementClientExt extends default "WorkerManagementClient" with an
 // ability to remove multiple ask-plans.
 type WorkerManagementClientExt interface {
-	sonm.WorkerManagementClient
+	WorkerManagementClientAPI
 	RemoveAskPlans(ctx context.Context, ids []string) error
 }
 
 type workerManagementClientExt struct {
-	sonm.WorkerManagementClient
+	WorkerManagementClientAPI
 }
 
 func (m *workerManagementClientExt) RemoveAskPlans(ctx context.Context, ids []string) error {
@@ -128,15 +137,15 @@ func (m *workerManagementClientExt) RemoveAskPlans(ctx context.Context, ids []st
 // immutable operations. It returns some default response for operations that
 // mutates something.
 type ReadOnlyWorker struct {
-	sonm.WorkerManagementClient
+	WorkerManagementClientAPI
 
 	mu           sync.Mutex
 	removedPlans map[string]struct{}
 }
 
-func NewReadOnlyWorker(worker sonm.WorkerManagementClient) *ReadOnlyWorker {
+func NewReadOnlyWorker(worker WorkerManagementClientAPI) *ReadOnlyWorker {
 	return &ReadOnlyWorker{
-		WorkerManagementClient: worker,
+		WorkerManagementClientAPI: worker,
 
 		removedPlans: map[string]struct{}{},
 	}
@@ -147,7 +156,7 @@ func (m *ReadOnlyWorker) CreateAskPlan(ctx context.Context, in *sonm.AskPlan, op
 }
 
 func (m *ReadOnlyWorker) AskPlans(ctx context.Context, in *sonm.Empty, opts ...grpc.CallOption) (*sonm.AskPlansReply, error) {
-	plans, err := m.WorkerManagementClient.AskPlans(ctx, in, opts...)
+	plans, err := m.WorkerManagementClientAPI.AskPlans(ctx, in, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -191,4 +200,36 @@ func (m *ReadOnlyWorker) RemoveBenchmark(ctx context.Context, in *sonm.NumericID
 
 func (m *ReadOnlyWorker) PurgeBenchmarks(ctx context.Context, in *sonm.Empty, opts ...grpc.CallOption) (*sonm.Empty, error) {
 	return &sonm.Empty{}, nil
+}
+
+type mockWorker struct {
+	PredefinedDevices *sonm.DevicesReply
+	Result            []*sonm.AskPlan
+}
+
+func newMockWorker(devices *sonm.DevicesReply) *mockWorker {
+	return &mockWorker{
+		PredefinedDevices: devices,
+	}
+}
+
+func (m *mockWorker) Devices(ctx context.Context, request *sonm.Empty, opts ...grpc.CallOption) (*sonm.DevicesReply, error) {
+	return m.PredefinedDevices, nil
+}
+
+func (m *mockWorker) AskPlans(ctx context.Context, request *sonm.Empty, opts ...grpc.CallOption) (*sonm.AskPlansReply, error) {
+	return &sonm.AskPlansReply{}, nil
+}
+
+func (m *mockWorker) CreateAskPlan(ctx context.Context, request *sonm.AskPlan, opts ...grpc.CallOption) (*sonm.ID, error) {
+	m.Result = append(m.Result, request)
+	return &sonm.ID{Id: "00000000-0000-0000-0000-000000000000"}, nil
+}
+
+func (m *mockWorker) RemoveAskPlan(ctx context.Context, request *sonm.ID, opts ...grpc.CallOption) (*sonm.Empty, error) {
+	return &sonm.Empty{}, nil
+}
+
+func (m *mockWorker) NextMaintenance(ctx context.Context, request *sonm.Empty, opts ...grpc.CallOption) (*sonm.Timestamp, error) {
+	return &sonm.Timestamp{Seconds: math.MaxInt32}, nil
 }

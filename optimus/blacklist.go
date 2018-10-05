@@ -86,3 +86,17 @@ func (m *multiBlacklist) Update(ctx context.Context) error {
 
 	return nil
 }
+
+type emptyBlacklist struct{}
+
+func newEmptyBlacklist() *emptyBlacklist {
+	return &emptyBlacklist{}
+}
+
+func (emptyBlacklist) Update(ctx context.Context) error {
+	return nil
+}
+
+func (emptyBlacklist) IsAllowed(addr common.Address) bool {
+	return true
+}
