@@ -198,8 +198,8 @@ func newMeetingHall(newMeetingHandler meetingHandlerFactory, log *zap.Logger) *m
 	}
 }
 
-func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) (<-chan error, deleter) {
-	c := make(chan error, 1)
+func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) <-chan error {
+	c := make(chan error, 2)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -209,6 +209,9 @@ func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, co
 		// Notify both sides immediately if there is match between candidates.
 		if server := meeting.popRandomServer(); server != nil {
 			m.log.Infow("providing remote server", zap.Stringer("remoteAddr", server.conn.RemoteAddr()))
+
+			c <- nil
+			server.C <- nil
 
 			go func() {
 				err := m.executeMeeting(ctx, id, server.conn, conn)
@@ -226,14 +229,11 @@ func (m *meetingHall) addServerWatch(ctx context.Context, id nppc.ResourceID, co
 		m.meetingRoom[id] = meeting
 	}
 
-	return c, func() {
-		m.removeServerWatch(id, connID)
-		close(c)
-	}
+	return c
 }
 
-func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) (<-chan error, deleter) {
-	c := make(chan error, 1)
+func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, connID ConnID, conn net.Conn) <-chan error {
+	c := make(chan error, 2)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -242,6 +242,9 @@ func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, co
 	if ok {
 		if client := meeting.popRandomClient(); client != nil {
 			m.log.Infow("providing remote client", zap.Stringer("remoteAddr", client.conn.RemoteAddr()))
+
+			client.C <- nil
+			c <- nil
 
 			go func() {
 				err := m.executeMeeting(ctx, id, conn, client.conn)
@@ -259,10 +262,7 @@ func (m *meetingHall) addClientWatch(ctx context.Context, id nppc.ResourceID, co
 		m.meetingRoom[id] = meeting
 	}
 
-	return c, func() {
-		m.removeClientWatch(id, connID)
-		close(c)
-	}
+	return c
 }
 
 func (m *meetingHall) executeMeeting(ctx context.Context, id nppc.ResourceID, server, client net.Conn) error {
@@ -689,6 +689,8 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 
 	m.log.Infow("publishing remote peer", zap.String("id", id.String()))
 
+	var rx <-chan error
+
 	// We support both multiple servers and clients.
 	switch handshake.PeerType {
 	case sonm.PeerType_SERVER:
@@ -697,14 +699,14 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 
 		m.continuum.Track(addr) // TODO: Also undo tracking.
 
-		rx, deleter := m.meetingRoom.addClientWatch(ctx, addr, id, conn)
-		defer deleter()
+		rx = m.meetingRoom.addClientWatch(ctx, addr, id, conn)
+		defer m.meetingRoom.removeClientWatch(addr, id)
 
 		select {
 		case <-timer.C:
 			return errTimeout()
-		case err, ok := <-rx:
-			if ok && err != nil {
+		case err := <-rx:
+			if err != nil {
 				return err
 			}
 		}
@@ -712,19 +714,23 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		timer := time.NewTimer(30 * time.Second)
 		defer timer.Stop()
 
-		rx, deleter := m.meetingRoom.addServerWatch(ctx, addr, id, conn)
-		defer deleter()
+		rx = m.meetingRoom.addServerWatch(ctx, addr, id, conn)
+		defer m.meetingRoom.removeServerWatch(addr, id)
 
 		select {
 		case <-timer.C:
 			return errTimeout()
-		case err, ok := <-rx:
-			if ok && err != nil {
+		case err := <-rx:
+			if err != nil {
 				return err
 			}
 		}
 	default:
 		return errUnknownType(handshake.PeerType)
+	}
+
+	if err := <-rx; err != nil {
+		return err
 	}
 
 	return nil
