@@ -3,10 +3,7 @@ package optimus
 import (
 	"fmt"
 	"math/big"
-	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -63,39 +60,13 @@ func (m *PredictorService) Predict(ctx context.Context, request *sonm.BidResourc
 }
 
 func (m *PredictorService) PredictSupplier(ctx context.Context, request *sonm.PredictSupplierRequest) (*sonm.PredictSupplierReply, error) {
-	priceThresholdValue, err := NewRelativePriceThreshold(5.0)
-	if err != nil {
-		return nil, err
-	}
+	request.Normalize()
 
-	cfg := &workerConfig{
-		PrivateKey:  m.cfg.Marketplace.PrivateKey,
-		Epoch:       60 * time.Second,
-		OrderPolicy: 0,
-		DryRun:      false,
-		Identity:    sonm.IdentityLevel_ANONYMOUS,
-		PriceThreshold: priceThreshold{
-			PriceThreshold: priceThresholdValue,
-		},
-		StaleThreshold: 5 * time.Minute,
-		PreludeTimeout: 30 * time.Second,
-		Optimization: OptimizationConfig{
-			Model: optimizationMethodFactory{
-				OptimizationMethodFactory: &defaultOptimizationMethodFactory{},
-			},
-		},
-	}
-
-	blacklist := newEmptyBlacklist()
 	worker := newMockWorker(request.GetDevices())
-	benchmarkMapping := benchmarks.NewArrayMapping(m.benchmarks, m.benchmarks.Max())
-	tagger := newTagger("predictor")
-
-	engine, err := newWorkerEngine(cfg, common.Address{}, common.Address{}, blacklist, worker, m.market, m.marketCache, benchmarkMapping, tagger, m.log)
+	engine, err := m.engineFactory(worker)
 	if err != nil {
 		return nil, err
 	}
-
 	if err := engine.execute(ctx); err != nil {
 		return nil, err
 	}

@@ -704,6 +704,51 @@ type OptimizationMethodFactory interface {
 	Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod
 }
 
+type defaultPredictionOptimizationMethodFactory struct{}
+
+func (m *defaultPredictionOptimizationMethodFactory) Config() interface{} {
+	return m
+}
+
+func (m *defaultPredictionOptimizationMethodFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	if len(matchedOrders) < 64 {
+		return &BranchBoundModel{
+			Log: log.With(zap.String("model", "BBM")),
+		}
+	}
+
+	return &BatchModel{
+		Methods: []OptimizationMethod{
+			&GreedyLinearRegressionModel{
+				orders: orders,
+				regression: &regressionClassifier{
+					model: &SCAKKTModel{
+						MaxIterations: 1e7,
+						Log:           log,
+					},
+				},
+				exhaustionLimit: 128,
+				log:             log.With(zap.String("model", "LLS")),
+			},
+			&GeneticModel{
+				NewGenomeLab:   NewPackedOrdersNewGenome,
+				PopulationSize: 256,
+				MaxGenerations: 32,
+				MaxAge:         5 * time.Minute,
+				Log:            log.With(zap.String("model", "GMP")),
+			},
+			&GeneticModel{
+				NewGenomeLab:   NewDecisionOrdersNewGenome,
+				PopulationSize: 512,
+				MaxGenerations: 24,
+				MaxAge:         5 * time.Minute,
+				Log:            log.With(zap.String("model", "GMD")),
+			},
+		},
+		Log: log,
+	}
+}
+
 type defaultOptimizationMethodFactory struct{}
 
 func (m *defaultOptimizationMethodFactory) Config() interface{} {

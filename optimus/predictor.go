@@ -3,8 +3,11 @@ package optimus
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sync"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/dwh"
@@ -13,6 +16,32 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
+
+type engineFactory func(worker WorkerManagementClientAPI) (*workerEngine, error)
+
+func predictionEngineConfig(cfg marketplaceConfig) *workerConfig {
+	priceThresholdValue := &RelativePriceThreshold{
+		Int: big.NewInt(int64(5.0 * 1000)),
+	}
+
+	return &workerConfig{
+		PrivateKey:  cfg.PrivateKey,
+		Epoch:       60 * time.Second,
+		OrderPolicy: 0,
+		DryRun:      false,
+		Identity:    sonm.IdentityLevel_ANONYMOUS,
+		PriceThreshold: priceThreshold{
+			PriceThreshold: priceThresholdValue,
+		},
+		StaleThreshold: 5 * time.Minute,
+		PreludeTimeout: 30 * time.Second,
+		Optimization: OptimizationConfig{
+			Model: optimizationMethodFactory{
+				OptimizationMethodFactory: &defaultPredictionOptimizationMethodFactory{},
+			},
+		},
+	}
+}
 
 type PredictorConfig struct {
 	Blockchain  *blockchain.Config
@@ -30,11 +59,12 @@ type PredictorService struct {
 	benchmarks     benchmarks.BenchList
 	regression     *regressionClassifier
 	classification *OrderClassification
+	engineFactory  engineFactory
 }
 
 // NewPredictorService constructs a new order price predictor service.
 // Returns nil when nil "cfg" is passed.
-func NewPredictorService(cfg *PredictorConfig, market blockchain.MarketAPI, benchmarks benchmarks.BenchList, dwh sonm.DWHClient, log *zap.SugaredLogger) *PredictorService {
+func NewPredictorService(cfg *PredictorConfig, market blockchain.MarketAPI, benchmarkList benchmarks.BenchList, dwh sonm.DWHClient, log *zap.SugaredLogger) *PredictorService {
 	if cfg == nil {
 		return nil
 	}
@@ -46,13 +76,24 @@ func NewPredictorService(cfg *PredictorConfig, market blockchain.MarketAPI, benc
 		},
 	}
 
+	engineConfig := predictionEngineConfig(cfg.Marketplace)
+	blacklist := newEmptyBlacklist()
+	marketCache := newMarketCache(newMarketScanner(cfg.Marketplace, dwh), cfg.Marketplace.Interval)
+	benchmarkMapping := benchmarks.NewArrayMapping(benchmarkList, benchmarkList.Max())
+	tagger := newTagger("predictor")
+
+	engineFactory := func(worker WorkerManagementClientAPI) (*workerEngine, error) {
+		return newWorkerEngine(engineConfig, common.Address{}, common.Address{}, blacklist, worker, market, marketCache, benchmarkMapping, tagger, log)
+	}
+
 	m := &PredictorService{
-		cfg:         cfg,
-		log:         log,
-		market:      market,
-		marketCache: newMarketCache(newMarketScanner(cfg.Marketplace, dwh), cfg.Marketplace.Interval),
-		benchmarks:  benchmarks,
-		regression:  regression,
+		cfg:           cfg,
+		log:           log,
+		market:        market,
+		marketCache:   marketCache,
+		benchmarks:    benchmarkList,
+		regression:    regression,
+		engineFactory: engineFactory,
 	}
 
 	return m
