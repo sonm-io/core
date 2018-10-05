@@ -352,8 +352,6 @@ func (m *Worker) setupAuthorization() error {
 			return structs.DealID(request.(*sonm.ID).GetId()), nil
 		}))),
 		auth.Allow(workerAPIPrefix+"Devices").With(superusersAuth),
-		auth.Allow(workerAPIPrefix+"FreeDevices").With(superusersAuth),
-		auth.Allow(workerAPIPrefix+"DebugState").With(superusersAuth),
 		auth.Allow(workerAPIPrefix+"AskPlans").With(superusersAuth),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
