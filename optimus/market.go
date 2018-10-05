@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/sonm-io/core/proto"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -80,22 +81,53 @@ func (m *marketScanner) ExecutedOrders(ctx context.Context, orderType sonm.Order
 		}
 	}
 
-	ordersResponse, err := m.dwh.GetOrdersByIDs(ctx, &sonm.OrdersByIDsRequest{
-		Ids: orderIds,
-	})
+	orders, err := m.orders(ctx, orderIds)
 	if err != nil {
 		return nil, err
 	}
 
 	// Leave only orders without counterparty.
-	filteredOrders := make([]*MarketOrder, 0, len(ordersResponse.GetOrders()))
-	for _, order := range ordersResponse.GetOrders() {
+	filteredOrders := make([]*MarketOrder, 0, len(orders))
+	for _, order := range orders {
 		if order.GetOrder().GetCounterpartyID().IsZero() {
 			filteredOrders = append(filteredOrders, order)
 		}
 	}
 
 	return filteredOrders, nil
+}
+
+func (m *marketScanner) orders(ctx context.Context, ids []*sonm.BigInt) ([]*MarketOrder, error) {
+	const chunkSize = 10000
+
+	orders := make([]*MarketOrder, len(ids))
+	wg, ctx := errgroup.WithContext(ctx)
+	for id := 0; id < len(ids)/chunkSize+1; id++ {
+		id := id
+
+		maxId := (id + 1) * chunkSize
+		if maxId > len(ids) {
+			maxId = len(ids)
+		}
+
+		wg.Go(func() error {
+			response, err := m.dwh.GetOrdersByIDs(ctx, &sonm.OrdersByIDsRequest{
+				Ids: ids[id*chunkSize : maxId],
+			})
+			if err != nil {
+				return err
+			}
+
+			copy(orders[id*chunkSize:maxId], response.GetOrders())
+			return nil
+		})
+	}
+
+	if err := wg.Wait(); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
 }
 
 type cursor struct {
