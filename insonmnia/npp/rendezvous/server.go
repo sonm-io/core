@@ -139,7 +139,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 			opts.log,
 			xgrpc.Credentials(opts.credentials),
 			xgrpc.DefaultTraceInterceptor(),
-			xgrpc.RequestLogInterceptor(opts.log, []string{}),
+			xgrpc.RequestLogInterceptor([]string{}),
 			xgrpc.VerifyInterceptor(),
 		),
 		resolver: newExternalResolver(""),

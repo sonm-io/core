@@ -1148,9 +1148,9 @@ func (m *Worker) setupStatusServer() error {
 
 func (m *Worker) createServer(logger *zap.Logger, authRouter *auth.AuthRouter) *grpc.Server {
 	return xgrpc.NewServer(logger,
-		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
 		xgrpc.Credentials(m.creds),
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.RequestLogInterceptor([]string{"PushTask", "PullTask"}),
 		xgrpc.AuthorizationInterceptor(authRouter),
 		xgrpc.VerifyInterceptor(),
 		xgrpc.RateLimitInterceptor(m.ctx, 100.0, map[string]float64{

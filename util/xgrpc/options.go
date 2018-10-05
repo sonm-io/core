@@ -251,30 +251,29 @@ func verifyUnaryInterceptor() grpc.UnaryServerInterceptor {
 //
 // Note, that to enable tracing logging you should specify this option AFTER
 // trace interceptors.
-func RequestLogInterceptor(log *zap.Logger, truncatedMethods []string) ServerOption {
+func RequestLogInterceptor(truncatedMethods []string) ServerOption {
 	var truncatedMethodsSet = map[string]bool{}
 	for _, method := range truncatedMethods {
 		truncatedMethodsSet[method] = true
 	}
 	return func(o *options) {
-		o.interceptors.u = append(o.interceptors.u, requestLogUnaryInterceptor(log.Sugar(), truncatedMethodsSet))
-		o.interceptors.s = append(o.interceptors.s, requestLogStreamInterceptor(log.Sugar(), truncatedMethodsSet))
+		o.interceptors.u = append(o.interceptors.u, requestLogUnaryInterceptor(truncatedMethodsSet))
+		o.interceptors.s = append(o.interceptors.s, requestLogStreamInterceptor(truncatedMethodsSet))
 	}
 }
 
-func requestLogUnaryInterceptor(log *zap.SugaredLogger, truncatedMethods map[string]bool) grpc.UnaryServerInterceptor {
+func requestLogUnaryInterceptor(truncatedMethods map[string]bool) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		executeRequestLogging(ctx, req, info.FullMethod, log, truncatedMethods[MethodInfo(info.FullMethod).Method])
+		executeRequestLogging(ctx, req, info.FullMethod, truncatedMethods[MethodInfo(info.FullMethod).Method])
 		return handler(ctx, req)
 	}
 }
 
-func requestLogStreamInterceptor(log *zap.SugaredLogger, truncatedMethods map[string]bool) grpc.StreamServerInterceptor {
+func requestLogStreamInterceptor(truncatedMethods map[string]bool) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		ss = &requestLoggingWrappedStream{
 			ServerStream: ss,
 			fullMethod:   info.FullMethod,
-			log:          log,
 			truncate:     truncatedMethods[MethodInfo(info.FullMethod).Method],
 		}
 
@@ -282,29 +281,13 @@ func requestLogStreamInterceptor(log *zap.SugaredLogger, truncatedMethods map[st
 	}
 }
 
-func executeRequestLogging(ctx context.Context, req interface{}, method string, log *zap.SugaredLogger, truncate bool) {
-	service, method := MethodInfo(method).IntoTuple()
-	attributes := []interface{}{
-		zap.String("grpc.service", service),
-		zap.String("grpc.method", method),
+func executeRequestLogging(ctx context.Context, req interface{}, method string, truncateRequestField bool) {
+	log := ctx_zap.Extract(ctx).Sugar()
+	if !truncateRequestField {
+		log = log.With(zap.Any("request", reflect.Indirect(reflect.ValueOf(req)).Interface()))
 	}
 
-	if !truncate {
-		attributes = append(attributes, zap.Any("request", reflect.Indirect(reflect.ValueOf(req)).Interface()))
-	}
-
-	span := opentracing.SpanFromContext(ctx)
-	if span != nil {
-		spanContext, ok := span.Context().(basictracer.SpanContext)
-		if ok && spanContext.Sampled {
-			attributes = append(attributes,
-				zap.String(traceIdFieldKey, hex(spanContext.TraceID)),
-				zap.String(spanIdFieldKey, hex(spanContext.SpanID)),
-			)
-		}
-	}
-
-	log.With(attributes...).Infof("handling %s request", method)
+	log.Infof("handling %s request", method)
 }
 
 type requestLoggingWrappedStream struct {
@@ -317,7 +300,7 @@ type requestLoggingWrappedStream struct {
 func (m *requestLoggingWrappedStream) RecvMsg(msg interface{}) error {
 	err := m.ServerStream.RecvMsg(msg)
 
-	executeRequestLogging(m.Context(), msg, m.fullMethod, m.log, m.truncate)
+	executeRequestLogging(m.Context(), msg, m.fullMethod, m.truncate)
 
 	return err
 }
