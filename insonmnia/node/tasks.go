@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+//Deprecated, use workerAPI via interceptor
 type tasksAPI struct {
 	remotes *remoteOptions
 	log     *zap.SugaredLogger

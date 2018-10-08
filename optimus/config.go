@@ -82,6 +82,7 @@ type workerConfig struct {
 	PreludeTimeout time.Duration      `yaml:"prelude_timeout" default:"30s"`
 	Optimization   OptimizationConfig `yaml:"optimization"`
 	Simulation     *simulationConfig  `yaml:"simulation"`
+	VerboseLog     bool               `yaml:"verbose"`
 }
 
 func (m *workerConfig) Validate() error {

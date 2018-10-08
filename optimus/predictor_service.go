@@ -33,13 +33,13 @@ func (m *PredictorService) Predict(ctx context.Context, request *sonm.BidResourc
 		benchmarksValues[bench.GetID()] = value
 	}
 
-	benchmarks, err := sonm.NewBenchmarks(benchmarksValues)
+	orderBenchmarks, err := sonm.NewBenchmarks(benchmarksValues)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse benchmark values: %s", err)
 	}
 
 	order := &sonm.Order{
-		Benchmarks: benchmarks,
+		Benchmarks: orderBenchmarks,
 	}
 
 	price, err := classification.Predictor.PredictPrice(&MarketOrder{
@@ -57,4 +57,19 @@ func (m *PredictorService) Predict(ctx context.Context, request *sonm.BidResourc
 	return &sonm.Price{
 		PerSecond: sonm.NewBigInt(priceBigI),
 	}, nil
+}
+
+func (m *PredictorService) PredictSupplier(ctx context.Context, request *sonm.PredictSupplierRequest) (*sonm.PredictSupplierReply, error) {
+	request.Normalize()
+
+	worker := newMockWorker(request.GetDevices())
+	engine, err := m.engineFactory(worker)
+	if err != nil {
+		return nil, err
+	}
+	if err := engine.execute(ctx); err != nil {
+		return nil, err
+	}
+
+	return &sonm.PredictSupplierReply{Price: sonm.SumPrice(worker.Result)}, nil
 }

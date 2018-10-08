@@ -16,7 +16,7 @@ var workerTasksCmd = &cobra.Command{
 			return fmt.Errorf("cannot get task list: %v", err)
 		}
 
-		printNodeTaskStatus(cmd, list.GetInfo())
+		printTaskStatuses(cmd, list.GetInfo())
 		return nil
 	},
 }

@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	LogFormatClaymore       = "claymore"
-	LogFormatXMRing         = "xmrig"
+	LogFormatCommon         = "common"
 	PoolFormatDwarf         = "dwarf"
 	ProcessorFormatDisabled = "disabled"
 )
@@ -57,15 +56,10 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 	}
 
 	switch cfg.LogProcessorConfig.Format {
-	case LogFormatClaymore:
+	case LogFormatCommon:
 		log = func(deal *types.Deal, taskID string, opts ...Option) Processor {
 			o := makeOpts(opts...)
-			return newClaymoreLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
-		}
-	case LogFormatXMRing:
-		log = func(deal *types.Deal, taskID string, opts ...Option) Processor {
-			o := makeOpts(opts...)
-			return newXmrigLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
+			return newLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
 		}
 	case ProcessorFormatDisabled:
 		log = func(deal *types.Deal, taskID string, opts ...Option) Processor {

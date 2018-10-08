@@ -51,13 +51,13 @@ func newDealsClient(ctx context.Context) (sonm.DealManagementClient, error) {
 	return sonm.NewDealManagementClient(cc), nil
 }
 
-func newTaskClient(ctx context.Context) (sonm.TaskManagementClient, error) {
+func newTaskClient(ctx context.Context) (sonm.WorkerClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return sonm.NewTaskManagementClient(cc), nil
+	return sonm.NewWorkerClient(cc), nil
 }
 
 func newTokenManagementClient(ctx context.Context) (sonm.TokenManagementClient, error) {

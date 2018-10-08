@@ -41,6 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/debug"
@@ -158,6 +159,8 @@ func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 }
 
 func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*sonm.RendezvousReply, error) {
+	log := logging.WithTrace(ctx, m.log)
+
 	peerInfo, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, errNoPeerInfo()
@@ -167,7 +170,7 @@ func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*so
 		Protocol: request.Protocol,
 		Addr:     common.BytesToAddress(request.ID),
 	}
-	m.log.Info("resolving remote peer", zap.Stringer("id", id))
+	log.Info("resolving remote peer", zap.Stringer("id", id))
 
 	peerHandle := NewPeer(*peerInfo, request.PrivateAddrs)
 
@@ -178,7 +181,7 @@ func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*so
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case p := <-c:
-		m.log.Info("providing remote server endpoint(s)",
+		log.Info("providing remote server endpoint(s)",
 			zap.Stringer("id", id),
 			zap.Stringer("public_addr", p.Addr),
 			zap.Any("private_addrs", p.privateAddrs),
@@ -210,6 +213,8 @@ func (m *Server) ResolveAll(ctx context.Context, request *sonm.ID) (*sonm.Resolv
 }
 
 func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*sonm.RendezvousReply, error) {
+	log := logging.WithTrace(ctx, m.log)
+
 	peerInfo, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, errNoPeerInfo()
@@ -224,7 +229,7 @@ func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*so
 		Protocol: request.Protocol,
 		Addr:     *ethAddr,
 	}
-	m.log.Info("publishing remote peer", zap.String("id", id.String()))
+	log.Info("publishing remote peer", zap.String("id", id.String()))
 
 	peerHandle := NewPeer(*peerInfo, request.PrivateAddrs)
 
@@ -235,7 +240,7 @@ func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*so
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case p := <-c:
-		m.log.Info("providing remote client endpoint(s)",
+		log.Info("providing remote client endpoint(s)",
 			zap.Stringer("id", id),
 			zap.Stringer("public_addr", p.Addr),
 			zap.Any("private_addrs", p.privateAddrs),

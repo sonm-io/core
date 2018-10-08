@@ -81,27 +81,27 @@ func (m *packedOrdersGenome) Pack(knapsack *Knapsack) error {
 	return nil
 }
 
-func (m *packedOrdersGenome) Evaluate() (float64, error) {
+func (m *packedOrdersGenome) Evaluate() float64 {
 	knapsack := m.knapsack.Clone()
 
 	for _, order := range m.candidates {
 		switch err := knapsack.Put(order.Order); err {
 		case nil:
 		case errExhausted:
-			return 0.0, nil
+			return 0.0
 		default:
-			return math.NaN(), fmt.Errorf("failed to consume order %s: %v", order.Order.Id.Unwrap().String(), err)
+			return math.NaN()
 		}
 	}
 
 	if len(knapsack.Plans()) == 0 {
-		return 0.0, nil
+		return 0.0
 	}
 
 	price := float64(knapsack.Price().GetPerSecond().Unwrap().Uint64()) / 1e18
 
 	// We want to minimize the fitness, hence the reversing.
-	return -price, nil
+	return -price
 }
 
 func (m *packedOrdersGenome) Mutate(rng *rand.Rand) {
@@ -193,7 +193,7 @@ func (m *decisionOrdersGenome) Pack(knapsack *Knapsack) error {
 	return nil
 }
 
-func (m *decisionOrdersGenome) Evaluate() (float64, error) {
+func (m *decisionOrdersGenome) Evaluate() float64 {
 	knapsack := m.knapsack.Clone() // TODO: Is this required?
 
 	for id, probability := range m.decisions {
@@ -203,21 +203,21 @@ func (m *decisionOrdersGenome) Evaluate() (float64, error) {
 			switch err := knapsack.Put(order); err {
 			case nil:
 			case errExhausted:
-				return 0.0, nil
+				return 0.0
 			default:
-				return math.NaN(), fmt.Errorf("failed to consume order %s: %v", order.Id.Unwrap().String(), err)
+				return math.NaN()
 			}
 		}
 	}
 
 	if len(knapsack.Plans()) == 0 {
-		return 0.0, nil
+		return 0.0
 	}
 
 	price := float64(knapsack.Price().GetPerSecond().Unwrap().Uint64()) * 1e-18
 
 	// We want to minimize the fitness, hence the reversing.
-	return -price, nil
+	return -price
 }
 
 func (m *decisionOrdersGenome) Mutate(rng *rand.Rand) {

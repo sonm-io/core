@@ -2,9 +2,19 @@ syntax = "proto3";
 
 import "insonmnia.proto";
 import "marketplace.proto";
+import "worker.proto";
 
 package sonm;
 
 service OrderPredictor {
     rpc Predict(BidResources) returns (Price) {}
+    rpc PredictSupplier(PredictSupplierRequest) returns (PredictSupplierReply) {}
+}
+
+message PredictSupplierRequest {
+    DevicesReply devices = 1;
+}
+
+message PredictSupplierReply {
+    Price price = 1;
 }

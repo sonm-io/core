@@ -51,6 +51,7 @@ type Services interface {
 	RegisterGRPC(server *grpc.Server) error
 	RegisterREST(server *rest.Server) error
 	Interceptor() grpc.UnaryServerInterceptor
+	StreamInterceptor() grpc.StreamServerInterceptor
 	Run(ctx context.Context) error
 }
 
@@ -126,6 +127,7 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 			xgrpc.RequestLogInterceptor([]string{"PushTask", "PullTask"}),
 			xgrpc.VerifyInterceptor(),
 			xgrpc.UnaryServerInterceptor(services.Interceptor()),
+      xgrpc.StreamServerInterceptor(services.StreamInterceptor()),
 		}...)
 
 		m.serverGRPC = xgrpc.NewServer(m.log.Desugar(), options...)

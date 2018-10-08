@@ -160,7 +160,7 @@ type workerEngine struct {
 	tagger *Tagger
 }
 
-func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache MarketScanner, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker WorkerManagementClientAPI, market blockchain.MarketAPI, marketCache MarketScanner, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
 	if cfg.DryRun {
 		log.Infof("activated dry-run mode for this worker")
 		worker = NewReadOnlyWorker(worker)
@@ -624,7 +624,9 @@ func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *son
 
 	for _, order := range orders {
 		if err := filter.Filter(order.GetOrder()); err != nil {
-			log.Debugf("exclude order %s from matching: %v", order.GetOrder().GetId(), err)
+			if m.cfg.VerboseLog {
+				log.Debugf("exclude order %s from matching: %v", order.GetOrder().GetId(), err)
+			}
 			continue
 		}
 
@@ -700,6 +702,51 @@ func (m *workerEngine) optimizationMethod(orders, matchedOrders []*MarketOrder, 
 type OptimizationMethodFactory interface {
 	Config() interface{}
 	Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod
+}
+
+type defaultPredictionOptimizationMethodFactory struct{}
+
+func (m *defaultPredictionOptimizationMethodFactory) Config() interface{} {
+	return m
+}
+
+func (m *defaultPredictionOptimizationMethodFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	if len(matchedOrders) < 64 {
+		return &BranchBoundModel{
+			Log: log.With(zap.String("model", "BBM")),
+		}
+	}
+
+	return &BatchModel{
+		Methods: []OptimizationMethod{
+			&GreedyLinearRegressionModel{
+				orders: orders,
+				regression: &regressionClassifier{
+					model: &SCAKKTModel{
+						MaxIterations: 1e7,
+						Log:           log,
+					},
+				},
+				exhaustionLimit: 128,
+				log:             log.With(zap.String("model", "LLS")),
+			},
+			&GeneticModel{
+				NewGenomeLab:   NewPackedOrdersNewGenome,
+				PopulationSize: 256,
+				MaxGenerations: 32,
+				MaxAge:         5 * time.Minute,
+				Log:            log.With(zap.String("model", "GMP")),
+			},
+			&GeneticModel{
+				NewGenomeLab:   NewDecisionOrdersNewGenome,
+				PopulationSize: 512,
+				MaxGenerations: 24,
+				MaxAge:         5 * time.Minute,
+				Log:            log.With(zap.String("model", "GMD")),
+			},
+		},
+		Log: log,
+	}
 }
 
 type defaultOptimizationMethodFactory struct{}

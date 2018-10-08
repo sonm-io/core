@@ -51,7 +51,7 @@ func (p printerFlags) WarningSuppressed() bool {
 	return int(p)&suppressWarnings == 1
 }
 
-func printTaskStatus(cmd *cobra.Command, id string, taskStatus *sonm.TaskStatusReply) {
+func printTaskStatus(cmd Printer, id string, taskStatus *sonm.TaskStatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("ID: %s\r\n", id)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
@@ -117,17 +117,34 @@ func printNetworkSpec(cmd *cobra.Command, spec *sonm.NetworkSpec) {
 	}
 }
 
-func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*sonm.TaskStatusReply) {
+func printTaskStatuses(printer Printer, statuses map[string]*sonm.TaskStatusReply) {
 	if isSimpleFormat() {
-		if len(tasksMap) == 0 {
-			cmd.Printf("No active tasks\r\n")
-			return
-		}
-		for id, task := range tasksMap {
-			printTaskStatus(cmd, id, task)
+		if len(statuses) == 0 {
+			printer.Printf("No active tasks\r\n")
+		} else {
+			printer.Printf("\r\n")
+			for id, task := range statuses {
+				printTaskStatus(printer, id, task)
+			}
 		}
 	} else {
-		showJSON(cmd, tasksMap)
+		showJSON(printer, statuses)
+	}
+}
+
+func printNodeTaskStatus(printer Printer, reply *sonm.DealInfoReply) {
+	idented := &IndentPrinter{
+		Subprinter: printer,
+		IdentCount: 2,
+		Ident:      ' ',
+	}
+	if isSimpleFormat() {
+		printer.Printf("Running:")
+		printTaskStatuses(idented, reply.GetRunning())
+		printer.Printf("Completed:")
+		printTaskStatuses(idented, reply.GetCompleted())
+	} else {
+		showJSON(printer, reply)
 	}
 }
 

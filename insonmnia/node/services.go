@@ -11,7 +11,7 @@ import (
 )
 
 type services struct {
-	worker         sonm.WorkerManagementServer
+	worker         *workerAPI
 	market         sonm.MarketServer
 	deals          sonm.DealManagementServer
 	tasks          sonm.TaskManagementServer
@@ -34,7 +34,7 @@ func newServices(options *remoteOptions) *services {
 		blacklist:      newBlacklistAPI(options),
 		profile:        newProfileAPI(options),
 		monitoring:     newMonitoringAPI(options),
-		orderPredictor: optimus.NewPredictorService(options.cfg.Predictor, options.benchList, options.log),
+		orderPredictor: optimus.NewPredictorService(options.cfg.Predictor, options.eth.Market(), options.benchList, options.dwh, options.log),
 	}
 }
 
@@ -44,6 +44,7 @@ func (m *services) RegisterGRPC(server *grpc.Server) error {
 	}
 
 	sonm.RegisterWorkerManagementServer(server, m.worker)
+	sonm.RegisterWorkerServer(server, m.worker)
 	sonm.RegisterMarketServer(server, m.market)
 	sonm.RegisterDealManagementServer(server, m.deals)
 	sonm.RegisterTaskManagementServer(server, m.tasks)
@@ -65,6 +66,9 @@ func (m *services) RegisterREST(server *rest.Server) error {
 	}
 
 	if err := server.RegisterService((*sonm.WorkerManagementServer)(nil), m.worker); err != nil {
+		return err
+	}
+	if err := server.RegisterService((*sonm.WorkerServer)(nil), m.worker); err != nil {
 		return err
 	}
 	if err := server.RegisterService((*sonm.MarketServer)(nil), m.market); err != nil {
@@ -101,7 +105,11 @@ func (m *services) RegisterREST(server *rest.Server) error {
 }
 
 func (m *services) Interceptor() grpc.UnaryServerInterceptor {
-	return m.worker.(*workerAPI).intercept
+	return m.worker.intercept
+}
+
+func (m *services) StreamInterceptor() grpc.StreamServerInterceptor {
+	return m.worker.streamIntercept
 }
 
 func (m *services) Run(ctx context.Context) error {

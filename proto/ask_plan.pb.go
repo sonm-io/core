@@ -129,6 +129,8 @@ It has these top-level messages:
 	NPPMetricsReply
 	NamedMetrics
 	NamedMetric
+	PredictSupplierRequest
+	PredictSupplierReply
 	HandshakeRequest
 	DiscoverResponse
 	HandshakeResponse
