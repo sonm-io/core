@@ -120,14 +120,14 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		state:   NewState(log),
 		ethAddr: crypto.PubkeyToAddress(key.PublicKey),
 
-		priceProvider: cfg.backends().priceProvider,
-		corderFactory: cfg.backends().corderFactory,
-		dealFactory:   cfg.backends().dealFactory,
+		priceProvider: cfg.getBackends().priceProvider,
+		corderFactory: cfg.getBackends().corderFactory,
+		dealFactory:   cfg.getBackends().dealFactory,
 
 		market:    sonm.NewMarketClient(cc),
 		deals:     sonm.NewDealManagementClient(cc),
 		tasks:     sonm.NewTaskManagementClient(cc),
-		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.backends().processorFactory, cfg.backends().dealFactory, cc),
+		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.getBackends().processorFactory, cfg.getBackends().dealFactory, cc),
 
 		ordersCreateChan: make(chan *types.Corder, concurrency),
 		orderCancelChan:  make(chan *types.CorderCancelTuple, concurrency),
