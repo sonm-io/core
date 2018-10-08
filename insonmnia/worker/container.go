@@ -34,6 +34,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.String())
 
 	cont := containerDescriptor{
+		ID:          ID,
 		client:      dockerClient,
 		description: d,
 	}

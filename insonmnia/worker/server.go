@@ -395,6 +395,7 @@ func (m *Worker) setupHardware() error {
 }
 
 func (m *Worker) CancelDealTasks(dealID *sonm.BigInt) error {
+	log.S(m.ctx).Debugf("canceling deal's %s tasks", dealID)
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
