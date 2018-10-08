@@ -1,0 +1,29 @@
+[Unit]
+Description=SONM monitor
+After=plymouth-quit-wait.service getty-pre.target
+After=rc-local.service
+Before=getty.target
+IgnoreOnIsolate=yes
+Conflicts=rescue.service
+Before=rescue.service
+ConditionPathExists=/dev/tty0
+ConditionPathExists=/usr/bin/sonmcli
+
+[Service]
+ExecStart=-/usr/bin/sonmmon
+Type=idle
+Restart=always
+RestartSec=10
+UtmpIdentifier=tty7
+TTYPath=/dev/tty7
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+IgnoreSIGPIPE=no
+# User=sonmmon
+PermissionsStartOnly=true
+WorkingDirectory=/usr/share/sonmmon
+EnvironmentFile=/etc/environment
+
+[Install]
+WantedBy=getty.target

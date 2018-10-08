@@ -2,7 +2,7 @@ Source: sonm-core
 Section: misc
 Priority: optional
 Maintainer: Anton Tyurin <noxiouz@yandex.ru>
-Build-Depends: debhelper (>= 9), dh-systemd, ocl-icd-opencl-dev, libnl-3-dev, libnl-route-3-dev, bash-completion
+Build-Depends: debhelper (>= 9), dh-systemd, ocl-icd-opencl-dev, libnl-3-dev, libnl-route-3-dev, bash-completion, libsdl2-dev, libsdl2-image-dev, libsdl2-ttf-dev, libsdl2-gfx-dev, ca-certificates
 #golang (>= 2:1.7~1ubuntu1)
 Standards-Version: 3.9.8
 Homepage: https://github.com/sonm-io/core
@@ -86,3 +86,7 @@ Description: Supplier software pack for SONM Network
  This package provides cli, node, worker
  and optimus bot.
 
+Package: sonm-mon
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, libsdl2-ttf-2.0-0, libsdl2-image-2.0-0, libsdl2-2.0-0, python, sudo, procps
+Description: SONM worker monitor

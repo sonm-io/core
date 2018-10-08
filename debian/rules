@@ -17,6 +17,7 @@ override_dh_auto_build:
 	mv target/sonmoptimus_linux_x86_64 target/sonmoptimus
 	mv target/sonmoracle_linux_x86_64 target/sonmoracle
 	mv target/sonmconnor_linux_x86_64 target/sonmconnor
+	mv target/sonmmon_linux_x86_64 target/sonmmon
 
 	./target/sonmcli completion bash > sonmcli.bash-completion
 

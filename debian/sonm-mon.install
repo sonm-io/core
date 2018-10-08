@@ -1,0 +1,3 @@
+target/sonmmon ./usr/bin/
+cmd/sonmmon/image.png ./usr/share/sonmmon/
+cmd/sonmmon/TerminusTTFWindows-4.46.0.ttf ./usr/share/sonmmon/
