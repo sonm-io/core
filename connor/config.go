@@ -84,8 +84,7 @@ func (c *Config) validate() error {
 		antifraud.ProcessorFormatDisabled: true,
 	}
 	availableLogs := map[string]bool{
-		antifraud.LogFormatClaymore:       true,
-		antifraud.LogFormatXMRing:         true,
+		antifraud.LogFormatCommon:         true,
 		antifraud.ProcessorFormatDisabled: true,
 	}
 

@@ -101,11 +101,21 @@ antifraud:
   connection_timeout: 60s
 
   log_processor:
-    format: claymore
+    format: common
     track_interval: 30s
     warmup_delay: 5m
     # EWMA decay factor, seconds
     decay_time: 900
+    # string pattern to detect meaningful line in logs
+    # Required.
+    pattern: "Total Speed:"
+    # field in a meaningful log line that contain numeric value
+    # with hashrate, counts from zero.
+    # Required.
+    field: 4
+    # multiplier for parsed value, used when field contains
+    # value in KHash/s or MHash/s. Use `1` if multiplier is not applicable for the value.
+    multiplier: 1000000
 
   pool_processor:
     format: dwarf
