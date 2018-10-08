@@ -16,7 +16,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -44,6 +43,7 @@ type DWH struct {
 	storage     *sqlStorage
 	lastEvent   *blockchain.Event
 	stats       *sonm.DWHStatsReply
+	outOfSync   bool
 }
 
 func NewDWH(ctx context.Context, cfg *DWHConfig, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -226,12 +226,47 @@ func (m *DWH) monitorStatistics() error {
 	}
 }
 
+func (m *DWH) monitorSync() error {
+	const maxBacklog = 50
+	tk := util.NewImmediateTicker(time.Minute)
+	for {
+		select {
+		case <-tk.C:
+			func() {
+				conn := newSimpleConn(m.db)
+				defer conn.Finish()
+
+				lastEvent, err := m.storage.GetLastEvent(conn)
+				if err != nil {
+					m.logger.Warn("failed to get last event", zap.Error(err))
+					return
+				}
+
+				lastBlock, err := m.blockchain.Events().GetLastBlock(m.ctx)
+				if err != nil {
+					m.logger.Warn("failed to get last block", zap.Error(err))
+					return
+				}
+
+				m.mu.Lock()
+				m.outOfSync = int64(lastBlock)-int64(lastEvent.BlockNumber) > maxBacklog
+				m.mu.Unlock()
+			}()
+		case <-m.ctx.Done():
+			return errors.New("monitorSync: context cancelled")
+		}
+	}
+}
+
 // unaryInterceptor RLocks DWH for all incoming requests. This is needed because some events (e.g.,
 // NumBenchmarksUpdated) can alter `m.storage` state.
 func (m *DWH) unaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (resp interface{}, err error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	if m.outOfSync {
+		return nil, status.Error(codes.Internal, "DWH is out of sync, please wait")
+	}
 	return handler(ctx, req)
 }
 
