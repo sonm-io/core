@@ -86,6 +86,7 @@ func (m *DWH) Serve() error {
 	wg.Go(m.serveGRPC)
 	wg.Go(m.serveHTTP)
 	wg.Go(m.monitorStatistics)
+	wg.Go(m.monitorSync)
 
 	return wg.Wait()
 }
