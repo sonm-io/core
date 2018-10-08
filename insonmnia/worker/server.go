@@ -1135,18 +1135,19 @@ func (m *Worker) removeExpiredContainers() error {
 			bigDealID, ok := big.NewInt(0).SetString(dealID, 10)
 			if !ok {
 				log.G(m.ctx).Warn("container has corrupted deal id",
-					zap.String("container_id", container.ID), zap.Any("deal_id", dealID))
+					zap.String("container_id", container.ID), zap.Any("deal_id", dealID), zap.Error(err))
 				continue
 			}
 
-			dealInfo, err := m.getDealInfo(sonm.NewBigInt(bigDealID))
+			// Salesman may not know about the closed deal, so we need to go to blockchain.
+			deal, err := m.eth.Market().GetDealInfo(m.ctx, bigDealID)
 			if err != nil {
 				log.G(m.ctx).Warn("failed to get deal info", zap.String("container_id", container.ID),
 					zap.Any("deal_id", dealID), zap.Error(err))
 				continue
 			}
 
-			if dealInfo.Deal.Status == sonm.DealStatus_DEAL_CLOSED {
+			if deal.MasterID.Unwrap() == m.cfg.Master && deal.Status == sonm.DealStatus_DEAL_CLOSED {
 				log.G(m.ctx).Info("found running container assigned to closed deal, going to purge it",
 					zap.String("container_id", container.ID), zap.String("deal_id", dealID))
 				if err := m.ovs.PurgeContainer(m.ctx, container.ID); err != nil {
