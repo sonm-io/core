@@ -127,7 +127,7 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 			xgrpc.RequestLogInterceptor([]string{"PushTask", "PullTask"}),
 			xgrpc.VerifyInterceptor(),
 			xgrpc.UnaryServerInterceptor(services.Interceptor()),
-      xgrpc.StreamServerInterceptor(services.StreamInterceptor()),
+			xgrpc.StreamServerInterceptor(services.StreamInterceptor()),
 		}...)
 
 		m.serverGRPC = xgrpc.NewServer(m.log.Desugar(), options...)
