@@ -231,6 +231,8 @@ func (m *DWH) monitorStatistics() error {
 func (m *DWH) monitorSync() error {
 	const maxBacklog = 50
 	tk := util.NewImmediateTicker(time.Minute)
+	defer tk.Stop()
+
 	for {
 		select {
 		case <-tk.C:
