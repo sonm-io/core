@@ -134,8 +134,28 @@ func NewWorkerStatus() *WorkerStatus {
 	}
 }
 
+func (w *WorkerStatus) waitFirst(ctx context.Context, log *zap.Logger, cc *grpc.ClientConn, addr string) error {
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("context finished", zap.Error(ctx.Err()))
+			return ctx.Err()
+		case <-t.C:
+			if err := w.update(ctx, cc, addr); err != nil {
+				log.Error("failed to update worker status", zap.Error(err))
+				continue
+			}
+			log.Debug("first status received")
+			return nil
+		}
+	}
+}
+
 func (w *WorkerStatus) update(ctx context.Context, cc *grpc.ClientConn, addr string) error {
-	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 
 	client := sonm.NewWorkerManagementClient(cc)
@@ -415,6 +435,12 @@ func main() {
 		return
 	}
 
+	worker := NewWorkerStatus()
+	if err := worker.waitFirst(ctx, log, cc, cfg.WorkerAddr); err != nil {
+		log.Error("failed to get worker status for first time", zap.Error(err))
+		return
+	}
+
 	ctl, err := initGraphics(log)
 	defer ctl.Close()
 	if err != nil {
@@ -426,12 +452,6 @@ func main() {
 	wg.Go(func() error {
 		return cmd.WaitInterrupted(ctx)
 	})
-
-	worker := NewWorkerStatus()
-	if err := worker.update(ctx, cc, cfg.WorkerAddr); err != nil {
-		log.Error("failed to update worker status", zap.Error(err))
-		return
-	}
 
 	for {
 		if ctx.Err() != nil {
