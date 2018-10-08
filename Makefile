@@ -180,7 +180,7 @@ grpc:
 	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
 
 build_mockgen:
-	@go get github.com/golang/mock/mockgen
+	@go get github.com/golang/mock/mockgen@v1.0.0
 
 mock: build_mockgen
 	mockgen -package worker -destination insonmnia/worker/overseer_mock.go -source insonmnia/worker/overseer.go
