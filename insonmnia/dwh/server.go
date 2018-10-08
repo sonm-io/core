@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/sonm-io/core/proto"
 	"math/big"
 	"net"
 	"sync"
