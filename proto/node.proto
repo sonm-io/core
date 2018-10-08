@@ -49,7 +49,10 @@ message TaskListRequest {
 // to manage deals made into the SONM network
 service DealManagement {
     // List produces a list of all deals made by client with given ID
+    // Deprecated: use ListWithFilters instead
     rpc List(Count) returns (DealsReply) {}
+    // ListWithFilters is same as list, but accepts various filters.
+    rpc ListWithFilters(DealsRequest) returns (DealsReply) {}
     // Status produces a detailed info about deal with given ID.
     rpc Status(BigInt) returns (DealInfoReply) {}
     // Finish finishes a deal with given ID
