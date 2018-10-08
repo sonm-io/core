@@ -615,8 +615,8 @@ func (o *overseer) PurgeContainer(ctx context.Context, containerID string) error
 	delete(o.containers, containerID)
 	if status, ok := o.statuses[containerID]; ok {
 		close(status)
+		delete(o.statuses, containerID)
 	}
-	delete(o.statuses, containerID)
 	o.mu.Unlock()
 
 	if err := o.client.ContainerKill(ctx, containerID, "SIGKILL"); err != nil {
