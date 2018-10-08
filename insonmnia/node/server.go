@@ -122,13 +122,13 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 	}
 
 	if opts.allowGRPC {
-		options := append([]xgrpc.ServerOption{
+		options := append(opts.optionsGRPC, []xgrpc.ServerOption{
 			xgrpc.DefaultTraceInterceptor(),
-			xgrpc.RequestLogInterceptor(m.log.Desugar(), []string{"PushTask", "PullTask"}),
+			xgrpc.RequestLogInterceptor([]string{"PushTask", "PullTask"}),
 			xgrpc.VerifyInterceptor(),
 			xgrpc.UnaryServerInterceptor(services.Interceptor()),
 			xgrpc.StreamServerInterceptor(services.StreamInterceptor()),
-		}, opts.optionsGRPC...)
+		}...)
 
 		m.serverGRPC = xgrpc.NewServer(m.log.Desugar(), options...)
 		if err := services.RegisterGRPC(m.serverGRPC); err != nil {
