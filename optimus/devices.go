@@ -364,6 +364,8 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 			case consumer.SplittingAlgorithm():
 				if deviceBenchmark, ok := consumer.DeviceBenchmark(id); ok {
 					return deviceBenchmark.Result, true
+				} else {
+					return 0, true
 				}
 			}
 		}
