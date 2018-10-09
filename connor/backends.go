@@ -12,3 +12,12 @@ type backends struct {
 	priceProvider    price.Provider
 	processorFactory antifraud.ProcessorFactory
 }
+
+func NewBackends(cfg *Config) *backends {
+	return &backends{
+		processorFactory: antifraud.NewProcessorFactory(&cfg.AntiFraud),
+		corderFactory:    types.NewCorderFactory(cfg.Container.Tag, cfg.Market.benchmarkID, cfg.Market.Counterparty),
+		dealFactory:      types.NewDealFactory(cfg.Market.benchmarkID),
+		priceProvider:    cfg.PriceSource.Init(cfg.Market.PriceControl.Marginality),
+	}
+}
