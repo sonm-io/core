@@ -7,7 +7,6 @@ IgnoreOnIsolate=yes
 Conflicts=rescue.service
 Before=rescue.service
 ConditionPathExists=/dev/tty0
-ConditionPathExists=/usr/bin/sonmcli
 
 [Service]
 ExecStart=-/usr/bin/sonmmon
