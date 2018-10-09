@@ -5,9 +5,11 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 )
 
 type pool struct {
+	log *zap.SugaredLogger
 	all *sonm.AskPlanResources
 	// maps ask plan ID to ask plan for each specific pool
 	usedSpot     askPlanMap
@@ -16,8 +18,9 @@ type pool struct {
 	commitedFw   askPlanMap
 }
 
-func newPool(resources *sonm.AskPlanResources) *pool {
+func newPool(log *zap.SugaredLogger, resources *sonm.AskPlanResources) *pool {
 	return &pool{
+		log:          log,
 		all:          resources,
 		usedSpot:     askPlanMap{},
 		usedFw:       askPlanMap{},
@@ -67,17 +70,26 @@ func (m *pool) release(ID string) error {
 	return err
 }
 
-func ejectAskPlans(required *sonm.AskPlanResources, available *sonm.AskPlanResources, pool askPlanMap) ([]string, error) {
-	ids := []string{}
+func (m *pool) ejectAskPlans(required *sonm.AskPlanResources, available *sonm.AskPlanResources, pool askPlanMap) ([]string, error) {
+	plans := []*sonm.AskPlan{}
 	for {
-		if err := required.CheckContains(available); err == nil {
+		if err := available.CheckContains(required); err == nil {
+			ids := []string{}
+			for _, plan := range plans {
+				ids = append(ids, plan.ID)
+			}
 			return ids, nil
 		}
 		plan, err := pool.PopLatest()
 		if err != nil {
+			for _, plan := range plans {
+				pool[plan.ID] = plan
+			}
 			return nil, err
 		}
-		ids = append(ids, plan.GetID())
+		available.Add(plan.GetResources())
+		m.log.Infof("popped out plan %s", plan.ID)
+		plans = append(plans, plan)
 	}
 }
 
@@ -100,7 +112,7 @@ func (m *pool) shrinkSpotPool(plan *sonm.AskPlan) ([]string, error) {
 	}
 	required.Add(plan.GetResources())
 
-	return ejectAskPlans(required, available, m.usedSpot)
+	return m.ejectAskPlans(required, available, m.usedSpot)
 }
 
 func (m *pool) shrinkCommitedSpotPool(plan *sonm.AskPlan) ([]string, error) {
@@ -113,7 +125,7 @@ func (m *pool) shrinkCommitedSpotPool(plan *sonm.AskPlan) ([]string, error) {
 	if err := available.Sub(commitedSum); err != nil {
 		return ejectedPlans, err
 	}
-	return ejectAskPlans(plan.GetResources(), available, m.commitedSpot)
+	return m.ejectAskPlans(plan.GetResources(), available, m.commitedSpot)
 }
 
 func (m *pool) commit(plan *sonm.AskPlan) {
@@ -132,11 +144,13 @@ func (m *pool) makeRoomAndCommit(plan *sonm.AskPlan) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	m.log.Info("shrinked spot pool")
 
 	ejectedCommited, err := m.shrinkCommitedSpotPool(plan)
 	if err != nil {
 		return nil, err
 	}
+	m.log.Info("shrinked comited spot pool")
 	ejectedPlans = append(ejectedPlans, ejectedCommited...)
 
 	// TODO: do we need to free it? or only spot?

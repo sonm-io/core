@@ -32,7 +32,7 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 	log.Debugf("constructing scheduler with hardware:\n%s\ninitial resources:\n%s", string(readableHardware), string(readableResources))
 	return &Scheduler{
 		OS:            hardware,
-		pool:          newPool(resources),
+		pool:          newPool(log, resources),
 		taskToAskPlan: map[string]string{},
 		askPlanPools:  map[string]*taskPool{},
 		log:           log,
