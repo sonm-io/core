@@ -32,6 +32,18 @@ func (m Orders) Shuffle(rng *rand.Rand) {
 	}
 }
 
+func (m *Orders) Dedup() {
+	index := map[string]*MarketOrder{}
+	for _, order := range *m {
+		index[order.GetOrder().GetId().String()] = order
+	}
+
+	*m = nil
+	for _, order := range index {
+		*m = append(*m, order)
+	}
+}
+
 type ordersGenome struct {
 	knapsack *Knapsack
 	orders   Orders // Constant.
@@ -105,6 +117,7 @@ func (m *packedOrdersGenome) Evaluate() float64 {
 }
 
 func (m *packedOrdersGenome) Mutate(rng *rand.Rand) {
+	defer m.candidates.Dedup()
 	if len(m.candidates) == 0 {
 		m.candidates = append(m.candidates, m.orders[rng.Int()%len(m.orders)])
 		return
@@ -121,28 +134,33 @@ func (m *packedOrdersGenome) Mutate(rng *rand.Rand) {
 }
 
 func (m *packedOrdersGenome) Crossover(genome gago.Genome, rng *rand.Rand) {
-	if len(m.candidates) == 0 && len(genome.(*packedOrdersGenome).candidates) == 0 {
+	genomeT := genome.(*packedOrdersGenome)
+
+	defer m.candidates.Dedup()
+	defer genomeT.candidates.Dedup()
+
+	if len(m.candidates) == 0 && len(genomeT.candidates) == 0 {
 		return
 	}
 
 	if len(m.candidates) == 0 {
 		// Add random order from the other parent.
-		id := rng.Int() % len(genome.(*packedOrdersGenome).candidates)
-		m.candidates = append(m.candidates, genome.(*packedOrdersGenome).candidates[id])
+		id := rng.Int() % len(genomeT.candidates)
+		m.candidates = append(m.candidates, genomeT.candidates[id])
 		return
 	}
 
-	if len(genome.(*packedOrdersGenome).candidates) == 0 {
+	if len(genomeT.candidates) == 0 {
 		id := rng.Int() % len(m.candidates)
-		genome.(*packedOrdersGenome).candidates = append(genome.(*packedOrdersGenome).candidates, m.candidates[id])
+		genomeT.candidates = append(genomeT.candidates, m.candidates[id])
 		return
 	}
 
 	for i := 0; i < 10; i++ {
 		j := rng.Int() % len(m.candidates)
-		k := rng.Int() % len(genome.(*packedOrdersGenome).candidates)
+		k := rng.Int() % len(genomeT.candidates)
 
-		m.candidates[j], genome.(*packedOrdersGenome).candidates[k] = genome.(*packedOrdersGenome).candidates[k], m.candidates[j]
+		m.candidates[j], genomeT.candidates[k] = genomeT.candidates[k], m.candidates[j]
 	}
 }
 
