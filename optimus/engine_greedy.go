@@ -1,6 +1,7 @@
 package optimus
 
 import (
+	"context"
 	"fmt"
 	"math"
 
@@ -46,7 +47,7 @@ type GreedyLinearRegressionModel struct {
 	log             *zap.SugaredLogger
 }
 
-func (m *GreedyLinearRegressionModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error {
+func (m *GreedyLinearRegressionModel) Optimize(ctx context.Context, knapsack *Knapsack, orders []*MarketOrder) error {
 	if len(m.orders) <= minNumOrders {
 		return fmt.Errorf("not enough orders to perform optimization")
 	}

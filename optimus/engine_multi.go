@@ -1,6 +1,7 @@
 package optimus
 
 import (
+	"context"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -46,12 +47,12 @@ type BatchModel struct {
 	Log     *zap.SugaredLogger
 }
 
-func (m *BatchModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error {
+func (m *BatchModel) Optimize(ctx context.Context, knapsack *Knapsack, orders []*MarketOrder) error {
 	if len(m.Methods) == 0 {
 		return fmt.Errorf("no optimization methods found")
 	}
 
-	wg := errgroup.Group{}
+	wg, ctx := errgroup.WithContext(ctx)
 
 	knapsacks := make([]*Knapsack, 0, len(m.Methods))
 	for range m.Methods {
@@ -63,12 +64,11 @@ func (m *BatchModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error {
 		knapsack := knapsacks[id]
 
 		wg.Go(func() error {
-			return method.Optimize(knapsack, orders)
+			return method.Optimize(ctx, knapsack, orders)
 		})
 	}
 
-	err := wg.Wait()
-	if err != nil {
+	if err := wg.Wait(); err != nil {
 		return err
 	}
 

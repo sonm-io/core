@@ -290,7 +290,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	wg := errgroup.Group{}
 	wg.Go(func() error {
 		m.log.Info("optimizing using natural free devices")
-		knapsack, err := m.optimize(input.Devices, naturalFreeDevices, input.Orders, nil, m.log.With(zap.String("optimization", "natural")))
+		knapsack, err := m.optimize(ctx, input.Devices, naturalFreeDevices, input.Orders, nil, m.log.With(zap.String("optimization", "natural")))
 		if err != nil {
 			return err
 		}
@@ -300,7 +300,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	})
 	wg.Go(func() error {
 		m.log.Info("optimizing using virtual free devices")
-		knapsack, err := m.optimize(input.Devices, virtualFreeDevices, extOrders, virtualFreeOrders, m.log.With(zap.String("optimization", "virtual")))
+		knapsack, err := m.optimize(ctx, input.Devices, virtualFreeDevices, extOrders, virtualFreeOrders, m.log.With(zap.String("optimization", "virtual")))
 		if err != nil {
 			return err
 		}
@@ -584,7 +584,7 @@ func (m *workerEngine) ordersForPlans(ctx context.Context, plans map[string]*son
 	return orders, nil
 }
 
-func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders, extra []*MarketOrder, log *zap.SugaredLogger) (*Knapsack, error) {
+func (m *workerEngine) optimize(ctx context.Context, devices, freeDevices *sonm.DevicesReply, orders, extra []*MarketOrder, log *zap.SugaredLogger) (*Knapsack, error) {
 	deviceManager, err := newDeviceManager(devices, freeDevices, m.benchmarkMapping)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct device manager: %v", err)
@@ -600,7 +600,7 @@ func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders,
 
 	now := time.Now()
 	knapsack := NewKnapsack(deviceManager)
-	if err := m.optimizationMethod(orders, matchedOrders, log).Optimize(knapsack, matchedOrders); err != nil {
+	if err := m.optimizationMethod(orders, matchedOrders, log).Optimize(ctx, knapsack, matchedOrders); err != nil {
 		return nil, err
 	}
 
@@ -839,7 +839,7 @@ func (m *optimizationMethodFactory) UnmarshalYAML(unmarshal func(interface{}) er
 }
 
 type OptimizationMethod interface {
-	Optimize(knapsack *Knapsack, orders []*MarketOrder) error
+	Optimize(ctx context.Context, knapsack *Knapsack, orders []*MarketOrder) error
 }
 
 type FittingFunc struct {
