@@ -333,9 +333,6 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				o.mu.Unlock()
 
 				if !containerFound {
-					// NOTE: it could be orphaned container from our previous launch
-					log.G(ctx).Warn("unknown container with sonm tag will be removed", zap.String("id", id))
-					containerRemove(o.ctx, o.client, id)
 					continue
 				}
 				if statusFound {
@@ -604,6 +601,7 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 }
 
 func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
+	log.S(o.ctx).Debugf("overseer cleaning up %s on deal finish", containerID)
 	var isRunning bool
 	if info, err := o.client.ContainerInspect(ctx, containerID); err != nil {
 		return fmt.Errorf("failed to inspect container %s: %v", containerID, err)
@@ -631,7 +629,7 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 		}
 	}
 	//This is needed in case container is uploaded into external registry
-	if descriptor.description.CommitOnStop {
+	if descriptor.description.PushOnStop {
 		if err := descriptor.upload(ctx); err != nil {
 			result = multierror.Append(result, err)
 		}
