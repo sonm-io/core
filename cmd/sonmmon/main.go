@@ -155,7 +155,7 @@ func (w *WorkerStatus) waitFirst(ctx context.Context, log *zap.Logger, cc *grpc.
 }
 
 func (w *WorkerStatus) update(ctx context.Context, cc *grpc.ClientConn, addr string) error {
-	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
 	client := sonm.NewWorkerManagementClient(cc)
