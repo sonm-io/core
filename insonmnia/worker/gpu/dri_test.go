@@ -2,9 +2,8 @@ package gpu
 
 import (
 	"fmt"
-	"testing"
-
 	"strconv"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 )

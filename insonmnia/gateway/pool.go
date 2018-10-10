@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"errors"
-
 	"math/rand"
 	"sync"
 

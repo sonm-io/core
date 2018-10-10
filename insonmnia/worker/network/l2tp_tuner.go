@@ -3,13 +3,11 @@ package network
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"syscall"
-
-	"fmt"
-
-	"io/ioutil"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"

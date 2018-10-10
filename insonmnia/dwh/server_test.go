@@ -1,10 +1,9 @@
 package dwh
 
 import (
+	"context"
 	"math/big"
 	"testing"
-
-	"context"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/proto"

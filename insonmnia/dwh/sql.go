@@ -3,12 +3,11 @@ package dwh
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
-
-	"encoding/json"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"

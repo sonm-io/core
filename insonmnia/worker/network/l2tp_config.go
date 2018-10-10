@@ -1,12 +1,11 @@
 package network
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
-
-	"crypto/md5"
-	"encoding/hex"
 
 	"github.com/docker/go-plugins-helpers/ipam"
 	"github.com/docker/go-plugins-helpers/network"
