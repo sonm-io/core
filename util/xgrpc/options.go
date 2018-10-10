@@ -271,7 +271,7 @@ func RequestLogInterceptor(truncatedMethods []string) ServerOption {
 
 func requestLogUnaryInterceptor(truncatedMethods map[string]bool) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		executeRequestLogging(ctx, req, info.FullMethod, truncatedMethods[MethodInfo(info.FullMethod).Method])
+		executeRequestLogging(ctx, req, info.FullMethod, truncatedMethods[ParseMethodInfo(info.FullMethod).Method])
 		return handler(ctx, req)
 	}
 }
@@ -281,7 +281,7 @@ func requestLogStreamInterceptor(truncatedMethods map[string]bool) grpc.StreamSe
 		ss = &requestLoggingWrappedStream{
 			ServerStream: ss,
 			fullMethod:   info.FullMethod,
-			truncate:     truncatedMethods[MethodInfo(info.FullMethod).Method],
+			truncate:     truncatedMethods[ParseMethodInfo(info.FullMethod).Method],
 		}
 
 		return handler(srv, ss)
