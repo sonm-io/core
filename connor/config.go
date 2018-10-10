@@ -44,11 +44,11 @@ type nodeConfig struct {
 }
 
 type engineConfig struct {
-	ConnectionTimeout   time.Duration     `yaml:"connection_timeout" default:"60s"`
-	OrderWatchInterval  time.Duration     `yaml:"order_watch_interval" default:"10s"`
+	ConnectionTimeout   time.Duration     `yaml:"connection_timeout" default:"3m"`
+	OrderWatchInterval  time.Duration     `yaml:"order_watch_interval" default:"30s"`
 	TaskStartInterval   time.Duration     `yaml:"task_start_interval" default:"15s"`
-	TaskStartTimeout    time.Duration     `yaml:"task_start_timeout" default:"3m"`
-	TaskTrackInterval   time.Duration     `yaml:"task_track_interval" default:"15s"`
+	TaskStartTimeout    time.Duration     `yaml:"task_start_timeout" default:"5m"`
+	TaskTrackInterval   time.Duration     `yaml:"task_track_interval" default:"20s"`
 	TaskRestoreInterval time.Duration     `yaml:"task_restore_interval" default:"10s"`
 	ContainerEnv        map[string]string `yaml:"container_env"`
 }

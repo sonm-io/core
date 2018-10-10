@@ -30,7 +30,7 @@ market:
     deal_change_request: 0.01
     # price deviation on which deal will be cancelled
     # if no change requests was accepted.
-    deal_cancel_threshold: 0.05
+    deal_cancel_threshold: 0.03
 
   benchmarks:
     cpu-sysbench-multi: 100
@@ -45,6 +45,7 @@ market:
     gpu-eth-hashrate: 0
     gpu-cash-hashrate: 0
     gpu-redshift: 0
+    cpu-cryptonight: 0
 
 # container section describes parameters related
 # to tasks which will be started by Connor on purchased resources.
@@ -126,21 +127,21 @@ antifraud:
 
 engine:
   # timeout for connections to external services
-  # default: 30s
-  connection_timeout: 60s
+  # default: 3m
+  connection_timeout: 3m
   # interval between order status updates
-  # default: 10s
-  order_watch_interval: 10s
+  # default: 30s
+  order_watch_interval: 30s
   # interval between task starting retries
   # default: 15s
   task_start_interval: 15s
   # connection timeout for task start method,
   # increase this value if image size is large
-  # default: 3m
-  task_start_timeout: 3m
+  # default: 5m
+  task_start_timeout: 5m
   # interval between task status tracking calls
-  # default: 15s
-  task_track_interval: 15s
+  # default: 20s
+  task_track_interval: 20s
   # interval between tasks restoration retries
   # default: 10s
   task_restore_interval: 10s
