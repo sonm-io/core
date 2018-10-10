@@ -218,11 +218,11 @@ func WithConn(conn net.Conn) grpc.DialOption {
 // calls it if so.
 func VerifyInterceptor() ServerOption {
 	return func(o *options) {
-		o.interceptors.u = append(o.interceptors.u, verifyUnaryInterceptor())
+		o.interceptors.u = append(o.interceptors.u, VerifyUnaryInterceptor())
 	}
 }
 
-func verifyUnaryInterceptor() grpc.UnaryServerInterceptor {
+func VerifyUnaryInterceptor() grpc.UnaryServerInterceptor {
 	validate := func(v interface{}) error {
 		if v, ok := v.(interface {
 			Validate() error

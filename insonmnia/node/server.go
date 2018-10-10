@@ -141,7 +141,10 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 	if opts.allowREST {
 		options := append([]rest.Option{
 			rest.WithLog(opts.log),
-			rest.WithInterceptor(services.Interceptor()),
+			rest.WithInterceptors(
+				xgrpc.VerifyUnaryInterceptor(),
+				services.Interceptor(),
+			),
 		}, opts.optionsREST...)
 
 		m.serverREST = rest.NewServer(options...)
