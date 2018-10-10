@@ -53,6 +53,23 @@ func (d *dealsAPI) List(ctx context.Context, req *sonm.Count) (*sonm.DealsReply,
 	return reply, nil
 }
 
+func (d *dealsAPI) ListWithFilters(ctx context.Context, request *sonm.DealsRequest) (*sonm.DealsReply, error) {
+	reply, err := d.remotes.dwh.GetDeals(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	deals := &sonm.DealsReply{
+		Deal: make([]*sonm.Deal, len(reply.GetDeals())),
+	}
+
+	for i, deal := range reply.GetDeals() {
+		deals.Deal[i] = deal.GetDeal()
+	}
+
+	return deals, nil
+}
+
 func (d *dealsAPI) Status(ctx context.Context, id *sonm.BigInt) (*sonm.DealInfoReply, error) {
 	deal, err := d.remotes.eth.Market().GetDealInfo(ctx, id.Unwrap())
 	if err != nil {

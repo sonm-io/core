@@ -69,8 +69,22 @@ var dealListCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		req := &sonm.Count{Count: dealsSearchCount}
-		deals, err := dealer.List(ctx, req)
+		addr, err := keystore.GetDefaultAddress()
+		if err != nil {
+			return fmt.Errorf("cannot get default address: %v", err)
+		}
+
+		req := &sonm.DealsRequest{
+			AnyUserID: sonm.NewEthAddress(addr),
+			Limit:     dealsSearchCount,
+			Status:    sonm.DealStatus_DEAL_ACCEPTED,
+			Sortings: []*sonm.SortingOption{{
+				Field: "StartTime",
+				Order: sonm.SortingOrder_Asc,
+			}},
+		}
+
+		deals, err := dealer.ListWithFilters(ctx, req)
 		if err != nil {
 			return fmt.Errorf("cannot get deals list: %v", err)
 		}
