@@ -200,7 +200,7 @@ func (s *Server) serveHTTP(request *http.Request) (int, interface{}) {
 	if s.interceptor != nil {
 		info := &grpc.UnaryServerInfo{
 			Server:     serviceHandle.Service.service,
-			FullMethod: serviceHandle.Service.fullName,
+			FullMethod: serviceHandle.Method.fullName,
 		}
 		result, err = s.interceptor(request.Context(), reflect.Indirect(requestValue).Interface(), info, grpc.UnaryHandler(h))
 	} else {
