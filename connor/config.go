@@ -158,16 +158,6 @@ func (c *Config) getBaseBenchmarks() types.Benchmarks {
 	}
 }
 
-func (c *Config) backends() *backends {
-	// todo: do not init backends on each call
-	return &backends{
-		processorFactory: antifraud.NewProcessorFactory(&c.AntiFraud),
-		corderFactory:    types.NewCorderFactory(c.Container.Tag, c.Market.benchmarkID, c.Market.Counterparty),
-		dealFactory:      types.NewDealFactory(c.Market.benchmarkID),
-		priceProvider:    c.PriceSource.Init(c.Market.PriceControl.Marginality),
-	}
-}
-
 func applyEnvTemplate(env map[string]string, dealID *sonm.BigInt) map[string]string {
 	dealTag := "{DEAL_ID}"
 

@@ -34,12 +34,10 @@ type engine struct {
 	antiFraud antifraud.AntiFraud
 	ethAddr   common.Address
 
-	market        sonm.MarketClient
-	deals         sonm.DealManagementClient
-	tasks         sonm.TaskManagementClient
-	priceProvider price.Provider
-	corderFactory types.CorderFactory
-	dealFactory   types.DealFactory
+	market   sonm.MarketClient
+	deals    sonm.DealManagementClient
+	tasks    sonm.TaskManagementClient
+	backends *backends
 
 	ordersCreateChan chan *types.Corder
 	orderCancelChan  chan *types.CorderCancelTuple
@@ -114,20 +112,18 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		return nil, fmt.Errorf("cannot create connection to node: %v", err)
 	}
 
+	backs := NewBackends(cfg)
 	return &engine{
 		cfg:     cfg,
 		log:     log,
 		state:   NewState(log),
 		ethAddr: crypto.PubkeyToAddress(key.PublicKey),
 
-		priceProvider: cfg.backends().priceProvider,
-		corderFactory: cfg.backends().corderFactory,
-		dealFactory:   cfg.backends().dealFactory,
-
+		backends:  backs,
 		market:    sonm.NewMarketClient(cc),
 		deals:     sonm.NewDealManagementClient(cc),
 		tasks:     sonm.NewTaskManagementClient(cc),
-		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.backends().processorFactory, cfg.backends().dealFactory, cc),
+		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, backs.processorFactory, backs.dealFactory, cc),
 
 		ordersCreateChan: make(chan *types.Corder, concurrency),
 		orderCancelChan:  make(chan *types.CorderCancelTuple, concurrency),
@@ -147,7 +143,7 @@ func (e *engine) Serve(ctx context.Context) error {
 	}
 
 	e.log.Debug("price",
-		zap.String("value", e.priceProvider.GetPrice().String()),
+		zap.String("value", e.backends.priceProvider.GetPrice().String()),
 		zap.Float64("margin", e.cfg.Market.PriceControl.Marginality))
 
 	wg, ctx := errgroup.WithContext(ctx)
@@ -204,14 +200,14 @@ func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*ty
 		return nil, err
 	}
 
-	return e.corderFactory.FromOrder(order), nil
+	return e.backends.corderFactory.FromOrder(order), nil
 }
 
 func (e *engine) processOrderCreate(ctx context.Context) {
 	for bid := range e.ordersCreateChan {
 		// set actual order price just before sending it to the Market
 		hashRate := big.NewInt(0).SetUint64(bid.GetHashrate())
-		bid.Price = sonm.NewBigInt(big.NewInt(0).Mul(e.priceProvider.GetPrice(), hashRate))
+		bid.Price = sonm.NewBigInt(big.NewInt(0).Mul(e.backends.priceProvider.GetPrice(), hashRate))
 
 		created, err := e.sendOrderToMarket(ctx, bid.AsBID())
 		if err != nil {
@@ -276,7 +272,7 @@ func (e *engine) getOrderByID(ctx context.Context, id string) (*types.Corder, er
 		return nil, err
 	}
 
-	return e.corderFactory.FromOrder(order), nil
+	return e.backends.corderFactory.FromOrder(order), nil
 }
 
 func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
@@ -294,7 +290,7 @@ func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			actualPrice := e.priceProvider.GetPrice()
+			actualPrice := e.backends.priceProvider.GetPrice()
 			if order.IsReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
 				pricePerOrder := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(order.GetHashrate())))
 				log.Named("price-deviation").Info("we can replace order with more profitable one",
@@ -315,7 +311,7 @@ func (e *engine) waitForDeal(ctx context.Context, order *types.Corder) {
 
 			e.CreateOrder(order)
 			if deal != nil {
-				if ok := e.state.AddDeal(e.dealFactory.FromDeal(deal)); ok {
+				if ok := e.state.AddDeal(e.backends.dealFactory.FromDeal(deal)); ok {
 					go e.processDeal(ctx, deal)
 				}
 			}
@@ -370,7 +366,7 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 
 	log.Debug("start deal processing")
 	defer log.Debug("stop deal processing")
-	defer e.state.DeleteDeal(e.dealFactory.FromDeal(deal))
+	defer e.state.DeleteDeal(e.backends.dealFactory.FromDeal(deal))
 
 	e.antiFraud.DealOpened(deal)
 	defer e.antiFraud.FinishDeal(ctx, deal, antifraud.AllChecks)
@@ -563,8 +559,8 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 	}
 
 	if dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED {
-		deal := e.dealFactory.FromDeal(dealStatus.GetDeal())
-		actualPrice := e.priceProvider.GetPrice()
+		deal := e.backends.dealFactory.FromDeal(dealStatus.GetDeal())
+		actualPrice := e.backends.priceProvider.GetPrice()
 		if deal.IsReplaceable(actualPrice, e.cfg.Market.PriceControl.DealCancelThreshold) {
 			log := log.Named("price-deviation")
 			if len(e.orderCancelChan) > 0 {
@@ -751,7 +747,7 @@ func (e *engine) start(ctx context.Context) error {
 }
 
 func (e *engine) loadInitialData(ctx context.Context) error {
-	if p, ok := e.priceProvider.(price.Updateable); ok {
+	if p, ok := e.backends.priceProvider.(price.Updateable); ok {
 		if err := p.Update(ctx); err != nil {
 			return fmt.Errorf("cannot update price: %v", err)
 		}
@@ -763,7 +759,7 @@ func (e *engine) loadInitialData(ctx context.Context) error {
 func (e *engine) startPriceTracking(ctx context.Context) error {
 	log := e.log.Named("token-price")
 
-	provider, ok := e.priceProvider.(price.Updateable)
+	provider, ok := e.backends.priceProvider.(price.Updateable)
 	if !ok {
 		log.Info("price source shouldn't be updated")
 		return nil
@@ -783,7 +779,7 @@ func (e *engine) startPriceTracking(ctx context.Context) error {
 				log.Warn("cannot update token price", zap.Error(err))
 			} else {
 				log.Debug("received new token price",
-					zap.String("new_price", e.priceProvider.GetPrice().String()))
+					zap.String("new_price", e.backends.priceProvider.GetPrice().String()))
 			}
 		}
 	}
@@ -817,7 +813,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 	// use only deals where Connor is consumer
 	dealsToRestore := e.filterDeals(existingDeals.GetDeal())
 
-	existingCorders := e.corderFactory.FromSlice(existingOrders.GetOrders())
+	existingCorders := e.backends.corderFactory.FromSlice(existingOrders.GetOrders())
 	targetCorders := e.getTargetCorders()
 
 	// adding all existing orders as active, no matter if it should be canceled in the nearest future
@@ -833,7 +829,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 		zap.Int("deals_restore", len(dealsToRestore)))
 
 	for _, deal := range dealsToRestore {
-		e.state.AddDeal(e.dealFactory.FromDeal(deal))
+		e.state.AddDeal(e.backends.dealFactory.FromDeal(deal))
 		e.RestoreDeal(ctx, deal)
 	}
 
@@ -887,7 +883,7 @@ func (e *engine) adoptExternalDeals(ctx context.Context) {
 	}
 
 	for _, deal := range deals.GetDeal() {
-		if ok := e.state.AddDeal(e.dealFactory.FromDeal(deal)); ok {
+		if ok := e.state.AddDeal(e.backends.dealFactory.FromDeal(deal)); ok {
 			adoptedDealsCounter.Inc()
 			e.RestoreDeal(ctx, deal)
 		}
@@ -905,7 +901,7 @@ func (e *engine) adoptExternalOrders(ctx context.Context) {
 	}
 
 	for _, order := range orders.GetOrders() {
-		cord := e.corderFactory.FromOrder(order)
+		cord := e.backends.corderFactory.FromOrder(order)
 		if !e.state.HasOrder(cord) {
 			adoptedOrdersCounter.Inc()
 			e.RestoreOrder(ctx, cord)
@@ -918,7 +914,7 @@ func (e *engine) getTargetCorders() []*types.Corder {
 
 	for hashrate := e.cfg.Market.From; hashrate <= e.cfg.Market.To; hashrate += e.cfg.Market.Step {
 		// settings zero price is OK for now, we'll update it just before sending to the Marketplace.
-		v = append(v, e.corderFactory.FromParams(big.NewInt(0), hashrate, e.cfg.getBaseBenchmarks()))
+		v = append(v, e.backends.corderFactory.FromParams(big.NewInt(0), hashrate, e.cfg.getBaseBenchmarks()))
 	}
 
 	return v
