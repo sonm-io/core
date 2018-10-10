@@ -219,7 +219,6 @@ func (m *Salesman) PurgeAskPlans(ctx context.Context) (*sonm.ErrorByStringID, er
 }
 
 func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
-
 	ask, err := m.AskPlan(planID)
 	if err != nil {
 		return err

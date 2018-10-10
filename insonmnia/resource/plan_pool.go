@@ -16,6 +16,7 @@ type pool struct {
 	usedFw       askPlanMap
 	commitedSpot askPlanMap
 	commitedFw   askPlanMap
+	ejectedPlans askPlanMap
 }
 
 func newPool(log *zap.SugaredLogger, resources *sonm.AskPlanResources) *pool {
@@ -26,6 +27,7 @@ func newPool(log *zap.SugaredLogger, resources *sonm.AskPlanResources) *pool {
 		usedFw:       askPlanMap{},
 		commitedSpot: askPlanMap{},
 		commitedFw:   askPlanMap{},
+		ejectedPlans: askPlanMap{},
 	}
 }
 
@@ -61,7 +63,7 @@ func (m *pool) consume(plan *sonm.AskPlan) error {
 
 func (m *pool) release(ID string) error {
 	err := fmt.Errorf("could not release resource with ID %s from pool - no such resource", ID)
-	for _, mapping := range []askPlanMap{m.usedFw, m.usedSpot, m.commitedFw, m.commitedSpot} {
+	for _, mapping := range []askPlanMap{m.usedFw, m.usedSpot, m.commitedFw, m.commitedSpot, m.ejectedPlans} {
 		if _, ok := mapping[ID]; ok {
 			delete(mapping, ID)
 			err = nil
@@ -77,6 +79,7 @@ func (m *pool) ejectAskPlans(required *sonm.AskPlanResources, available *sonm.As
 			ids := []string{}
 			for _, plan := range plans {
 				ids = append(ids, plan.ID)
+				m.ejectedPlans[plan.ID] = plan
 			}
 			return ids, nil
 		}
@@ -154,11 +157,10 @@ func (m *pool) makeRoomAndCommit(plan *sonm.AskPlan) ([]string, error) {
 	ejectedPlans = append(ejectedPlans, ejectedCommited...)
 
 	// TODO: do we need to free it? or only spot?
-	if plan.IsSpot() {
-		if err := m.release(plan.ID); err != nil {
-			return nil, err
-		}
+	if err := m.release(plan.ID); err != nil {
+		return nil, err
 	}
+
 	m.commit(plan)
 
 	return ejectedPlans, nil
