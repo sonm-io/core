@@ -13,7 +13,8 @@ func (m *PredictSupplierRequest) Validate() error {
 }
 
 func (m *PredictSupplierRequest) Normalize() {
-	for _, dev := range m.GetDevices().GetGPUs() {
+	for id, dev := range m.GetDevices().GetGPUs() {
+		dev.GetDevice().ID = fmt.Sprintf("%x", id)
 		dev.GetDevice().FillHashID()
 	}
 }
