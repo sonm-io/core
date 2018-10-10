@@ -135,19 +135,20 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, request *http.Request) {
 
 	switch response := response.(type) {
 	case error:
-		if code/100 == 4 || code/100 == 5 {
-			s.log.Warn(response.Error())
+		data, err := json.Marshal(map[string]string{
+			"error": response.Error(),
+		})
+		if err != nil {
+			panic("unreachable")
 		}
 
-		rw.Write([]byte(fmt.Sprintf(`{"error": "%s"}`, response.Error())))
+		rw.Write(data)
 	case []byte:
 		rw.Write(response)
 	default:
 		rw.Write([]byte(fmt.Sprintf(`{"error": "internal server error: response type is %T"}`, response)))
 	}
 }
-
-// todo: log 4xx as warn, 5xx as errors, 2xx as info.
 
 func (s *Server) serveHTTP(request *http.Request) (int, interface{}) {
 	s.log.Debugf("serving URI: %s", request.RequestURI)
