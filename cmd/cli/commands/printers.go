@@ -375,7 +375,7 @@ func getDealCounterpartyString(d *sonm.Deal) string {
 	}
 }
 
-func printDealsList(cmd *cobra.Command, deals []*sonm.Deal) {
+func printDealsList(cmd *cobra.Command, deals []*sonm.DWHDeal) {
 	if isSimpleFormat() {
 		if len(deals) == 0 {
 			cmd.Println("No deals found")
@@ -386,7 +386,8 @@ func printDealsList(cmd *cobra.Command, deals []*sonm.Deal) {
 		w.SetHeader([]string{"ID", "price", "started at", "duration", "counterparty"})
 		w.SetCaption(true, fmt.Sprintf("count: %d", len(deals)))
 		w.SetBorder(false)
-		for _, deal := range deals {
+		for _, d := range deals {
+			deal := d.GetDeal()
 			var duration string
 			if deal.GetDuration() == 0 {
 				// deal have no duration, show as "spot"

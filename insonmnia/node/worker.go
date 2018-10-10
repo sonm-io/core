@@ -20,21 +20,22 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type workerAPI struct {
+type interceptedAPI struct {
 	sonm.WorkerServer
 	sonm.WorkerManagementServer
+	sonm.DWHServer
 	remotes *remoteOptions
 	log     *zap.SugaredLogger
 }
 
-func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
+func (m *interceptedAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return auth.NewETHAddr(crypto.PubkeyToAddress(h.remotes.key.PublicKey)), nil
+		return auth.NewETHAddr(crypto.PubkeyToAddress(m.remotes.key.PublicKey)), nil
 	}
 	ctxAddrs, ok := md[util.WorkerAddressHeader]
 	if !ok {
-		return auth.NewETHAddr(crypto.PubkeyToAddress(h.remotes.key.PublicKey)), nil
+		return auth.NewETHAddr(crypto.PubkeyToAddress(m.remotes.key.PublicKey)), nil
 	}
 	if len(ctxAddrs) != 1 {
 		return nil, fmt.Errorf("worker address key in metadata has %d headers (exactly one required)", len(ctxAddrs))
@@ -42,17 +43,17 @@ func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 	return auth.NewAddr(ctxAddrs[0])
 }
 
-func (h *workerAPI) getManagementClient(ctx context.Context) (sonm.WorkerManagementClient, io.Closer, error) {
-	addr, err := h.getWorkerAddr(ctx)
+func (m *interceptedAPI) getWorkerManagementClient(ctx context.Context) (sonm.WorkerManagementClient, io.Closer, error) {
+	addr, err := m.getWorkerAddr(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	h.log.Debugf("connecting to worker on %s", addr.String())
-	return h.remotes.workerCreator(ctx, addr)
+	m.log.Debugf("connecting to worker on %s", addr.String())
+	return m.remotes.workerCreator(ctx, addr)
 }
 
-func (m *workerAPI) getTasksClient(ctx context.Context) (sonm.WorkerClient, io.Closer, error) {
+func (m *interceptedAPI) getWorkerClient(ctx context.Context) (sonm.WorkerClient, io.Closer, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, nil, status.Errorf(codes.InvalidArgument, "metadata required")
@@ -71,7 +72,7 @@ func (m *workerAPI) getTasksClient(ctx context.Context) (sonm.WorkerClient, io.C
 	return worker, cc, nil
 }
 
-func (m *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (m *interceptedAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	var cli interface{}
 	var closer io.Closer
 	var err error
@@ -80,17 +81,21 @@ func (m *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 	switch serverName {
 	case "sonm.Worker":
 		ctx = util.ForwardMetadata(ctx)
-		cli, closer, err = m.getTasksClient(ctx)
+		cli, closer, err = m.getWorkerClient(ctx)
 	case "sonm.WorkerManagement":
 		ctx = util.ForwardMetadata(ctx)
-		cli, closer, err = m.getManagementClient(ctx)
+		cli, closer, err = m.getWorkerManagementClient(ctx)
+	case "sonm.DWH":
+		cli = m.remotes.dwh
 	default:
 		return handler(ctx, req)
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer closer.Close()
+	if closer != nil {
+		defer closer.Close()
+	}
 
 	t := reflect.ValueOf(cli)
 	method := t.MethodByName(xgrpc.ParseMethodInfo(info.FullMethod).Method)
@@ -153,7 +158,7 @@ func newMethodArgValue(cli interface{}, methodStr string, position int) reflect.
 	return reflect.New(method.Type().In(position).Elem())
 }
 
-func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func (m *interceptedAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	//TODO: deduplicate
 	var cli interface{}
 	var closer io.Closer
@@ -164,10 +169,10 @@ func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info 
 	switch serverName {
 	case "sonm.Worker":
 		ctx = util.ForwardMetadata(ss.Context())
-		cli, closer, err = m.getTasksClient(ctx)
+		cli, closer, err = m.getWorkerClient(ctx)
 	case "sonm.WorkerManagement":
 		ctx = util.ForwardMetadata(ss.Context())
-		cli, closer, err = m.getTasksClient(ctx)
+		cli, closer, err = m.getWorkerClient(ctx)
 	default:
 		return handler(srv, ss)
 	}
@@ -237,8 +242,8 @@ func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info 
 	return wg.Wait()
 }
 
-func newWorkerAPI(opts *remoteOptions) *workerAPI {
-	return &workerAPI{
+func newInterceptedAPI(opts *remoteOptions) *interceptedAPI {
+	return &interceptedAPI{
 		remotes: opts,
 		log:     opts.log,
 	}
