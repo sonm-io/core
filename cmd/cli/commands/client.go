@@ -86,3 +86,12 @@ func newProfilesClient(ctx context.Context) (sonm.ProfilesClient, error) {
 
 	return sonm.NewProfilesClient(cc), nil
 }
+
+func newDWHClient(ctx context.Context) (sonm.DWHClient, error) {
+	cc, err := newClientConn(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return sonm.NewDWHClient(cc), nil
+}

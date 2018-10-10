@@ -11,7 +11,7 @@ import (
 )
 
 type services struct {
-	worker         *workerAPI
+	intercepted    *interceptedAPI
 	market         sonm.MarketServer
 	deals          sonm.DealManagementServer
 	tasks          sonm.TaskManagementServer
@@ -25,7 +25,7 @@ type services struct {
 
 func newServices(options *remoteOptions) *services {
 	return &services{
-		worker:         newWorkerAPI(options),
+		intercepted:    newInterceptedAPI(options),
 		market:         newMarketAPI(options),
 		deals:          newDealsAPI(options),
 		tasks:          newTasksAPI(options),
@@ -43,8 +43,9 @@ func (m *services) RegisterGRPC(server *grpc.Server) error {
 		return nil
 	}
 
-	sonm.RegisterWorkerManagementServer(server, m.worker)
-	sonm.RegisterWorkerServer(server, m.worker)
+	sonm.RegisterWorkerManagementServer(server, m.intercepted)
+	sonm.RegisterWorkerServer(server, m.intercepted)
+	sonm.RegisterDWHServer(server, m.intercepted)
 	sonm.RegisterMarketServer(server, m.market)
 	sonm.RegisterDealManagementServer(server, m.deals)
 	sonm.RegisterTaskManagementServer(server, m.tasks)
@@ -65,10 +66,10 @@ func (m *services) RegisterREST(server *rest.Server) error {
 		return nil
 	}
 
-	if err := server.RegisterService((*sonm.WorkerManagementServer)(nil), m.worker); err != nil {
+	if err := server.RegisterService((*sonm.WorkerManagementServer)(nil), m.intercepted); err != nil {
 		return err
 	}
-	if err := server.RegisterService((*sonm.WorkerServer)(nil), m.worker); err != nil {
+	if err := server.RegisterService((*sonm.WorkerServer)(nil), m.intercepted); err != nil {
 		return err
 	}
 	if err := server.RegisterService((*sonm.MarketServer)(nil), m.market); err != nil {
@@ -95,6 +96,9 @@ func (m *services) RegisterREST(server *rest.Server) error {
 	if err := server.RegisterService((*sonm.MonitoringServer)(nil), m.monitoring); err != nil {
 		return err
 	}
+	if err := server.RegisterService((*sonm.DWHServer)(nil), m.intercepted); err != nil {
+		return err
+	}
 	if m.orderPredictor != nil {
 		if err := server.RegisterService((*sonm.OrderPredictorServer)(nil), m.orderPredictor); err != nil {
 			return err
@@ -105,11 +109,11 @@ func (m *services) RegisterREST(server *rest.Server) error {
 }
 
 func (m *services) Interceptor() grpc.UnaryServerInterceptor {
-	return m.worker.intercept
+	return m.intercepted.intercept
 }
 
 func (m *services) StreamInterceptor() grpc.StreamServerInterceptor {
-	return m.worker.streamIntercept
+	return m.intercepted.streamIntercept
 }
 
 func (m *services) Run(ctx context.Context) error {

@@ -64,18 +64,27 @@ var dealListCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		dealer, err := newDealsClient(ctx)
+		dwh, err := newDWHClient(ctx)
 		if err != nil {
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		req := &sonm.Count{Count: dealsSearchCount}
-		deals, err := dealer.List(ctx, req)
+		addr, err := keystore.GetDefaultAddress()
 		if err != nil {
-			return fmt.Errorf("cannot get deals list: %v", err)
+			return fmt.Errorf("cannot get default address: %v", err)
+		}
+		req := &sonm.DealsRequest{
+			AnyUserID: sonm.NewEthAddress(addr),
+			Limit:     dealsSearchCount,
+			Status:    sonm.DealStatus_DEAL_ACCEPTED,
+			Sortings: []*sonm.SortingOption{{
+				Field: "StartTime",
+				Order: sonm.SortingOrder_Asc,
+			}},
 		}
 
-		printDealsList(cmd, deals.GetDeal())
+		deals, err := dwh.GetDeals(ctx, req)
+		printDealsList(cmd, deals.GetDeals())
 		return nil
 	},
 }
