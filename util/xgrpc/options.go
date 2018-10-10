@@ -53,7 +53,7 @@ func TraceInterceptor(tracer opentracing.Tracer) ServerOption {
 	return func(o *options) {
 		o.interceptors.u = append(o.interceptors.u,
 			grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(tracer)),
-			openTracingZapUnaryInterceptor(),
+			OpenTracingZapUnaryInterceptor(),
 		)
 		o.interceptors.s = append(o.interceptors.s,
 			grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(tracer)),
@@ -160,7 +160,7 @@ func wrapZapContextWithWallet(ctx context.Context) context.Context {
 	return ctx
 }
 
-func openTracingZapUnaryInterceptor() grpc.UnaryServerInterceptor {
+func OpenTracingZapUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return contextUnaryInterceptor(wrapZapContextWithTracing)
 }
 
@@ -264,12 +264,12 @@ func RequestLogInterceptor(truncatedMethods []string) ServerOption {
 		truncatedMethodsSet[method] = true
 	}
 	return func(o *options) {
-		o.interceptors.u = append(o.interceptors.u, requestLogUnaryInterceptor(truncatedMethodsSet))
+		o.interceptors.u = append(o.interceptors.u, RequestLogUnaryInterceptor(truncatedMethodsSet))
 		o.interceptors.s = append(o.interceptors.s, requestLogStreamInterceptor(truncatedMethodsSet))
 	}
 }
 
-func requestLogUnaryInterceptor(truncatedMethods map[string]bool) grpc.UnaryServerInterceptor {
+func RequestLogUnaryInterceptor(truncatedMethods map[string]bool) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		executeRequestLogging(ctx, req, info.FullMethod, truncatedMethods[ParseMethodInfo(info.FullMethod).Method])
 		return handler(ctx, req)

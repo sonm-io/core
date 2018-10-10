@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -66,14 +67,10 @@ func WithEncoder(e Encoder) Option {
 	}
 }
 
-func WithInterceptor(interceptor grpc.UnaryServerInterceptor) Option {
-	return func(o *options) {
-		o.interceptor = interceptor
-	}
-}
-
 func WithInterceptors(interceptors ...grpc.UnaryServerInterceptor) Option {
 	return func(o *options) {
-		o.interceptor = grpc_middleware.ChainUnaryServer(interceptors...)
+		o.interceptor = grpc_middleware.ChainUnaryServer(
+			append([]grpc.UnaryServerInterceptor{grpc_zap.UnaryServerInterceptor(o.log)}, interceptors...)...,
+		)
 	}
 }
