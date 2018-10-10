@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -27,6 +28,11 @@ type Service struct {
 	methods  map[string]*Method
 	service  interface{}
 	fullName string
+}
+
+type serviceHandle struct {
+	Service *Service
+	Method  *Method
 }
 
 type Server struct {
@@ -111,65 +117,64 @@ func (s *Server) RegisterService(interfacePtr, concretePtr interface{}) error {
 	return nil
 }
 
-func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	parts := strings.Split(r.RequestURI, "/")
-	s.log.Debugf("serving URI: %s", r.RequestURI)
-	if len(parts) < 3 {
-		rw.WriteHeader(http.StatusNotFound)
-		rw.Write([]byte("invalid uri provided"))
-		return
-	}
-	for i := 3; i < len(parts); i++ {
-		if len(parts[i]) != 0 {
-			rw.WriteHeader(http.StatusNotFound)
-			rw.Write([]byte("invalid uri provided"))
-			return
-		}
-	}
-	serviceName := parts[1]
-	service, ok := s.services[serviceName]
-	if !ok {
-		s.log.Warnf("service %s not found", serviceName)
-		rw.WriteHeader(http.StatusNotFound)
-		rw.Write([]byte(fmt.Sprintf("service %s not found", serviceName)))
-		return
-	}
-	methodName := parts[2]
-	method, ok := service.methods[methodName]
-	if !ok {
-		s.log.Warnf("method %s for service %s not found", methodName, serviceName)
-		rw.WriteHeader(http.StatusNotFound)
-		rw.Write([]byte(fmt.Sprintf("method %s for service %s not found", methodName, serviceName)))
-		return
-	}
-
-	decodedReader, err := s.decoder.DecodeBody(r)
-	if err != nil {
-		s.log.Errorf("could not decode body: %s", err)
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(fmt.Sprintf("could not decode body: %s", err)))
-		return
-	}
-	rw, err = s.encoder.Encode(rw)
+func (s *Server) ServeHTTP(rw http.ResponseWriter, request *http.Request) {
+	// At first we must do response encoder switching for symmetry.
+	//
+	// For example when a client with encoding performs invalid request it
+	// expects (without providing additional info in headers) an encoded
+	// response.
+	rw, err := s.encoder.Encode(rw)
 	if err != nil {
 		s.log.Errorf("could not encode response writer: %s", err)
 		return
 	}
-	body, _ := ioutil.ReadAll(decodedReader)
-	if len(body) == 0 {
-		s.log.Error("missing required body")
-		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(fmt.Sprintf("missing required body")))
-		return
+
+	code, response := s.serveHTTP(request)
+	rw.Header().Set("content-type", "application/json")
+	rw.WriteHeader(code)
+
+	switch response := response.(type) {
+	case error:
+		if code/100 == 4 || code/100 == 5 {
+			s.log.Warn(response.Error())
+		}
+
+		rw.Write([]byte(fmt.Sprintf(`{"error": "%s"}`, response.Error())))
+	case []byte:
+		rw.Write(response)
+	default:
+		rw.Write([]byte(fmt.Sprintf(`{"error": "internal server error: response type is %T"}`, response)))
+	}
+}
+
+// todo: log 4xx as warn, 5xx as errors, 2xx as info.
+
+func (s *Server) serveHTTP(request *http.Request) (int, interface{}) {
+	s.log.Debugf("serving URI: %s", request.RequestURI)
+
+	methodInfo := xgrpc.ParseMethodInfo(request.RequestURI)
+	if methodInfo == nil {
+		return http.StatusBadRequest, fmt.Errorf("invalid URI provided")
 	}
 
-	requestValue := reflect.New(method.messageType)
-	err = json.Unmarshal(body, requestValue.Interface())
+	serviceHandle, err := s.extractServiceHandle(methodInfo)
 	if err != nil {
-		s.log.Errorf("could not unmarshal body: %s", err)
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(fmt.Sprintf("could not unmarshal body: %s", err)))
-		return
+		return http.StatusNotFound, err
+	}
+
+	decodedReader, err := s.decoder.DecodeBody(request)
+	if err != nil {
+		return http.StatusBadRequest, fmt.Errorf("could not decode body: %s", err)
+	}
+
+	body, _ := ioutil.ReadAll(decodedReader)
+	if len(body) == 0 {
+		return http.StatusBadRequest, fmt.Errorf("missing required body")
+	}
+
+	requestValue := reflect.New(serviceHandle.Method.messageType)
+	if err := json.Unmarshal(body, requestValue.Interface()); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("could not unmarshal body: %s", err)
 	}
 
 	h := func(ctx context.Context, req interface{}) (interface{}, error) {
@@ -178,11 +183,8 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			reflect.ValueOf(req),
 		}
 
-		resp := method.methodValue.Call(callParam)
+		resp := serviceHandle.Method.methodValue.Call(callParam)
 		if len(resp) != 2 {
-			s.log.Errorf("logic error: invalid number of returned arguments: %d", len(resp))
-			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(fmt.Sprintf("logic error: invalid number of returned arguments")))
 			return nil, errors.New("logic error: invalid number of returned arguments")
 		}
 		if !resp[1].IsNil() {
@@ -196,28 +198,42 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	var result interface{}
 	if s.interceptor != nil {
 		info := &grpc.UnaryServerInfo{
-			Server:     service.service,
-			FullMethod: method.fullName,
+			Server:     serviceHandle.Service.service,
+			FullMethod: serviceHandle.Service.fullName,
 		}
-		result, err = s.interceptor(r.Context(), reflect.Indirect(requestValue).Interface(), info, grpc.UnaryHandler(h))
+		result, err = s.interceptor(request.Context(), reflect.Indirect(requestValue).Interface(), info, grpc.UnaryHandler(h))
 	} else {
-		result, err = h(r.Context(), reflect.Indirect(requestValue).Interface())
+		result, err = h(request.Context(), reflect.Indirect(requestValue).Interface())
 	}
 
 	if err != nil {
-		rw.WriteHeader(HTTPStatusFromError(err))
-		rw.Write([]byte(err.Error()))
+		return HTTPStatusFromError(err), err
 	} else {
 		data, err := json.Marshal(result)
 		if err != nil {
-			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(err.Error()))
+			return http.StatusInternalServerError, err
 		} else {
-			rw.Header().Set("content-type", "application/json")
-			rw.WriteHeader(http.StatusOK)
-			rw.Write(data)
+			return http.StatusOK, data
 		}
 	}
+}
+
+func (s *Server) extractServiceHandle(methodInfo *xgrpc.MethodInfo) (*serviceHandle, error) {
+	service, ok := s.services[methodInfo.Service]
+	if !ok {
+		return nil, fmt.Errorf("service %s not found", methodInfo.Service)
+	}
+
+	methodInfo.Method = strings.Trim(methodInfo.Method, "/")
+	method, ok := service.methods[methodInfo.Method]
+	if !ok {
+		return nil, fmt.Errorf("method %s for service %s not found", methodInfo.Method, methodInfo.Service)
+	}
+
+	return &serviceHandle{
+		Service: service,
+		Method:  method,
+	}, nil
 }
 
 func (s *Server) Serve(listeners ...net.Listener) error {

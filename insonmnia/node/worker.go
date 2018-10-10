@@ -93,7 +93,7 @@ func (m *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 	defer closer.Close()
 
 	t := reflect.ValueOf(cli)
-	method := t.MethodByName(xgrpc.MethodInfo(info.FullMethod).Method)
+	method := t.MethodByName(xgrpc.ParseMethodInfo(info.FullMethod).Method)
 	inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
 	values := method.Call(inValues)
 
@@ -174,7 +174,7 @@ func (m *workerAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, info 
 	defer closer.Close()
 
 	args := []interface{}{ctx}
-	methodName := xgrpc.MethodInfo(info.FullMethod).Method
+	methodName := xgrpc.ParseMethodInfo(info.FullMethod).Method
 
 	if !info.IsClientStream {
 		// first position is always context, second is request
