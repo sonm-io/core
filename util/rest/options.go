@@ -67,16 +67,10 @@ func WithEncoder(e Encoder) Option {
 	}
 }
 
-func WithInterceptor(interceptor grpc.UnaryServerInterceptor) Option {
-	return func(o *options) {
-		o.interceptor = interceptor
-	}
-}
-
 func WithInterceptors(interceptors ...grpc.UnaryServerInterceptor) Option {
 	return func(o *options) {
 		o.interceptor = grpc_middleware.ChainUnaryServer(
-			append(append([]grpc.UnaryServerInterceptor{}, grpc_zap.UnaryServerInterceptor(o.log)), interceptors...)...,
+			append([]grpc.UnaryServerInterceptor{grpc_zap.UnaryServerInterceptor(o.log)}, interceptors...)...,
 		)
 	}
 }
