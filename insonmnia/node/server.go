@@ -142,6 +142,8 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 		options := append([]rest.Option{
 			rest.WithLog(opts.log),
 			rest.WithInterceptors(
+				xgrpc.OpenTracingZapUnaryInterceptor(),
+				xgrpc.RequestLogUnaryInterceptor(map[string]bool{}),
 				xgrpc.VerifyUnaryInterceptor(),
 				services.Interceptor(),
 			),
