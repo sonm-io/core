@@ -1,6 +1,7 @@
 package optimus
 
 import (
+	"context"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -27,7 +28,11 @@ type node struct {
 	log      *zap.SugaredLogger
 }
 
-func newNode(knapsack *Knapsack, ordersPool ordersPool, depth int, log *zap.SugaredLogger) *node {
+func newNode(ctx context.Context, knapsack *Knapsack, ordersPool ordersPool, depth int, log *zap.SugaredLogger) (*node, error) {
+	if err := contextDone(ctx); err != nil {
+		return nil, err
+	}
+
 	children := make([]*node, 0, len(ordersPool))
 
 	for id, order := range ordersPool {
@@ -39,7 +44,12 @@ func newNode(knapsack *Knapsack, ordersPool ordersPool, depth int, log *zap.Suga
 		pool := ordersPool.Clone()
 		delete(pool, id)
 
-		if node := newNode(knapsack, pool, depth+1, log); node != nil {
+		node, err := newNode(ctx, knapsack, pool, depth+1, log)
+		if err != nil {
+			return nil, err
+		}
+
+		if node != nil {
 			children = append(children, node)
 		}
 	}
@@ -57,7 +67,7 @@ func newNode(knapsack *Knapsack, ordersPool ordersPool, depth int, log *zap.Suga
 		log:      log,
 	}
 
-	return m
+	return m, nil
 }
 
 func (m *node) FindOptimum() *Knapsack {
@@ -115,14 +125,18 @@ type BranchBoundModel struct {
 	Log *zap.SugaredLogger
 }
 
-func (m *BranchBoundModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error {
+func (m *BranchBoundModel) Optimize(ctx context.Context, knapsack *Knapsack, orders []*MarketOrder) error {
 	ordersPool := map[string]*MarketOrder{}
 	for _, order := range orders {
 		id := order.GetOrder().GetId().Unwrap().String()
 		ordersPool[id] = order
 	}
 
-	root := newNode(knapsack, ordersPool, 0, m.Log)
+	root, err := newNode(ctx, knapsack, ordersPool, 0, m.Log)
+	if err != nil {
+		return err
+	}
+
 	if root == nil {
 		return fmt.Errorf("failed to construct decision tree")
 	}

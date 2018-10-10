@@ -1,6 +1,7 @@
 package optimus
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"math/rand"
@@ -344,7 +345,7 @@ func (m *GeneticModel) ShouldEvolve(ga gago.GA) bool {
 	return ga.Generations < m.MaxGenerations && ga.Age < m.MaxAge
 }
 
-func (m *GeneticModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error {
+func (m *GeneticModel) Optimize(ctx context.Context, knapsack *Knapsack, orders []*MarketOrder) error {
 	if len(orders) == 0 {
 		return fmt.Errorf("not enougn orders to perform optimization")
 	}
@@ -359,6 +360,10 @@ func (m *GeneticModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error
 	simulation.Initialize()
 
 	for m.ShouldEvolve(simulation) {
+		if err := contextDone(ctx); err != nil {
+			return err
+		}
+
 		simulation.Evolve()
 	}
 
