@@ -20,6 +20,10 @@ oracle:
   # In master mode this instance submitting price changing
   # In slave mode this instance confirm changing
   is_master: false
+  #  from_now` parameter forces Oracle to process transactions only from the current block, otherwise, it will read whole transaction history from the beginning of times.
+  #  This parameter works only if slave mode is active.
+  #  Default: true.
+  # from_now: true
   # priceUpdatePeriod defines period to update snm/usd price in this oracle instance
   #price_update_period: "15s"
   # contractUpdatePeriod defines period to update snm/usd price in oracle contract
