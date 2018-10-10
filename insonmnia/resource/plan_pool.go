@@ -154,17 +154,12 @@ func (m *pool) makeRoomAndCommit(plan *sonm.AskPlan) ([]string, error) {
 	ejectedPlans = append(ejectedPlans, ejectedCommited...)
 
 	// TODO: do we need to free it? or only spot?
-	if err := m.release(plan.ID); err != nil {
-		return nil, err
-	}
-	m.commit(plan)
-	for _, id := range ejectedPlans {
-		if err := m.release(id); err != nil {
-			//this should never happen
-			//TODO: log
+	if plan.IsSpot() {
+		if err := m.release(plan.ID); err != nil {
 			return nil, err
 		}
 	}
+	m.commit(plan)
 
 	return ejectedPlans, nil
 }
