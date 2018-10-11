@@ -15,10 +15,6 @@ import (
 	"github.com/sonm-io/core/util/debug"
 )
 
-const (
-	PolicySpotOnly OrderPolicy = iota
-)
-
 type nodeConfig struct {
 	PrivateKey privateKey `yaml:"ethereum" json:"-"`
 	Endpoint   auth.Addr  `yaml:"endpoint"`
@@ -74,7 +70,7 @@ type RestrictionsConfig struct {
 type workerConfig struct {
 	PrivateKey     privateKey         `yaml:"ethereum" json:"-"`
 	Epoch          time.Duration      `yaml:"epoch"`
-	OrderPolicy    OrderPolicy        `yaml:"order_policy"`
+	OrderDuration  time.Duration      `yaml:"order_duration_threshold" default:"24h"`
 	DryRun         bool               `yaml:"dry_run" default:"false"`
 	Identity       sonm.IdentityLevel `yaml:"identity" required:"true"`
 	PriceThreshold priceThreshold     `yaml:"price_threshold" required:"true"`
@@ -86,35 +82,12 @@ type workerConfig struct {
 }
 
 func (m *workerConfig) Validate() error {
+	if m.OrderDuration < 0 {
+		return fmt.Errorf("order duration threshold must be non-negative")
+	}
+
 	if m.Optimization.Model.OptimizationMethodFactory == nil {
 		m.Optimization.Model = optimizationMethodFactory{OptimizationMethodFactory: &defaultOptimizationMethodFactory{}}
-	}
-
-	return nil
-}
-
-type OrderPolicy int
-
-func (m *OrderPolicy) String() string {
-	switch *m {
-	case 0:
-		return "spot_only"
-	default:
-		return "unknown"
-	}
-}
-
-func (m *OrderPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var cfg string
-	if err := unmarshal(&cfg); err != nil {
-		return err
-	}
-
-	switch cfg {
-	case "spot_only":
-		*m = PolicySpotOnly
-	default:
-		return fmt.Errorf("unknown order policy: %s", cfg)
 	}
 
 	return nil

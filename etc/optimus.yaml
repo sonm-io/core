@@ -156,8 +156,13 @@ workers:
     # Optional.
     # Default value is 60s.
     epoch: 60s
-    # How the bot should filter orders. Possible values are: "spot_only".
-    order_policy: spot_only
+    # How the bot should filter orders.
+    # This values limits the maximum order duration the Optimus should take.
+    # Omitting this value results in that only spot orders will be taken in
+    # action.
+    # Optional.
+    # Default value is 24h.
+    order_duration_threshold: 24h
     # Orders that haven't been sold for this interval will be canceled.
     # Optional.
     # Default value is 5m.

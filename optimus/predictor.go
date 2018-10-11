@@ -25,11 +25,11 @@ func predictionEngineConfig(cfg marketplaceConfig) *workerConfig {
 	}
 
 	return &workerConfig{
-		PrivateKey:  cfg.PrivateKey,
-		Epoch:       60 * time.Second,
-		OrderPolicy: 0,
-		DryRun:      false,
-		Identity:    sonm.IdentityLevel_ANONYMOUS,
+		PrivateKey:    cfg.PrivateKey,
+		Epoch:         60 * time.Second,
+		OrderDuration: 24 * time.Hour,
+		DryRun:        false,
+		Identity:      sonm.IdentityLevel_ANONYMOUS,
 		PriceThreshold: priceThreshold{
 			PriceThreshold: priceThresholdValue,
 		},
