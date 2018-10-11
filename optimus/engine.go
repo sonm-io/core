@@ -360,7 +360,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 
 		id, err := m.worker.CreateAskPlan(ctx, plan)
 		if err != nil {
-			m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
+			m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Stringer("order", orderID), zap.Error(err))
 			continue
 		}
 
