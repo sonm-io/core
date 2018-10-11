@@ -384,7 +384,8 @@ func dealsExpensesPerHour(addr common.Address, deals []*sonm.DWHDeal) (*sonm.Big
 		deal := d.GetDeal()
 		if deal.GetSupplierID().Unwrap() == addr || deal.GetMasterID().Unwrap() == addr {
 			inAsks = big.NewInt(0).Add(inAsks, deal.GetPrice().Unwrap())
-		} else {
+		}
+		if deal.GetConsumerID().Unwrap() == addr {
 			inBids = big.NewInt(0).Add(inBids, deal.GetPrice().Unwrap())
 		}
 	}
