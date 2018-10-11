@@ -5,7 +5,7 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/sonm-io/core/proto"
-	yaml "gopkg.in/yaml.v1"
+	"gopkg.in/yaml.v2"
 )
 
 type taskPool struct {
