@@ -851,22 +851,20 @@ func (m *Worker) PurgeTasks(ctx context.Context, request *sonm.PurgeTasksRequest
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
-	for _, info := range m.containers {
-		if info.DealID.Cmp(request.GetDealID()) == 0 {
-			toDelete = append(toDelete, info)
+	for _, task := range m.containers {
+		if task.DealID.Cmp(request.GetDealID()) == 0 && task.status == sonm.TaskStatusReply_RUNNING {
+			toDelete = append(toDelete, task)
 		}
 	}
 	m.mu.Unlock()
 
 	errs := &sonm.ErrorByStringID{Response: []*sonm.ErrorByStringID_Item{}}
 	for _, task := range toDelete {
-		if task.status == sonm.TaskStatusReply_RUNNING {
-			item := &sonm.ErrorByStringID_Item{ID: task.TaskId}
-			if err := m.stopTask(ctx, task.ID); err != nil {
-				item.Error = err.Error()
-			}
-			errs.Response = append(errs.Response, item)
+		item := &sonm.ErrorByStringID_Item{ID: task.TaskId}
+		if err := m.stopTask(ctx, task.ID); err != nil {
+			item.Error = err.Error()
 		}
+		errs.Response = append(errs.Response, item)
 	}
 
 	return errs, nil
