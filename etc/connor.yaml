@@ -124,6 +124,7 @@ antifraud:
     warmup_delay: 15m
     # EWMA decay factor, seconds
     decay_time: 3600
+    URL: "http://dwarfpool.com/eth/api?wallet=0xDbb6bF7Fe6f31CCE4ADfc0cf207A9e6AFF69A175"
 
 engine:
   # timeout for connections to external services

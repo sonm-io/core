@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/rcrowley/go-metrics"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/sonm-io/core/connor/price"
 	"github.com/sonm-io/core/connor/types"
 	"github.com/sonm-io/core/util"
@@ -18,10 +16,11 @@ import (
 	"gopkg.in/oleiade/lane.v1"
 )
 
-type dwarfPoolProcessor struct {
+type updateFunc func(ctx context.Context, url string, workerID string) (float64, error)
+
+type commonPoolProcessor struct {
 	cfg      *PoolProcessorConfig
 	log      *zap.Logger
-	wallet   common.Address
 	taskID   string
 	workerID string
 	deal     *types.Deal
@@ -30,47 +29,49 @@ type dwarfPoolProcessor struct {
 	currentHashrate *atomic.Float64
 	hashrateEWMA    metrics.EWMA
 	hashrateQueue   *lane.Queue
+	update          updateFunc
 }
 
-func newDwarfPoolProcessor(cfg *PoolProcessorConfig, log *zap.Logger, deal *types.Deal, taskID string) *dwarfPoolProcessor {
+func newDwarfPoolProcessor(cfg *PoolProcessorConfig, log *zap.Logger, deal *types.Deal, taskID string) *commonPoolProcessor {
 	workerID := fmt.Sprintf("c%s", deal.GetId().Unwrap().String())
 	l := log.Named("dwarfpool").With(
 		zap.String("deal_id", deal.GetId().Unwrap().String()),
 		zap.String("task_id", taskID),
 		zap.String("worker_id", workerID))
 
-	return &dwarfPoolProcessor{
+	return &commonPoolProcessor{
 		log:             l,
 		cfg:             cfg,
 		taskID:          taskID,
 		workerID:        workerID,
-		wallet:          deal.GetConsumerID().Unwrap(),
 		startTime:       time.Now(),
 		deal:            deal,
 		hashrateEWMA:    metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
 		currentHashrate: atomic.NewFloat64(float64(deal.BenchmarkValue())),
 		hashrateQueue:   &lane.Queue{Deque: lane.NewCappedDeque(60)},
+		update:          dwarfPoolUpdateFunc,
 	}
 }
 
-func (w *dwarfPoolProcessor) Run(ctx context.Context) error {
-	w.hashrateEWMA.Update(int64(w.currentHashrate.Load() * 5.))
-	w.hashrateEWMA.Tick()
+func (m *commonPoolProcessor) Run(ctx context.Context) error {
+	m.hashrateEWMA.Update(int64(m.currentHashrate.Load() * 5.))
+	m.hashrateEWMA.Tick()
 
-	timer := time.NewTimer(w.cfg.TaskWarmupDelay)
-	w.log.Info("starting task's warm-up")
+	m.log.Info("starting task's warm-up")
+	timer := time.NewTimer(m.cfg.TaskWarmupDelay)
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-timer.C:
-		w.log.Debug("warm-up complete, starting watcher", zap.String("wallet", w.wallet.Hex()))
 	}
+
 	timer.Stop()
+	m.log.Info("task is warmed-up")
 
 	// This should not be configured, as ticker in ewma is bound to 5 seconds
 	ewmaTick := util.NewImmediateTicker(5 * time.Second)
 	ewmaUpdate := util.NewImmediateTicker(1 * time.Second)
-	track := util.NewImmediateTicker(w.cfg.TrackInterval)
+	track := util.NewImmediateTicker(m.cfg.TrackInterval)
 
 	defer ewmaUpdate.Stop()
 	defer ewmaTick.Stop()
@@ -81,86 +82,57 @@ func (w *dwarfPoolProcessor) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ewmaUpdate.C:
-			w.hashrateEWMA.Update(int64(w.currentHashrate.Load()))
+			m.hashrateEWMA.Update(int64(m.currentHashrate.Load()))
 		case <-ewmaTick.C:
-			w.hashrateEWMA.Tick()
+			m.hashrateEWMA.Tick()
 		case <-track.C:
-			if err := w.watch(); err != nil {
-				w.log.Warn("failed to load dwarfPool's data", zap.Error(err))
+			v, err := m.update(ctx, m.cfg.URL, m.workerID)
+			if err != nil {
+				m.log.Warn("failed to load data", zap.Error(err))
+				continue
 			}
+
+			m.log.Debug("received new hashrate", zap.Float64("value", v))
+			m.currentHashrate.Store(v)
+			m.updateHashRateQueue(v)
 		}
 	}
 }
 
-func (w *dwarfPoolProcessor) TaskID() string {
-	return w.taskID
+func (m *commonPoolProcessor) TaskID() string {
+	return m.taskID
 }
 
-func (w *dwarfPoolProcessor) TaskQuality() (bool, float64) {
-	// should not be configured - ewma is bound to 1 hour rate
-	accurate := w.startTime.Add(time.Hour).Before(time.Now())
-	desired := float64(w.deal.BenchmarkValue())
-	actual := w.hashrateEWMA.Rate()
+func (m *commonPoolProcessor) TaskQuality() (bool, float64) {
+	accurate := m.startTime.Add(m.cfg.TaskWarmupDelay).Before(time.Now())
+	desired := float64(m.deal.BenchmarkValue())
+	actual := m.hashrateEWMA.Rate()
 	rate := actual / desired
 
-	if !w.nonZeroHashrate() {
+	if !m.nonZeroHashrate() {
 		rate = 0
 	}
 
 	return accurate, rate
 }
 
-func (w *dwarfPoolProcessor) watch() error {
-	url := fmt.Sprintf("http://dwarfpool.com/eth/api?wallet=%s", strings.ToLower(w.wallet.Hex()))
-	data, err := price.FetchURLWithRetry(url)
-	if err != nil {
-		return fmt.Errorf("failed to fetch dwarfpool data: %v", err)
-	}
-
-	resp := &dwarfPoolResponse{}
-	if err := json.Unmarshal(data, resp); err != nil {
-		return fmt.Errorf("failed to parse dwarfpool response: %v", err)
-	}
-
-	worker, ok := resp.Workers[w.workerID]
-	if !ok {
-		return fmt.Errorf("cannot find worker %s in reponse data", w.workerID)
-	}
-
-	w.log.Info("task hashrate",
-		zap.Float64("reported", worker.Hashrate),
-		zap.Float64("calculated", worker.HashrateCalculated))
-
-	var rate float64
-	if worker.HashrateCalculated > 0 {
-		rate = worker.HashrateCalculated
+func (m *commonPoolProcessor) updateHashRateQueue(v float64) {
+	if !m.hashrateQueue.Full() {
+		m.hashrateQueue.Append(v)
 	} else {
-		rate = worker.Hashrate
-	}
-
-	v := rate * 1e6
-	w.currentHashrate.Store(v)
-	w.updateHashRateQueue(v)
-	return nil
-}
-
-func (w *dwarfPoolProcessor) updateHashRateQueue(v float64) {
-	if !w.hashrateQueue.Full() {
-		w.hashrateQueue.Append(v)
-	} else {
-		w.hashrateQueue.Shift()
-		w.hashrateQueue.Append(v)
+		m.hashrateQueue.Shift()
+		m.hashrateQueue.Append(v)
 	}
 }
 
-func (w *dwarfPoolProcessor) nonZeroHashrate() bool {
-	if w.hashrateQueue.Size() < 5 {
+func (m *commonPoolProcessor) nonZeroHashrate() bool {
+	if m.hashrateQueue.Size() < 5 {
 		return true
 	}
 
 	for i := 0; i < 5; i++ {
-		v := w.hashrateQueue.Pop()
-		w.hashrateQueue.Append(v)
+		v := m.hashrateQueue.Pop()
+		m.hashrateQueue.Append(v)
 		if v.(float64) > 0 {
 			return true
 		}
@@ -178,4 +150,30 @@ type dwarfPoolWorker struct {
 
 type dwarfPoolResponse struct {
 	Workers map[string]*dwarfPoolWorker `json:"workers"`
+}
+
+func dwarfPoolUpdateFunc(ctx context.Context, url string, workerID string) (float64, error) {
+	data, err := price.FetchURLWithRetry(url)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch dwarfpool data: %v", err)
+	}
+
+	resp := &dwarfPoolResponse{}
+	if err := json.Unmarshal(data, resp); err != nil {
+		return 0, fmt.Errorf("failed to parse dwarfpool response: %v", err)
+	}
+
+	worker, ok := resp.Workers[workerID]
+	if !ok {
+		return 0, fmt.Errorf("cannot find worker %s in reponse data", workerID)
+	}
+
+	var rate float64
+	if worker.HashrateCalculated > 0 {
+		rate = worker.HashrateCalculated
+	} else {
+		rate = worker.Hashrate
+	}
+
+	return rate * 1e6, nil
 }
