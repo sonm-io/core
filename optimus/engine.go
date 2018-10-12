@@ -646,15 +646,11 @@ func (m *workerEngine) filtersErr(deviceManager *DeviceManager, devices *sonm.De
 			return fmt.Errorf("expected order type %s, actual: %s", sonm.OrderType_BID, order.OrderType)
 		},
 		func(order *sonm.Order) error {
-			switch m.cfg.OrderPolicy {
-			case PolicySpotOnly:
-				if order.GetDuration() == 0 {
-					return nil
-				}
-				return fmt.Errorf("expected order duration 0, actual: %d", order.GetDuration())
+			if order.GetDuration() <= uint64(m.cfg.OrderDuration) {
+				return nil
 			}
 
-			return fmt.Errorf("unknown order policy: %s", m.cfg.OrderPolicy.String())
+			return fmt.Errorf("expected order duration <= %d, actual %d", m.cfg.OrderDuration, order.GetDuration())
 		},
 		func(order *sonm.Order) error {
 			if m.blacklist.IsAllowed(order.GetAuthorID().Unwrap()) {
