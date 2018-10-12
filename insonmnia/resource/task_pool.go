@@ -14,7 +14,10 @@ type taskPool struct {
 }
 
 func newTaskPool(resources *sonm.AskPlanResources) *taskPool {
-	return nil
+	return &taskPool{
+		all:  resources,
+		used: map[string]*sonm.AskPlanResources{},
+	}
 }
 
 func (p *taskPool) Consume(ID string, resources *sonm.AskPlanResources) error {
