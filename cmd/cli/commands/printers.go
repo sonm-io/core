@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sonm-io/core/proto"
@@ -375,7 +376,29 @@ func getDealCounterpartyString(d *sonm.Deal) string {
 	}
 }
 
-func printDealsList(cmd *cobra.Command, deals []*sonm.DWHDeal) {
+func dealsExpensesPerHour(addr common.Address, deals []*sonm.DWHDeal) (*sonm.BigInt, *sonm.BigInt) {
+	inAsks := big.NewInt(0)
+	inBids := big.NewInt(0)
+
+	for _, d := range deals {
+		deal := d.GetDeal()
+		if deal.GetSupplierID().Unwrap() == addr || deal.GetMasterID().Unwrap() == addr {
+			inAsks = big.NewInt(0).Add(inAsks, deal.GetPrice().Unwrap())
+		}
+		if deal.GetConsumerID().Unwrap() == addr {
+			inBids = big.NewInt(0).Add(inBids, deal.GetPrice().Unwrap())
+		}
+	}
+
+	inAsks = big.NewInt(0).Mul(big.NewInt(3600), inAsks)
+	inBids = big.NewInt(0).Mul(big.NewInt(3600), inBids)
+
+	return sonm.NewBigInt(inAsks), sonm.NewBigInt(inBids)
+}
+
+func printDealsList(cmd *cobra.Command, addr common.Address, deals []*sonm.DWHDeal) {
+	asks, bids := dealsExpensesPerHour(addr, deals)
+
 	if isSimpleFormat() {
 		if len(deals) == 0 {
 			cmd.Println("No deals found")
@@ -384,7 +407,8 @@ func printDealsList(cmd *cobra.Command, deals []*sonm.DWHDeal) {
 
 		w := tablewriter.NewWriter(cmd.OutOrStdout())
 		w.SetHeader([]string{"ID", "price", "started at", "duration", "counterparty"})
-		w.SetCaption(true, fmt.Sprintf("count: %d", len(deals)))
+		w.SetCaption(true, fmt.Sprintf("count: %d  ASKs: %s USD/h  BIDs: %s USD/h",
+			len(deals), asks.ToPriceString(), bids.ToPriceString()))
 		w.SetBorder(false)
 		for _, d := range deals {
 			deal := d.GetDeal()
@@ -408,9 +432,12 @@ func printDealsList(cmd *cobra.Command, deals []*sonm.DWHDeal) {
 
 		w.Render()
 	} else {
-		showJSON(cmd, map[string]interface{}{"deals": deals})
+		showJSON(cmd, map[string]interface{}{
+			"deals":         deals,
+			"asks_per_hour": asks.ToPriceString(),
+			"bids_per_hour": bids.ToPriceString(),
+		})
 	}
-
 }
 
 type ExtendedDealInfo struct {
