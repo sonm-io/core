@@ -31,7 +31,7 @@ func newPool(log *zap.SugaredLogger, resources *sonm.AskPlanResources) *pool {
 	}
 }
 
-func (m *pool) consume(plan *sonm.AskPlan) error {
+func (m *pool) Consume(plan *sonm.AskPlan) error {
 	available := deepcopy.Copy(m.all).(*sonm.AskPlanResources)
 	commitedSum, err := m.commitedFw.Sum()
 	if err != nil {
@@ -61,15 +61,14 @@ func (m *pool) consume(plan *sonm.AskPlan) error {
 	return nil
 }
 
-func (m *pool) release(ID string) error {
-	err := fmt.Errorf("could not release resource with ID %s from pool - no such resource", ID)
+func (m *pool) Release(ID string) error {
 	for _, mapping := range []askPlanMap{m.usedFw, m.usedSpot, m.commitedFw, m.commitedSpot, m.ejectedPlans} {
 		if _, ok := mapping[ID]; ok {
 			delete(mapping, ID)
-			err = nil
+			return nil
 		}
 	}
-	return err
+	return fmt.Errorf("could not release resource with ID %s from pool - no such resource", ID)
 }
 
 func (m *pool) ejectAskPlans(required *sonm.AskPlanResources, available *sonm.AskPlanResources, pool askPlanMap) ([]string, error) {
@@ -141,7 +140,7 @@ func (m *pool) commit(plan *sonm.AskPlan) {
 	target[plan.ID] = plan
 }
 
-func (m *pool) makeRoomAndCommit(plan *sonm.AskPlan) ([]string, error) {
+func (m *pool) MakeRoomAndCommit(plan *sonm.AskPlan) ([]string, error) {
 
 	ejectedPlans, err := m.shrinkSpotPool(plan)
 	if err != nil {
@@ -157,7 +156,7 @@ func (m *pool) makeRoomAndCommit(plan *sonm.AskPlan) ([]string, error) {
 	ejectedPlans = append(ejectedPlans, ejectedCommited...)
 
 	// TODO: do we need to free it? or only spot?
-	if err := m.release(plan.ID); err != nil {
+	if err := m.Release(plan.ID); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +165,7 @@ func (m *pool) makeRoomAndCommit(plan *sonm.AskPlan) ([]string, error) {
 	return ejectedPlans, nil
 }
 
-func (m *pool) getCommitedFree() (*sonm.AskPlanResources, error) {
+func (m *pool) GetCommitedFree() (*sonm.AskPlanResources, error) {
 	resources := deepcopy.Copy(m.all).(*sonm.AskPlanResources)
 	for _, plan := range m.commitedSpot {
 		if err := resources.Sub(plan.GetResources()); err != nil {
@@ -179,4 +178,15 @@ func (m *pool) getCommitedFree() (*sonm.AskPlanResources, error) {
 		}
 	}
 	return resources, nil
+}
+
+func (m *pool) ToProto() *sonm.AskPlanPool {
+	return &sonm.AskPlanPool{
+		All:          m.all,
+		UsedSpot:     deepcopy.Copy(m.usedSpot).(askPlanMap),
+		UsedFw:       deepcopy.Copy(m.usedFw).(askPlanMap),
+		CommitedSpot: deepcopy.Copy(m.commitedSpot).(askPlanMap),
+		CommitedFw:   deepcopy.Copy(m.commitedFw).(askPlanMap),
+		EjectedPlans: deepcopy.Copy(m.ejectedPlans).(askPlanMap),
+	}
 }

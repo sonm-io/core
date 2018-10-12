@@ -42,33 +42,17 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 func (m *Scheduler) DebugDump() *sonm.SchedulerData {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	panic("implement me")
 
-	//reply := &sonm.SchedulerData{
-	//	TaskToAskPlan: deepcopy.Copy(m.taskToAskPlan).(map[string]string),
-	//	MainPool: &sonm.ResourcePool{
-	//		All:  m.pool.all,
-	//		Used: map[string]*sonm.AskPlanResources{},
-	//	},
-	//	AskPlanPools: map[string]*sonm.ResourcePool{},
-	//}
-	//
-	//for id, res := range m.pool.used {
-	//	reply.MainPool.Used[id] = res
-	//}
-	//
-	//for askID, pool := range m.askPlanPools {
-	//	resultPool := &sonm.ResourcePool{
-	//		All:  pool.all,
-	//		Used: map[string]*sonm.AskPlanResources{},
-	//	}
-	//	reply.AskPlanPools[askID] = resultPool
-	//	for id, res := range pool.used {
-	//		resultPool.Used[id] = res
-	//	}
-	//}
-	//
-	//return reply
+	reply := &sonm.SchedulerData{
+		TaskToAskPlan: deepcopy.Copy(m.taskToAskPlan).(map[string]string),
+		PlanPool:      m.pool.ToProto(),
+		AskPlanPools:  map[string]*sonm.TaskPool{},
+	}
+	for id, pool := range m.askPlanPools {
+		reply.AskPlanPools[id] = pool.ToProto()
+	}
+
+	return reply
 }
 
 //TODO: rework needed — looks like it should not be here
@@ -85,7 +69,7 @@ func (m *Scheduler) AskPlanIDByTaskID(taskID string) (string, error) {
 func (m *Scheduler) GetCommitedFree() (*sonm.AskPlanResources, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.pool.getCommitedFree()
+	return m.pool.GetCommitedFree()
 }
 
 // Consume tries to consume the specified resource usage from the pool.
@@ -96,7 +80,7 @@ func (m *Scheduler) Consume(askPlan *sonm.AskPlan) error {
 	defer m.mu.Unlock()
 	m.askPlanPools[askPlan.ID] = newTaskPool(askPlan.Resources)
 
-	if err := m.pool.consume(askPlan); err != nil {
+	if err := m.pool.Consume(askPlan); err != nil {
 		return fmt.Errorf("failed to consume resources for ask plan %s: %s", askPlan.ID, err)
 	}
 	m.log.Debugf("consumed ask-plan %s by scheduler", askPlan.ID)
@@ -106,7 +90,7 @@ func (m *Scheduler) Consume(askPlan *sonm.AskPlan) error {
 func (m *Scheduler) MakeRoomAndCommit(askPlan *sonm.AskPlan) (ejectedAskPlans []string, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.pool.makeRoomAndCommit(askPlan)
+	return m.pool.MakeRoomAndCommit(askPlan)
 }
 
 func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm.AskPlanResources) error {
@@ -125,14 +109,14 @@ func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm
 	}
 	m.log.Debugf("consumed task %s by scheduler", taskID)
 
-	return pool.consume(taskID, copy)
+	return pool.Consume(taskID, copy)
 }
 
 func (m *Scheduler) Release(askPlanID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.askPlanPools, askPlanID)
-	if err := m.pool.release(askPlanID); err != nil {
+	if err := m.pool.Release(askPlanID); err != nil {
 		return fmt.Errorf("failed to release ask plan %s from scheduler: %s", askPlanID, err)
 	}
 	m.log.Debugf("released ask plan %s from scheduler", askPlanID)
@@ -151,7 +135,7 @@ func (m *Scheduler) ReleaseTask(taskID string) error {
 		return fmt.Errorf("failed to release task %s: ask Plan with id %s not found", taskID, askPlanID)
 	}
 
-	err := pool.release(taskID)
+	err := pool.Release(taskID)
 	if err != nil {
 		return err
 	}

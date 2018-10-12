@@ -159,7 +159,8 @@ It has these top-level messages:
 	PullTaskRequest
 	DealInfoReply
 	TaskStatusReply
-	ResourcePool
+	TaskPool
+	AskPlanPool
 	SchedulerData
 	SalesmanData
 	DebugStateReply

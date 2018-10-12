@@ -165,15 +165,25 @@ message TaskStatusReply {
     TaskTag tag = 7;
 }
 
-message ResourcePool {
+message TaskPool {
     AskPlanResources all = 1;
     map<string, AskPlanResources> used = 2;
 }
 
+message AskPlanPool {
+    AskPlanResources all = 1;
+    map<string, AskPlan> usedSpot = 2;
+    map<string, AskPlan> usedFw = 3;
+    map<string, AskPlan> commitedSpot = 4;
+    map<string, AskPlan> commitedFw = 5;
+    map<string, AskPlan> ejectedPlans = 6;
+}
+
 message SchedulerData {
     map<string, string> taskToAskPlan = 1;
-    ResourcePool mainPool = 2;
-    map<string, ResourcePool> askPlanPools = 3;
+    reserved 2;
+    map<string, TaskPool> askPlanPools = 3;
+    AskPlanPool planPool = 4;
 }
 
 message SalesmanData {

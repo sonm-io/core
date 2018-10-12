@@ -17,7 +17,7 @@ func newTaskPool(resources *sonm.AskPlanResources) *taskPool {
 	return nil
 }
 
-func (p *taskPool) consume(ID string, resources *sonm.AskPlanResources) error {
+func (p *taskPool) Consume(ID string, resources *sonm.AskPlanResources) error {
 	if err := p.pollConsume(resources); err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func (p *taskPool) consume(ID string, resources *sonm.AskPlanResources) error {
 	return nil
 }
 
-func (p *taskPool) release(ID string) error {
+func (p *taskPool) Release(ID string) error {
 	if _, ok := p.used[ID]; ok {
 		delete(p.used, ID)
 		return nil
@@ -73,4 +73,15 @@ func (p *taskPool) getUsage() (*sonm.AskPlanResources, error) {
 		}
 	}
 	return sum, nil
+}
+
+func (p *taskPool) ToProto() *sonm.TaskPool {
+	result := &sonm.TaskPool{
+		All:  p.all,
+		Used: map[string]*sonm.AskPlanResources{},
+	}
+	for id, res := range p.used {
+		result.Used[id] = res
+	}
+	return result
 }
