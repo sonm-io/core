@@ -134,7 +134,7 @@ var orderCancelCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("cannot cancel orders on Marketplace: %v", err)
 		}
-		printErrorById(cmd, status)
+		printErrorByID(cmd, newTupleFromErrors(status))
 
 		return nil
 	},
@@ -156,7 +156,7 @@ var orderPurgeCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("cannot purge orders: %v", err)
 		}
-		printErrorById(cmd, status)
+		printErrorByID(cmd, newTupleFromErrors(status))
 
 		return nil
 	},
