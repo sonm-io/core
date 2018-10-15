@@ -11,10 +11,12 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type Method struct {
@@ -173,6 +175,16 @@ func (s *Server) serveHTTP(request *http.Request) (int, interface{}) {
 		return http.StatusBadRequest, fmt.Errorf("missing required body")
 	}
 
+	ctx := request.Context()
+	// if incoming http request has worker endpoint in headers
+	// we should forward it via ctx to interceptor.
+	if len(request.Header.Get(util.WorkerAddressHeader)) > 0 {
+		md := metadata.MD{
+			util.WorkerAddressHeader: []string{request.Header.Get(util.WorkerAddressHeader)},
+		}
+		ctx = metadata.NewIncomingContext(ctx, md)
+	}
+
 	requestValue := reflect.New(serviceHandle.Method.messageType)
 	if err := json.Unmarshal(body, requestValue.Interface()); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("could not unmarshal body: %s", err)
@@ -193,7 +205,6 @@ func (s *Server) serveHTTP(request *http.Request) (int, interface{}) {
 		} else {
 			return resp[0].Interface(), nil
 		}
-
 	}
 
 	var result interface{}
@@ -202,9 +213,9 @@ func (s *Server) serveHTTP(request *http.Request) (int, interface{}) {
 			Server:     serviceHandle.Service.service,
 			FullMethod: serviceHandle.Method.fullName,
 		}
-		result, err = s.interceptor(request.Context(), reflect.Indirect(requestValue).Interface(), info, grpc.UnaryHandler(h))
+		result, err = s.interceptor(ctx, reflect.Indirect(requestValue).Interface(), info, grpc.UnaryHandler(h))
 	} else {
-		result, err = h(request.Context(), reflect.Indirect(requestValue).Interface())
+		result, err = h(ctx, reflect.Indirect(requestValue).Interface())
 	}
 
 	if err != nil {
