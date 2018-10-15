@@ -110,6 +110,15 @@ func (m *optimizationInput) Price() *sonm.Price {
 	return sonm.SumPrice(plans)
 }
 
+func (m *optimizationInput) SwingPrice() *sonm.Price {
+	var plans []*sonm.AskPlan
+	for _, plan := range m.VictimPlans() {
+		plans = append(plans, plan)
+	}
+
+	return sonm.SumPrice(plans)
+}
+
 func (m *optimizationInput) freeDevices(removalVictims map[string]*sonm.AskPlan) (*sonm.DevicesReply, error) {
 	devices := proto.Clone(m.Devices).(*sonm.DevicesReply)
 	workerHardware := hardware.Hardware{
@@ -313,19 +322,20 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	}
 
 	m.log.Infow("current worker price", zap.String("Σ USD/s", input.Price().GetPerSecond().ToPriceString()))
+	m.log.Infow("current worker swing price", zap.String("Σ USD/s", input.SwingPrice().GetPerSecond().ToPriceString()))
 	m.log.Infow("optimizing using natural free devices done", zap.String("Σ USD/s", naturalKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", naturalKnapsack.Plans()))
 	m.log.Infow("optimizing using virtual free devices done", zap.String("Σ USD/s", virtualKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", virtualKnapsack.Plans()))
 
 	// Compare total USD/s before and after. Remove some plans if the diff is
 	// more than the threshold.
-	swingTime := m.cfg.PriceThreshold.Exceeds(virtualKnapsack.Price().GetPerSecond().Unwrap(), input.Price().GetPerSecond().Unwrap())
+	swingTime := m.cfg.PriceThreshold.Exceeds(virtualKnapsack.Price().GetPerSecond().Unwrap(), input.SwingPrice().GetPerSecond().Unwrap())
 
 	var winners []*sonm.AskPlan
 	var victims []*sonm.AskPlan
 	if swingTime {
 		m.log.Info("using replacement strategy")
 
-		create, remove, ignore := splitPlans(input.Plans, virtualKnapsack.Plans())
+		create, remove, ignore := splitPlans(victimPlans, virtualKnapsack.Plans())
 		m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
 		m.log.Infow("removing plans", zap.Any("plans", remove))
 		m.log.Infow("creating plans", zap.Any("plans", create))
