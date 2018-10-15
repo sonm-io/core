@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xconcurrency"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -95,36 +95,19 @@ func (d *dealsAPI) FinishDeals(ctx context.Context, req *sonm.DealsFinishRequest
 }
 
 func (d *dealsAPI) finishDeals(ctx context.Context, deals []*sonm.DealFinishRequest) (*sonm.ErrorByID, error) {
-	concurrency := purgeConcurrency
-	if len(deals) < concurrency {
-		concurrency = len(deals)
-	}
+	errs := sonm.NewTSErrorByID()
+	xconcurrency.Run(purgeConcurrency, deals, func(elem interface{}) {
+		info := elem.(*sonm.DealFinishRequest)
+		if info.GetId().IsZero() {
+			errs.Append(info.GetId(), errors.New("zero deal id specified"))
+		} else {
+			d.log.Debugw("closing deal", zap.String("id", info.GetId().Unwrap().String()))
+			err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, info.GetId().Unwrap(), info.GetBlacklistType())
+			errs.Append(info.GetId(), err)
+		}
+	})
 
-	status := sonm.NewTSErrorByID()
-	ch := make(chan *sonm.DealFinishRequest)
-	wg := sync.WaitGroup{}
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			defer wg.Done()
-			for info := range ch {
-				if info.GetId().IsZero() {
-					status.Append(info.GetId(), errors.New("zero deal id specified"))
-				} else {
-					d.log.Debugw("closing deal", zap.String("id", info.GetId().Unwrap().String()))
-					err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, info.GetId().Unwrap(), info.GetBlacklistType())
-					status.Append(info.GetId(), err)
-				}
-			}
-
-		}()
-	}
-	for _, info := range deals {
-		ch <- info
-	}
-	close(ch)
-	wg.Wait()
-	return status.Unwrap(), nil
+	return errs.Unwrap(), nil
 }
 
 func (d *dealsAPI) PurgeDeals(ctx context.Context, req *sonm.DealsPurgeRequest) (*sonm.ErrorByID, error) {
