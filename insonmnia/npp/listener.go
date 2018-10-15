@@ -178,7 +178,15 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 			timeout = m.minBackoffInterval
 		}
 
-		m.nppChannel <- newConnTuple(m.puncher.AcceptContext(ctx))
+		connTuple := newConnTuple(m.puncher.AcceptContext(ctx))
+		if connTuple.IsRendezvousError() {
+			// In case of any rendezvous errors it's better to reconnect.
+			// Just in case.
+			m.puncher.Close()
+			m.puncher = nil
+		}
+
+		m.nppChannel <- connTuple
 	}
 }
 
@@ -273,12 +281,7 @@ func (m *Listener) accept(ctx context.Context) (net.Conn, connSource, error) {
 		case conn := <-m.listenerChannel:
 			return conn.unwrapWithSource(sourceDirectConnection)
 		case conn := <-m.nppChannel:
-			// In case of any rendezvous errors it's better to reconnect.
-			// Just in case.
-			if conn.IsRendezvousError() {
-				m.puncher.Close()
-				m.puncher = nil
-			} else {
+			if !conn.IsRendezvousError() {
 				return conn.unwrapWithSource(sourceNPPConnection)
 			}
 		case conn := <-m.relayChannel:
