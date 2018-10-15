@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xconcurrency"
 	"go.uber.org/zap"
 )
 
@@ -169,33 +169,17 @@ func (m *marketAPI) CancelOrders(ctx context.Context, req *sonm.OrderIDs) (*sonm
 }
 
 func (m *marketAPI) cancelOrders(ctx context.Context, ids []*sonm.BigInt) (*sonm.ErrorByID, error) {
-	concurrency := purgeConcurrency
-	if len(ids) < concurrency {
-		concurrency = len(ids)
-	}
 	status := sonm.NewTSErrorByID()
-	ch := make(chan *sonm.BigInt)
-	wg := sync.WaitGroup{}
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			defer wg.Done()
-			for id := range ch {
-				if id.IsZero() {
-					status.Append(id, errors.New("nil order id specified"))
-				} else {
-					m.log.Debugw("cancelling order", zap.String("id", id.Unwrap().String()))
-					err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id.Unwrap())
-					status.Append(id, err)
-				}
-			}
-		}()
-	}
-	for _, id := range ids {
-		ch <- id
-	}
-	close(ch)
-	wg.Wait()
+	xconcurrency.Run(purgeConcurrency, ids, func(elem interface{}) {
+		id := elem.(*sonm.BigInt)
+		if id.IsZero() {
+			status.Append(id, errors.New("nil order id specified"))
+		} else {
+			m.log.Debugw("cancelling order", zap.String("id", id.Unwrap().String()))
+			err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id.Unwrap())
+			status.Append(id, err)
+		}
+	})
 
 	return status.Unwrap(), nil
 }

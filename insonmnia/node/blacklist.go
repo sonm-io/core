@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xconcurrency"
 )
 
 type blacklistAPI struct {
@@ -43,30 +43,18 @@ func (m *blacklistAPI) Purge(ctx context.Context, req *sonm.Empty) (*sonm.ErrorB
 		return nil, err
 	}
 
-	concurrency := purgeConcurrency
-	if len(list.GetAddresses()) < concurrency {
-		concurrency = len(list.GetAddresses())
-	}
-
 	status := sonm.NewTSErrorByStringID()
-	ch := make(chan *sonm.EthAddress)
-	wg := sync.WaitGroup{}
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			defer wg.Done()
-			for addr := range ch {
-				_, err := m.Remove(ctx, addr)
-				status.Append(addr.Unwrap().Hex(), err)
-			}
+	xconcurrency.Run(purgeConcurrency, list.GetAddresses(), func(elem interface{}) {
+		id := elem.(string)
+		addr, err := sonm.NewEthAddressFromHex(id)
+		if err != nil {
+			status.Append(id, fmt.Errorf("failed to parse eth address from string: %v", err))
+			return
+		}
 
-		}()
-	}
-	for _, rawAddr := range list.GetAddresses() {
-		addr, _ := sonm.NewEthAddressFromHex(rawAddr)
-		ch <- addr
-	}
-	close(ch)
-	wg.Wait()
+		_, err = m.Remove(ctx, addr)
+		status.Append(addr.Unwrap().Hex(), err)
+	})
+
 	return status.Unwrap(), nil
 }

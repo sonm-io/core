@@ -21,6 +21,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/xconcurrency"
 	"go.uber.org/zap"
 )
 
@@ -207,31 +208,13 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 }
 
 func (m *Salesman) PurgeAskPlans(ctx context.Context) (*sonm.ErrorByStringID, error) {
-	plans := m.AskPlans()
-	concurrency := blockchainProcessConcurrency
-	if len(plans) < concurrency {
-		concurrency = len(plans)
-	}
-
 	status := sonm.NewTSErrorByStringID()
-	ch := make(chan string)
-	wg := sync.WaitGroup{}
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			defer wg.Done()
-			for id := range ch {
-				err := m.RemoveAskPlan(ctx, id)
-				status.Append(id, err)
-			}
+	xconcurrency.Run(blockchainProcessConcurrency, m.AskPlans(), func(elem interface{}) {
+		id := elem.(*sonm.AskPlan).ID
+		err := m.RemoveAskPlan(ctx, id)
+		status.Append(id, err)
+	})
 
-		}()
-	}
-	for _, plan := range plans {
-		ch <- plan.ID
-	}
-	close(ch)
-	wg.Wait()
 	return status.Unwrap(), nil
 }
 
@@ -368,29 +351,10 @@ func (m *Salesman) syncPlanWithBlockchain(ctx context.Context, plan *sonm.AskPla
 
 func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	m.log.Debugf("syncing salesman with blockchain")
-	plans := m.AskPlans()
-
-	concurrency := blockchainProcessConcurrency
-	if len(plans) < concurrency {
-		concurrency = len(plans)
-	}
-
-	ch := make(chan *sonm.AskPlan)
-	wg := sync.WaitGroup{}
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			defer wg.Done()
-			for plan := range ch {
-				m.syncPlanWithBlockchain(ctx, plan)
-			}
-		}()
-	}
-	for _, plan := range plans {
-		ch <- plan
-	}
-	close(ch)
-	wg.Wait()
+	xconcurrency.Run(blockchainProcessConcurrency, m.AskPlans(), func(elem interface{}) {
+		plan := elem.(*sonm.AskPlan)
+		m.syncPlanWithBlockchain(ctx, plan)
+	})
 }
 
 func (m *Salesman) restoreState(ctx context.Context) error {
