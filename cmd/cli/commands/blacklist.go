@@ -13,6 +13,7 @@ func init() {
 	blacklistRootCmd.AddCommand(
 		blacklistListCmd,
 		blacklistRemoveCmd,
+		blacklistPurgeCmd,
 	)
 }
 
@@ -81,6 +82,28 @@ var blacklistRemoveCmd = &cobra.Command{
 		}
 
 		showOk(cmd)
+		return nil
+	},
+}
+
+var blacklistPurgeCmd = &cobra.Command{
+	Use:   "purge",
+	Short: "Remove all addresses from your blacklist",
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		black, err := newBlacklistClient(ctx)
+		if err != nil {
+			return fmt.Errorf("cannot create client connection: %v", err)
+		}
+
+		errs, err := black.Purge(ctx, &sonm.Empty{})
+		if err != nil {
+			return fmt.Errorf("failed to purge blacklist: %v", err)
+		}
+
+		printErrorByID(cmd, newTupleFromString(errs))
 		return nil
 	},
 }

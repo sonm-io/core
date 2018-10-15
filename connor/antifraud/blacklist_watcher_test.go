@@ -24,6 +24,10 @@ func (blacklistClientMock) Remove(ctx context.Context, in *sonm.EthAddress, opts
 	return &sonm.Empty{}, nil
 }
 
+func (blacklistClientMock) Purge(ctx context.Context, in *sonm.Empty, opts ...grpc.CallOption) (*sonm.ErrorByStringID, error) {
+	return &sonm.ErrorByStringID{}, nil
+}
+
 func newTestBlacklistWatcher() blacklistWatcher {
 	return blacklistWatcher{
 		address:     common.HexToAddress("0x950B346f1028cbf76a6ed721786eBcfb13DAc4Ec"),
