@@ -152,6 +152,8 @@ service Blacklist {
     rpc List(EthAddress) returns (BlacklistReply) {}
     // Remove removes given address from blacklist
     rpc Remove(EthAddress) returns (Empty) {}
+    // Purge removes all addresses from your blacklist
+    rpc Purge(Empty) returns(ErrorByStringID) {}
 }
 
 service Profiles {
