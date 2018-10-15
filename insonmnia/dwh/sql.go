@@ -1195,12 +1195,14 @@ func (m *sqlStorage) getStats(conn queryConn) (*sonm.DWHStatsReply, error) {
 
 func (m *sqlStorage) builderWithBenchmarkFilters(builder sq.SelectBuilder, benches map[uint64]*sonm.MaxMinUint64) sq.SelectBuilder {
 	for benchID, condition := range benches {
-		if condition.Max >= condition.Min {
-			builder = builder.Where(sq.And{
-				sq.Expr(fmt.Sprintf("%s <= ?", getBenchmarkColumn(benchID)), condition.Max),
-				sq.Expr(fmt.Sprintf("%s >= ?", getBenchmarkColumn(benchID)), condition.Min),
-			})
-		} else {
+		if condition.Max == condition.Min {
+			builder = builder.Where(fmt.Sprintf("%s = ?", getBenchmarkColumn(benchID)), condition.Max)
+			continue
+		}
+		if condition.Max > 0 {
+			builder = builder.Where(fmt.Sprintf("%s <= ?", getBenchmarkColumn(benchID)), condition.Max)
+		}
+		if condition.Min > 0 {
 			builder = builder.Where(fmt.Sprintf("%s >= ?", getBenchmarkColumn(benchID)), condition.Min)
 		}
 	}
