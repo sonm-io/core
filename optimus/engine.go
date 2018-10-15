@@ -785,6 +785,9 @@ func (m *defaultOptimizationMethodFactory) Create(orders, matchedOrders []*Marke
 				MaxAge:         5 * time.Minute,
 				Log:            log.With(zap.String("model", "GMD")),
 			},
+			&AxeModel{
+				Log: log.With(zap.String("model", "AXE")),
+			},
 		},
 		Log: log,
 	}
@@ -800,6 +803,8 @@ func optimizationFactory(ty string) OptimizationMethodFactory {
 		return &GeneticModelFactory{}
 	case "branch_bound":
 		return &BranchBoundModelFactory{}
+	case "axe":
+		return &AxeModelFactory{}
 	default:
 		return nil
 	}
