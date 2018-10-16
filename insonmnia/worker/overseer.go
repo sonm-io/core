@@ -336,7 +336,16 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 					continue
 				}
 				if statusFound {
-					s <- sonm.TaskStatusReply_BROKEN
+					info, err := o.client.ContainerInspect(ctx, id)
+					if err != nil {
+						log.S(ctx).Warnf("failed to inspect exited container %s: %s", id, err)
+						s <- sonm.TaskStatusReply_BROKEN
+					} else if info.State.ExitCode != 0 {
+						s <- sonm.TaskStatusReply_BROKEN
+
+					} else {
+						s <- sonm.TaskStatusReply_FINISHED
+					}
 					close(s)
 				}
 				if c.description.CommitOnStop {
