@@ -8,13 +8,24 @@ import (
 )
 
 const (
-	pullLimit             = 1000
-	ordersPreallocateSize = 1 << 13
+	pullLimit       = 1000
+	preallocateSize = 1 << 13
 )
 
 type MarketOrder = sonm.DWHOrder
 
+type DealRequestFactory func() *sonm.DealsRequest
 type OrderRequestFactory func() *sonm.OrdersRequest
+
+func DefaultDealRequestFactory(cfg marketplaceConfig) DealRequestFactory {
+	return func() *sonm.DealsRequest {
+		return &sonm.DealsRequest{
+			Price: &sonm.MaxMinBig{
+				Min: cfg.MinPrice.GetPerSecond(),
+			},
+		}
+	}
+}
 
 func DefaultOrderRequestFactory(cfg marketplaceConfig) OrderRequestFactory {
 	return func() *sonm.OrdersRequest {
@@ -29,45 +40,67 @@ func DefaultOrderRequestFactory(cfg marketplaceConfig) OrderRequestFactory {
 }
 
 type marketScanner struct {
-	dwh            sonm.DWHClient
-	requestFactory OrderRequestFactory
+	dwh                  sonm.DWHClient
+	dealsRequestFactory  DealRequestFactory
+	ordersRequestFactory OrderRequestFactory
 }
 
 func newMarketScanner(cfg marketplaceConfig, dwh sonm.DWHClient) *marketScanner {
 	return &marketScanner{
-		dwh:            dwh,
-		requestFactory: DefaultOrderRequestFactory(cfg),
+		dwh:                  dwh,
+		dealsRequestFactory:  DefaultDealRequestFactory(cfg),
+		ordersRequestFactory: DefaultOrderRequestFactory(cfg),
 	}
 }
 
 func (m *marketScanner) ActiveOrders(ctx context.Context) ([]*MarketOrder, error) {
-	cursor := newCursor(m.dwh, m.requestFactory)
+	cursor := newOrderCursor(m.dwh, m.ordersRequestFactory)
 
-	orders := make([]*MarketOrder, 0, ordersPreallocateSize)
+	result := make([]*MarketOrder, 0, preallocateSize)
 	for {
-		nextOrders, err := cursor.Next(ctx)
+		next, err := cursor.Next(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(nextOrders) == 0 {
+		if len(next) == 0 {
 			break
 		}
 
-		orders = append(orders, nextOrders...)
+		result = append(result, next...)
 	}
 
-	return orders, nil
+	return result, nil
+}
+
+func (m *marketScanner) Deals(ctx context.Context) ([]*sonm.DWHDeal, error) {
+	cursor := newDealCursor(m.dwh, m.dealsRequestFactory)
+
+	result := make([]*sonm.DWHDeal, 0, preallocateSize)
+	for {
+		next, err := cursor.Next(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(next) == 0 {
+			break
+		}
+
+		result = append(result, next...)
+	}
+
+	return result, nil
 }
 
 func (m *marketScanner) ExecutedOrders(ctx context.Context, orderType sonm.OrderType) ([]*MarketOrder, error) {
-	response, err := m.dwh.GetDeals(ctx, &sonm.DealsRequest{})
+	response, err := m.Deals(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	orderIds := make([]*sonm.BigInt, 0, len(response.Deals))
-	for _, deal := range response.Deals {
+	orderIds := make([]*sonm.BigInt, 0, len(response))
+	for _, deal := range response {
 		if orderType == sonm.OrderType_BID || orderType == sonm.OrderType_ANY {
 			orderIds = append(orderIds, deal.GetDeal().GetBidID())
 		}
@@ -130,15 +163,15 @@ func (m *marketScanner) orders(ctx context.Context, ids []*sonm.BigInt) ([]*Mark
 	return orders, nil
 }
 
-type cursor struct {
+type cursorOrder struct {
 	dwh            sonm.DWHClient
 	offset         uint64
 	limit          uint64
 	requestFactory OrderRequestFactory
 }
 
-func newCursor(dwh sonm.DWHClient, requestFactory OrderRequestFactory) *cursor {
-	return &cursor{
+func newOrderCursor(dwh sonm.DWHClient, requestFactory OrderRequestFactory) *cursorOrder {
+	return &cursorOrder{
 		dwh:            dwh,
 		offset:         0,
 		limit:          pullLimit,
@@ -146,7 +179,7 @@ func newCursor(dwh sonm.DWHClient, requestFactory OrderRequestFactory) *cursor {
 	}
 }
 
-func (m *cursor) Next(ctx context.Context) ([]*MarketOrder, error) {
+func (m *cursorOrder) Next(ctx context.Context) ([]*MarketOrder, error) {
 	request := m.requestFactory()
 	request.Offset = m.offset
 	request.Limit = m.limit
@@ -159,4 +192,35 @@ func (m *cursor) Next(ctx context.Context) ([]*MarketOrder, error) {
 	m.offset += uint64(len(response.Orders))
 
 	return response.Orders, nil
+}
+
+type cursorDeal struct {
+	dwh            sonm.DWHClient
+	offset         uint64
+	limit          uint64
+	requestFactory DealRequestFactory
+}
+
+func newDealCursor(dwh sonm.DWHClient, requestFactory DealRequestFactory) *cursorDeal {
+	return &cursorDeal{
+		dwh:            dwh,
+		offset:         0,
+		limit:          pullLimit,
+		requestFactory: requestFactory,
+	}
+}
+
+func (m *cursorDeal) Next(ctx context.Context) ([]*sonm.DWHDeal, error) {
+	request := m.requestFactory()
+	request.Offset = m.offset
+	request.Limit = m.limit
+
+	response, err := m.dwh.GetDeals(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	m.offset += uint64(len(response.GetDeals()))
+
+	return response.GetDeals(), nil
 }
