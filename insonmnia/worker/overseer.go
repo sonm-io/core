@@ -342,7 +342,6 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 						s <- sonm.TaskStatusReply_BROKEN
 					} else if info.State.ExitCode != 0 {
 						s <- sonm.TaskStatusReply_BROKEN
-
 					} else {
 						s <- sonm.TaskStatusReply_FINISHED
 					}
