@@ -122,6 +122,15 @@ func (m *SSHProxyServer) Serve(ctx context.Context) error {
 		Addr:        m.cfg.Addr,
 		Handler:     connHandler.onHandle,
 		HostSigners: convertHostSigners(hostSigners),
+		PublicKeyHandler: func(ctx sshd.Context, key sshd.PublicKey) bool {
+			for _, signer := range hostSigners {
+				if sshd.KeysEqual(signer.PublicKey(), key) {
+					return true
+				}
+			}
+
+			return false
+		},
 	}
 	defer server.Close()
 
