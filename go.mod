@@ -75,6 +75,7 @@ require (
 	github.com/jinzhu/configor v0.0.0-20171024081003-6ecfe629230f
 	github.com/json-iterator/go v0.0.0-20180424004623-2ddf6d758266
 	github.com/karalabe/hid v0.0.0-20180420081245-2b4488a37358
+	github.com/kr/pty v1.1.3 // indirect
 	github.com/lann/builder v0.0.0-20180216234317-1b87b36280d0
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0
 	github.com/lib/pq v0.0.0-20180327071824-d34b9ff171c2

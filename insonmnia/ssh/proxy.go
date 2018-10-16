@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"io"
 	"math/big"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp"
@@ -27,6 +29,11 @@ const (
 	sshAgentSockName = "SSH_AUTH_SOCK"
 )
 
+type connMeta struct {
+	Addr     *auth.Addr
+	Identity string
+}
+
 type NilSSHProxyServer struct{}
 
 func (m *NilSSHProxyServer) Serve(ctx context.Context) error {
@@ -34,10 +41,11 @@ func (m *NilSSHProxyServer) Serve(ctx context.Context) error {
 }
 
 type SSHProxyServer struct {
-	cfg     ProxyServerConfig
-	market  blockchain.MarketAPI
-	options []npp.Option
-	log     *zap.SugaredLogger
+	cfg        ProxyServerConfig
+	privateKey *ecdsa.PrivateKey
+	market     blockchain.MarketAPI
+	options    []npp.Option
+	log        *zap.SugaredLogger
 }
 
 func convertHostSigners(v []ssh.Signer) []sshd.Signer {
@@ -57,7 +65,7 @@ func convertHostSigners(v []ssh.Signer) []sshd.Signer {
 // agent.
 //
 // Example of external usage: "ssh <DealID>.<TaskID>@<host> -p <port>".
-func NewSSHProxyServer(cfg ProxyServerConfig, credentials credentials.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) (*SSHProxyServer, error) {
+func NewSSHProxyServer(cfg ProxyServerConfig, privateKey *ecdsa.PrivateKey, credentials credentials.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) (*SSHProxyServer, error) {
 	options := []npp.Option{
 		npp.WithProtocol(proto),
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),
@@ -66,10 +74,11 @@ func NewSSHProxyServer(cfg ProxyServerConfig, credentials credentials.TransportC
 	}
 
 	m := &SSHProxyServer{
-		cfg:     cfg,
-		market:  market,
-		options: options,
-		log:     log,
+		cfg:        cfg,
+		privateKey: privateKey,
+		market:     market,
+		options:    options,
+		log:        log,
 	}
 
 	return m, nil
@@ -104,6 +113,7 @@ func (m *SSHProxyServer) Serve(ctx context.Context) error {
 	connHandler := &connHandler{
 		market:      m.market,
 		nppDialer:   nppDialer,
+		privateKey:  m.privateKey,
 		hostSigners: hostSigners,
 		log:         m.log,
 	}
@@ -137,6 +147,7 @@ func (m *SSHProxyServer) Serve(ctx context.Context) error {
 type connHandler struct {
 	market      blockchain.MarketAPI
 	nppDialer   *npp.Dialer
+	privateKey  *ecdsa.PrivateKey
 	hostSigners []ssh.Signer
 	log         *zap.SugaredLogger
 }
@@ -164,20 +175,14 @@ func (m *connHandler) handle(session sshd.Session) error {
 		zap.String("publicKey", safeFingerprintSHA256(session.PublicKey())),
 	)
 
-	user, err := parseUserIdentity(session.User())
+	meta, err := m.extractMeta(session)
 	if err != nil {
 		return err
 	}
 
-	m.log.Debugw("resolving worker remote using passed user identity", zap.Any("user", user))
-	addr, err := m.resolve(session.Context(), user.DealID)
-	if err != nil {
-		return err
-	}
+	m.log.Debugf("resolved remote: %s", meta.Addr.String())
 
-	m.log.Debugf("resolved remote: %s", addr.String())
-
-	conn, err := m.nppDialer.Dial(*addr)
+	conn, err := m.nppDialer.Dial(*meta.Addr)
 	if err != nil {
 		return err
 	}
@@ -185,14 +190,14 @@ func (m *connHandler) handle(session sshd.Session) error {
 	m.log.Debugf("connected to remote endpoint %s", conn.RemoteAddr())
 
 	cfg := &ssh.ClientConfig{
-		User: user.TaskID,
+		User: meta.Identity,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(m.hostSigners...),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	clientConn, channels, requests, err := ssh.NewClientConn(conn, addr.String(), cfg)
+	clientConn, channels, requests, err := ssh.NewClientConn(conn, meta.Addr.String(), cfg)
 	if err != nil {
 		return err
 	}
@@ -289,6 +294,36 @@ func (m *connHandler) handle(session sshd.Session) error {
 	})
 
 	return wg.Wait()
+}
+
+func (m *connHandler) extractMeta(session sshd.Session) (*connMeta, error) {
+	if common.IsHexAddress(session.User()) {
+		identity, err := NewSSHIdentity(m.privateKey)
+		if err != nil {
+			return nil, err
+		}
+
+		return &connMeta{
+			Addr:     auth.NewETHAddr(common.HexToAddress(session.User())),
+			Identity: identity.String(),
+		}, nil
+	}
+
+	user, err := parseUserIdentity(session.User())
+	if err != nil {
+		return nil, err
+	}
+
+	m.log.Debugw("resolving worker remote using passed user identity", zap.Any("user", user))
+	addr, err := m.resolve(session.Context(), user.DealID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &connMeta{
+		Addr:     addr,
+		Identity: user.TaskID,
+	}, nil
 }
 
 func (m *connHandler) resolve(ctx context.Context, dealID *big.Int) (*auth.Addr, error) {

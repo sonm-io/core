@@ -93,9 +93,9 @@ func WithGRPCServerMetrics() ServerOption {
 	}
 }
 
-func WithSSH(cfg ssh.ProxyServerConfig, credentials credentials.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) ServerOption {
+func WithSSH(cfg ssh.ProxyServerConfig, privateKey *ecdsa.PrivateKey, credentials credentials.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) ServerOption {
 	return func(o *serverOptions) error {
-		server, err := ssh.NewSSHProxyServer(cfg, credentials, market, log)
+		server, err := ssh.NewSSHProxyServer(cfg, privateKey, credentials, market, log)
 		if err != nil {
 			return err
 		}
