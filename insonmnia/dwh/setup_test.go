@@ -314,7 +314,8 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 				byteCerts, // SupplierCertificates
 				byteCerts, // ConsumerCertificates
 				true,
-				10, // CPUSysbenchMulti
+				[]byte{1, 2, 3}, // BidTag
+				10,              // CPUSysbenchMulti
 				20,
 				30,
 				40,
