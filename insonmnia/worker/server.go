@@ -351,8 +351,8 @@ func (m *Worker) setupAuthorization() error {
 		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
 			return structs.DealID(request.(*sonm.ID).GetId()), nil
 		}))),
-		auth.Allow(workerAPIPrefix+"Devices").With(superusersAuth),
-		auth.Allow(workerAPIPrefix+"AskPlans").With(superusersAuth),
+		auth.Allow(workerAPIPrefix+"Devices").With(newAnyOfAuth(managementAuth, superusersAuth)),
+		auth.Allow(workerAPIPrefix+"AskPlans").With(newAnyOfAuth(managementAuth, superusersAuth)),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 
