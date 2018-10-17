@@ -406,7 +406,7 @@ func printDealsList(cmd *cobra.Command, addr common.Address, deals []*sonm.DWHDe
 		}
 
 		w := tablewriter.NewWriter(cmd.OutOrStdout())
-		w.SetHeader([]string{"ID", "price", "started at", "duration", "counterparty"})
+		w.SetHeader([]string{"ID", "price", "started at", "duration", "counterparty", "bid tag"})
 		w.SetCaption(true, fmt.Sprintf("count: %d  ASKs: %s USD/h  BIDs: %s USD/h",
 			len(deals), asks.ToPriceString(), bids.ToPriceString()))
 		w.SetBorder(false)
@@ -427,6 +427,7 @@ func printDealsList(cmd *cobra.Command, addr common.Address, deals []*sonm.DWHDe
 				deal.StartTime.Unix().Format(time.RFC3339),
 				duration,
 				getDealCounterpartyString(deal),
+				string(d.GetBidTag()),
 			})
 		}
 
