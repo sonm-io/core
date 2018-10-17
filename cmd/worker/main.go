@@ -67,7 +67,6 @@ func run(app cmd.AppContext) error {
 		cancel()
 		log.G(ctx).Error("server stop", zap.Error(err))
 	}
-	waiter.Wait()
 
-	return nil
+	return waiter.Wait()
 }
