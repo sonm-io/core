@@ -133,6 +133,7 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, request *http.Request) {
 
 	code, response := s.serveHTTP(request)
 	rw.Header().Set("content-type", "application/json")
+	rw.Header().Set("Access-Control-Allow-Origin", "*")
 	rw.WriteHeader(code)
 
 	switch response := response.(type) {
