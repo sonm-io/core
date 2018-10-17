@@ -268,9 +268,9 @@ func (m *connHandler) handle(session sshd.Session) error {
 	}
 
 	wg, ctx := errgroup.WithContext(session.Context())
-	wg.Go(func() error {
+	go func() error {
 		return forwardFunc("-> stdin", session, stdin)
-	})
+	}()
 	// TODO: stdout/stderr intermixing is possible. How to get with it?
 	wg.Go(func() error {
 		return forwardFunc("<- stdout", stdout, session)
@@ -278,7 +278,7 @@ func (m *connHandler) handle(session sshd.Session) error {
 	wg.Go(func() error {
 		return forwardFunc("<- stderr", stderr, session)
 	})
-	wg.Go(func() error {
+	go func() error {
 		for window := range windows {
 			m.log.Debugf("detected window change: %dx%d", window.Height, window.Width)
 			if err := remoteSession.WindowChange(window.Height, window.Width); err != nil {
@@ -287,18 +287,16 @@ func (m *connHandler) handle(session sshd.Session) error {
 		}
 
 		return nil
-	})
-	wg.Go(func() error {
+	}()
+	go func() error {
 		// When we're closing session first.
 		<-ctx.Done()
 		remoteSession.Close()
 		return nil
-	})
+	}()
 	wg.Go(func() error {
 		// When remote session is finished.
 		err := remoteSession.Wait()
-		remoteSession.Close()
-		session.Close()
 		return err
 	})
 
