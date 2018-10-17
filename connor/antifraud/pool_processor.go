@@ -53,6 +53,27 @@ func newDwarfPoolProcessor(cfg *PoolProcessorConfig, log *zap.Logger, deal *type
 	}
 }
 
+func newUleyPoolProcessor(cfg *PoolProcessorConfig, log *zap.Logger, deal *types.Deal, taskID string) *commonPoolProcessor {
+	workerID := fmt.Sprintf("u%s", deal.GetId().Unwrap().String())
+	l := log.Named("uleypool").With(
+		zap.String("deal_id", deal.GetId().Unwrap().String()),
+		zap.String("task_id", taskID),
+		zap.String("worker_id", workerID))
+
+	return &commonPoolProcessor{
+		log:             l,
+		cfg:             cfg,
+		taskID:          taskID,
+		workerID:        workerID,
+		startTime:       time.Now(),
+		deal:            deal,
+		hashrateEWMA:    metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
+		currentHashrate: atomic.NewFloat64(float64(deal.BenchmarkValue())),
+		hashrateQueue:   &lane.Queue{Deque: lane.NewCappedDeque(60)},
+		update:          uleyPoolUpdateFunc,
+	}
+}
+
 func (m *commonPoolProcessor) Run(ctx context.Context) error {
 	m.hashrateEWMA.Update(int64(m.currentHashrate.Load() * 5.))
 	m.hashrateEWMA.Tick()
@@ -176,4 +197,39 @@ func dwarfPoolUpdateFunc(ctx context.Context, url string, workerID string) (floa
 	}
 
 	return rate * 1e6, nil
+}
+
+type uleyPoolWorker struct {
+	ReportedHashrate  uint64 `json:"reportedHashrate"`
+	EffectiveHashrate uint64 `json:"effectiveHashrate"`
+}
+
+type uleyPoolResponse struct {
+	Workers map[string]*uleyPoolWorker `json:"workers"`
+}
+
+func uleyPoolUpdateFunc(_ context.Context, url string, workerID string) (float64, error) {
+	data, err := price.FetchURLWithRetry(url)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch uleypool data: %v", err)
+	}
+
+	resp := &uleyPoolResponse{}
+	if err := json.Unmarshal(data, resp); err != nil {
+		return 0, fmt.Errorf("failed to parse uleypool response: %v", err)
+	}
+
+	worker, ok := resp.Workers[workerID]
+	if !ok {
+		return 0, fmt.Errorf("cannot find worker %s in reponse data", workerID)
+	}
+
+	var rate uint64
+	if worker.EffectiveHashrate > 0 {
+		rate = worker.EffectiveHashrate
+	} else {
+		rate = worker.ReportedHashrate
+	}
+
+	return float64(rate), nil
 }

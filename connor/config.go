@@ -81,6 +81,7 @@ type Config struct {
 func (c *Config) validate() error {
 	availablePools := map[string]bool{
 		antifraud.PoolFormatDwarf:         true,
+		antifraud.PoolFormatUley:          true,
 		antifraud.ProcessorFormatDisabled: true,
 	}
 	availableLogs := map[string]bool{
