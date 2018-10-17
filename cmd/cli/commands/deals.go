@@ -137,7 +137,6 @@ var dealStatusCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("cannot get deal info: %v", err)
 		}
-
 		dealInfo := &ExtendedDealInfo{
 			DealInfoReply: reply,
 		}
