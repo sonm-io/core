@@ -1,5 +1,9 @@
 sonm-core (0.4.13) unstable; urgency=low
 
+  * Added: multiple pools (#1579).
+    This PR introduces separate resource pools for spot resources, forward
+    resources and committed (involved in the deal) resources, providing an ability
+    to control worker more smoothly.
   * Added: blacklist purge method (#1639).
   * Added: able to stop multiple tasks (#1504).
     This commit adds a new method to the Node API which provides able to stop
@@ -129,7 +133,7 @@ sonm-core (0.4.13) unstable; urgency=low
     and add the same deal to the processing. This commit adds check that deal is
     not in the state storage before starting the processing routine.
 
- -- Evgeny Safronov <division494@gmail.com>  Thu, 18 Oct 2018 08:51:51 +0300
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 18 Oct 2018 09:02:08 +0300
 
 sonm-core (0.4.12) unstable; urgency=low
 
