@@ -17,7 +17,6 @@ type Option func(o *options) error
 
 type options struct {
 	log                   *zap.Logger
-	puncher               NATPuncher
 	puncherNew            func(ctx context.Context) (NATPuncher, error)
 	nppBacklog            int
 	nppMinBackoffInterval time.Duration
