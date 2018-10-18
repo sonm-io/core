@@ -402,18 +402,8 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 }
 
 func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.AskPlanGPU, error) {
-	GPURequired := false
-	for id, value := range benchmarks {
-		if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
-			if value != 0 {
-				GPURequired = true
-				break
-			}
-		}
-	}
-
 	if minCount == 0 {
-		if GPURequired {
+		if m.isGPURequired(benchmarks) {
 			minCount = 1
 		} else {
 			return &sonm.AskPlanGPU{}, nil
@@ -528,6 +518,18 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 	m.freeGPUs = freeGPUs
 
 	return &sonm.AskPlanGPU{Hashes: idx}, nil
+}
+
+func (m *DeviceManager) isGPURequired(benchmarks []uint64) bool {
+	for id, value := range benchmarks {
+		if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
+			if value != 0 {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (m *DeviceManager) combinationsGPU(k int) [][]*sonm.GPU {
