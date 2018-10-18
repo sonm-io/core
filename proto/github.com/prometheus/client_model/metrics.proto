@@ -11,15 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-syntax = "proto2";
+syntax = "proto3";
 
 package io.prometheus.client;
 option java_package = "io.prometheus.client";
 option go_package = "github.com/prometheus/client_model/go;io_prometheus_client";
 
 message LabelPair {
-    optional string name  = 1;
-    optional string value = 2;
+    string name  = 1;
+    string value = 2;
 }
 
 enum MetricType {
@@ -31,52 +31,52 @@ enum MetricType {
 }
 
 message Gauge {
-    optional double value = 1;
+    double value = 1;
 }
 
 message Counter {
-    optional double value = 1;
+    double value = 1;
 }
 
 message Quantile {
-    optional double quantile = 1;
-    optional double value    = 2;
+    double quantile = 1;
+    double value    = 2;
 }
 
 message Summary {
-    optional uint64   sample_count = 1;
-    optional double   sample_sum   = 2;
+    uint64   sample_count = 1;
+    double   sample_sum   = 2;
     repeated Quantile quantile     = 3;
 }
 
 message Untyped {
-    optional double value = 1;
+    double value = 1;
 }
 
 message Histogram {
-    optional uint64 sample_count = 1;
-    optional double sample_sum   = 2;
+    uint64 sample_count = 1;
+    double sample_sum   = 2;
     repeated Bucket bucket       = 3; // Ordered in increasing order of upper_bound, +Inf bucket is optional.
 }
 
 message Bucket {
-    optional uint64 cumulative_count = 1; // Cumulative in increasing order.
-    optional double upper_bound = 2;      // Inclusive.
+    uint64 cumulative_count = 1; // Cumulative in increasing order.
+    double upper_bound = 2;      // Inclusive.
 }
 
 message Metric {
     repeated LabelPair label        = 1;
-    optional Gauge     gauge        = 2;
-    optional Counter   counter      = 3;
-    optional Summary   summary      = 4;
-    optional Untyped   untyped      = 5;
-    optional Histogram histogram    = 7;
-    optional int64     timestamp_ms = 6;
+    Gauge     gauge        = 2;
+    Counter   counter      = 3;
+    Summary   summary      = 4;
+    Untyped   untyped      = 5;
+    Histogram histogram    = 7;
+    int64     timestamp_ms = 6;
 }
 
 message MetricFamily {
-    optional string     name   = 1;
-    optional string     help   = 2;
-    optional MetricType type   = 3;
+    string     name   = 1;
+    string     help   = 2;
+    MetricType type   = 3;
     repeated Metric     metric = 4;
 }
