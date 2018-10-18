@@ -2,6 +2,7 @@ package npp
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"time"
 
@@ -63,6 +64,37 @@ func WithRendezvous(cfg rendezvous.Config, credentials credentials.TransportCred
 	}
 }
 
+// WithRelay is an option that activates Relay fallback on a NPP dialer and
+// listener.
+//
+// Without this option no intermediate server will be used for relaying
+// TCP.
+// One or more Relay TCP addresses must be specified in "cfg.Endpoints"
+// argument. Hostname resolution is performed for each of them for environments
+// with dynamic DNS addition/removal. Thus, a single Relay endpoint as a
+// hostname should fit the best.
+// The "credentials" argument is used both for extracting the ETH address of
+// a server and for request signing to ensure that the published server
+// actually owns the ETH address is publishes. When dialing this argument is
+// currently ignored and can be "nil".
+func WithRelay(cfg relay.Config, credentials *ecdsa.PrivateKey) Option {
+	return func(o *options) error {
+		dialer := &relay.Dialer{
+			Addrs: cfg.Endpoints,
+			Log:   o.log,
+		}
+
+		listener, err := relay.NewListener(cfg.Endpoints, credentials, o.log)
+		if err != nil {
+			return err
+		}
+
+		o.relayDialer = dialer
+		o.relayListener = listener
+		return nil
+	}
+}
+
 // WithLogger is an option that specifies provided logger used for the internal
 // logging.
 // Nil value is supported and can be passed to deactivate the logging system
@@ -87,31 +119,6 @@ func WithNPPBackoff(min, max time.Duration) Option {
 	return func(o *options) error {
 		o.nppMinBackoffInterval = min
 		o.nppMaxBackoffInterval = max
-		return nil
-	}
-}
-
-// WithRelayListener is an option that activates Relay fallback on a NPP
-// listener.
-//
-// Without this option no intermediate server will be used for relaying
-// TCP.
-func WithRelayListener(listener *relay.Listener) Option {
-	return func(o *options) error {
-		o.relayListener = listener
-		return nil
-	}
-}
-
-// WithRelayDialer is an option that activates Relay fallback on a NPP dialer.
-//
-// One or more Relay TCP addresses must be specified in "addrs" argument.
-// Hostname resolution is performed for each of them for environments with
-// dynamic DNS addition/removal. Thus, a single Relay endpoint as a hostname
-// should fit the best.
-func WithRelayDialer(dialer *relay.Dialer) Option {
-	return func(o *options) error {
-		o.relayDialer = dialer
 		return nil
 	}
 }

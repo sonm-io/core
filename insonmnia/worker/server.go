@@ -34,7 +34,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/npp"
-	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
@@ -1136,17 +1135,11 @@ func (m *Worker) setupServer() error {
 		go debug.ServePProf(m.ctx, *m.cfg.Debug, log.G(m.ctx))
 	}
 
-	relayListener, err := relay.NewListener(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx))
-	if err != nil {
-		log.G(m.ctx).Error("failed to create Relay listener", zap.Strings("endpoints", m.cfg.NPP.Relay.Endpoints), zap.Error(err))
-		return err
-	}
-
 	nppListener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
 		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
 		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
 		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
-		npp.WithRelayListener(relayListener),
+		npp.WithRelay(m.cfg.NPP.Relay, m.key),
 		npp.WithLogger(log.G(m.ctx)),
 	)
 	if err != nil {

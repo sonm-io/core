@@ -12,7 +12,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
-	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -85,7 +84,7 @@ func (re *remoteOptions) isWorkerAvailable(ctx context.Context, addr common.Addr
 func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, credentials credentials.TransportCredentials, log *zap.SugaredLogger) (*remoteOptions, error) {
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),
-		npp.WithRelayDialer(&relay.Dialer{Addrs: cfg.NPP.Relay.Endpoints, Log: log.Desugar()}),
+		npp.WithRelay(cfg.NPP.Relay, key),
 		npp.WithLogger(log.Desugar()),
 	}
 	nppDialer, err := npp.NewDialer(nppDialerOptions...)
