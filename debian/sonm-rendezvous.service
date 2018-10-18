@@ -8,7 +8,7 @@ After=network.target network-online.target
 EnvironmentFile=/etc/default/sonm-rendezvous
 Type=simple
 ExecStart=/usr/bin/sonmrendezvous --config=${CONFIG_PATH}
-Restart=on-failure
+Restart=always
 LimitNOFILE=65535
 
 
