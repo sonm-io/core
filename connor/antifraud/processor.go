@@ -11,6 +11,7 @@ import (
 const (
 	LogFormatCommon         = "common"
 	PoolFormatDwarf         = "dwarf"
+	PoolFormatUley          = "uley"
 	ProcessorFormatDisabled = "disabled"
 )
 
@@ -48,6 +49,11 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 		pool = func(deal *types.Deal, taskID string, opts ...Option) Processor {
 			o := makeOpts(opts...)
 			return newDwarfPoolProcessor(&cfg.PoolProcessorConfig, o.logger, deal, taskID)
+		}
+	case PoolFormatUley:
+		pool = func(deal *types.Deal, taskID string, opts ...Option) Processor {
+			o := makeOpts(opts...)
+			return newUleyPoolProcessor(&cfg.PoolProcessorConfig, o.logger, deal, taskID)
 		}
 	case ProcessorFormatDisabled:
 		pool = func(deal *types.Deal, taskID string, opts ...Option) Processor {
