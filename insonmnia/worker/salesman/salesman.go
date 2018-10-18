@@ -219,7 +219,6 @@ func (m *Salesman) PurgeAskPlans(ctx context.Context) (*sonm.ErrorByStringID, er
 }
 
 func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
-
 	ask, err := m.AskPlan(planID)
 	if err != nil {
 		return err
@@ -501,9 +500,6 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 	}
 	m.log.Debugf("checking deal %s for ask plan %s", deal.GetId().Unwrap().String(), plan.GetID())
 
-	if err := m.registerDeal(ctx, plan.ID, deal); err != nil {
-		return err
-	}
 	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
 		if err := m.RemoveAskPlan(ctx, plan.GetID()); err != nil {
 			return fmt.Errorf("failed to remove ask plan %s with closed deal: %s", plan.GetID(), err)
@@ -602,9 +598,38 @@ func (m *Salesman) registerOrder(ctx context.Context, planID string, order *sonm
 	return nil
 }
 
-func (m *Salesman) registerDeal(ctx context.Context, planID string, deal *sonm.Deal) error {
+func (m *Salesman) onDealOpened(ctx context.Context, planID string, deal *sonm.Deal) error {
+	plansToEject, err := m.registerDeal(ctx, planID, deal)
+	if err != nil {
+		return err
+	}
+	return m.ejectAskPlans(ctx, plansToEject)
+}
+
+func (m *Salesman) ejectAskPlans(ctx context.Context, ejectedPlans []string) error {
+	// Anyway check if any plans were ejected
+	for _, planID := range ejectedPlans {
+		m.RemoveAskPlan(ctx, planID)
+		plan, ok := m.askPlans[planID]
+		if !ok {
+			m.log.Errorf("ejected ask plan with ID %s is not found", planID)
+			continue
+		}
+		if !plan.GetDealID().IsZero() {
+			m.RemoveAskPlan(ctx, planID)
+			plan.Status = sonm.AskPlan_PENDING_DELETION
+			m.closeDeal(ctx, plan.DealID)
+		} else {
+			m.log.Errorf("ejected ask plan with ID %s has no deal", planID)
+		}
+	}
+
+	return nil
+}
+
+func (m *Salesman) registerDeal(ctx context.Context, planID string, deal *sonm.Deal) ([]string, error) {
 	if deal.GetId().IsZero() {
-		return fmt.Errorf("failed to register deal: zero deal id")
+		return nil, fmt.Errorf("failed to register deal: zero deal id")
 	}
 	dealIDStr := deal.GetId().Unwrap().String()
 	m.mu.Lock()
@@ -613,19 +638,20 @@ func (m *Salesman) registerDeal(ctx context.Context, planID string, deal *sonm.D
 	if !ok {
 		// Looks like this should never happen
 		m.closeDeal(ctx, deal.GetId())
-		return fmt.Errorf("could not assign deal %s to plan %s: no such plan", dealIDStr, planID)
+		return nil, fmt.Errorf("could not assign deal %s to plan %s: no such plan", dealIDStr, planID)
 	}
 	if plan.DealID.Cmp(deal.GetId()) != 0 && !plan.DealID.IsZero() {
-		return fmt.Errorf("attempted to register deal %s for plan %s with deal %s",
+		return nil, fmt.Errorf("attempted to register deal %s for plan %s with deal %s",
 			dealIDStr, planID, plan.DealID.Unwrap().String())
 	}
 	m.deals[dealIDStr] = deal
 	plan.DealID = deal.GetId()
+
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
-		return err
+		return nil, err
 	}
 	m.log.Infof("assigned deal %s to plan %s", dealIDStr, planID)
-	return nil
+	return m.resources.MakeRoomAndCommit(plan)
 }
 
 func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
@@ -637,8 +663,11 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	}
 
 	if !order.DealID.IsZero() {
-		plan.DealID = order.DealID
-		return m.checkDeal(ctx, plan)
+		deal, err := m.eth.Market().GetDealInfo(ctx, order.DealID.Unwrap())
+		if err != nil {
+			return fmt.Errorf("could not get deal info for ask plan  %s: %s", plan.ID, err)
+		}
+		return m.onDealOpened(ctx, plan.ID, deal)
 	} else if order.OrderStatus != sonm.OrderStatus_ORDER_ACTIVE {
 		return m.RemoveAskPlan(ctx, plan.ID)
 	}

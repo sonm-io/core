@@ -20,7 +20,7 @@ type Scheduler struct {
 	// taskToAskPlan maps task ID to ask plan ID
 	taskToAskPlan map[string]string
 	// askPlanPools maps ask plan' ID to allocated resource pool
-	askPlanPools map[string]*pool
+	askPlanPools map[string]*taskPool
 	log          *zap.SugaredLogger
 }
 
@@ -32,9 +32,9 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 	log.Debugf("constructing scheduler with hardware:\n%s\ninitial resources:\n%s", string(readableHardware), string(readableResources))
 	return &Scheduler{
 		OS:            hardware,
-		pool:          newPool(resources),
+		pool:          newPool(log, resources),
 		taskToAskPlan: map[string]string{},
-		askPlanPools:  map[string]*pool{},
+		askPlanPools:  map[string]*taskPool{},
 		log:           log,
 	}
 }
@@ -45,26 +45,11 @@ func (m *Scheduler) DebugDump() *sonm.SchedulerData {
 
 	reply := &sonm.SchedulerData{
 		TaskToAskPlan: deepcopy.Copy(m.taskToAskPlan).(map[string]string),
-		MainPool: &sonm.ResourcePool{
-			All:  m.pool.all,
-			Used: map[string]*sonm.AskPlanResources{},
-		},
-		AskPlanPools: map[string]*sonm.ResourcePool{},
+		PlanPool:      m.pool.ToProto(),
+		AskPlanPools:  map[string]*sonm.TaskPool{},
 	}
-
-	for id, res := range m.pool.used {
-		reply.MainPool.Used[id] = res
-	}
-
-	for askID, pool := range m.askPlanPools {
-		resultPool := &sonm.ResourcePool{
-			All:  pool.all,
-			Used: map[string]*sonm.AskPlanResources{},
-		}
-		reply.AskPlanPools[askID] = resultPool
-		for id, res := range pool.used {
-			resultPool.Used[id] = res
-		}
+	for id, pool := range m.askPlanPools {
+		reply.AskPlanPools[id] = pool.ToProto()
 	}
 
 	return reply
@@ -81,23 +66,10 @@ func (m *Scheduler) AskPlanIDByTaskID(taskID string) (string, error) {
 	return askID, nil
 }
 
-func (m *Scheduler) GetUsage() (*sonm.AskPlanResources, error) {
+func (m *Scheduler) GetCommitedFree() (*sonm.AskPlanResources, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.pool.getUsage()
-}
-
-func (m *Scheduler) GetFree() (*sonm.AskPlanResources, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.pool.getFree()
-}
-
-func (m *Scheduler) PollConsume(askPlan *sonm.AskPlan) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return m.pool.pollConsume(askPlan.Resources)
+	return m.pool.GetCommitedFree()
 }
 
 // Consume tries to consume the specified resource usage from the pool.
@@ -106,13 +78,19 @@ func (m *Scheduler) PollConsume(askPlan *sonm.AskPlan) error {
 func (m *Scheduler) Consume(askPlan *sonm.AskPlan) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.askPlanPools[askPlan.ID] = newPool(askPlan.Resources)
+	m.askPlanPools[askPlan.ID] = newTaskPool(askPlan.Resources)
 
-	if err := m.pool.consume(askPlan.ID, askPlan.Resources); err != nil {
+	if err := m.pool.Consume(askPlan); err != nil {
 		return fmt.Errorf("failed to consume resources for ask plan %s: %s", askPlan.ID, err)
 	}
 	m.log.Debugf("consumed ask-plan %s by scheduler", askPlan.ID)
 	return nil
+}
+
+func (m *Scheduler) MakeRoomAndCommit(askPlan *sonm.AskPlan) (ejectedAskPlans []string, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.pool.MakeRoomAndCommit(askPlan)
 }
 
 func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm.AskPlanResources) error {
@@ -131,14 +109,14 @@ func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm
 	}
 	m.log.Debugf("consumed task %s by scheduler", taskID)
 
-	return pool.consume(taskID, copy)
+	return pool.Consume(taskID, copy)
 }
 
 func (m *Scheduler) Release(askPlanID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.askPlanPools, askPlanID)
-	if err := m.pool.release(askPlanID); err != nil {
+	if err := m.pool.Release(askPlanID); err != nil {
 		return fmt.Errorf("failed to release ask plan %s from scheduler: %s", askPlanID, err)
 	}
 	m.log.Debugf("released ask plan %s from scheduler", askPlanID)
@@ -157,7 +135,7 @@ func (m *Scheduler) ReleaseTask(taskID string) error {
 		return fmt.Errorf("failed to release task %s: ask Plan with id %s not found", taskID, askPlanID)
 	}
 
-	err := pool.release(taskID)
+	err := pool.Release(taskID)
 	if err != nil {
 		return err
 	}
@@ -201,76 +179,5 @@ func (m *Scheduler) OnDealFinish(taskID string) error {
 
 	delete(m.taskToAskPlan, taskID)
 
-	return nil
-}
-
-type pool struct {
-	all *sonm.AskPlanResources
-	// used maps resource ID (usually task id) to allocated resources
-	used map[string]*sonm.AskPlanResources
-}
-
-func newPool(resources *sonm.AskPlanResources) *pool {
-	return &pool{
-		all:  resources,
-		used: map[string]*sonm.AskPlanResources{},
-	}
-}
-
-func (p *pool) getFree() (*sonm.AskPlanResources, error) {
-	res := deepcopy.Copy(p.all).(*sonm.AskPlanResources)
-	usage, err := p.getUsage()
-	if err != nil {
-		return nil, err
-	}
-	err = res.Sub(usage)
-	if err != nil {
-		pool, _ := yaml.Marshal(res)
-		use, _ := yaml.Marshal(usage)
-		return &sonm.AskPlanResources{}, fmt.Errorf("resource pool inconsistency found - used resources are greater than available for scheduling(%s). pool - %s, used - %s",
-			err, pool, use)
-	}
-	return res, nil
-}
-
-func (p *pool) getUsage() (*sonm.AskPlanResources, error) {
-	sum := &sonm.AskPlanResources{}
-	for _, askPlan := range p.used {
-		if err := sum.Add(askPlan); err != nil {
-			return nil, err
-		}
-	}
-	return sum, nil
-}
-
-func (p *pool) pollConsume(resources *sonm.AskPlanResources) error {
-	available, err := p.getFree()
-	if err != nil {
-		return err
-	}
-	err = available.Sub(resources)
-	if err != nil {
-		return fmt.Errorf("not enough resources: %s", err)
-	}
-	return nil
-}
-
-func (p *pool) consume(ID string, resources *sonm.AskPlanResources) error {
-	if err := p.pollConsume(resources); err != nil {
-		return err
-	}
-	if _, ok := p.used[ID]; ok {
-		return fmt.Errorf("resources with ID %s has been already consumed", ID)
-	}
-
-	p.used[ID] = resources
-	return nil
-}
-
-func (p *pool) release(ID string) error {
-	if _, ok := p.used[ID]; !ok {
-		return fmt.Errorf("could not release resource with ID %s from pool - no such resource", ID)
-	}
-	delete(p.used, ID)
 	return nil
 }

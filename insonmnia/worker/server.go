@@ -496,7 +496,7 @@ func (m *Worker) Status(ctx context.Context, _ *sonm.Empty) (*sonm.StatusReply, 
 // that can be turned into ask-plans.
 // Deprecated: no longer usable
 func (m *Worker) FreeDevices(ctx context.Context, request *sonm.Empty) (*sonm.DevicesReply, error) {
-	resources, err := m.resources.GetFree()
+	resources, err := m.resources.GetCommitedFree()
 	if err != nil {
 		return nil, err
 	}
