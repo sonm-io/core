@@ -1,3 +1,136 @@
+sonm-core (0.4.13) unstable; urgency=low
+
+  * Added: blacklist purge method (#1639).
+  * Added: able to stop multiple tasks (#1504).
+    This commit adds a new method to the Node API which provides able to stop
+    several tasks at once.
+  * Added: add axe optimization model (#1634).
+    This is the model from the winner of our Programming Challenge.
+  * Added: show hourly expenses for deals (#1515).
+  * Added: common pool processor for anti-fraud (#1552).
+    Idea is very similar to the "commonLogProcessor".
+    This commit extracts common parts from pool processor into reusable structure.
+    Now we can easily add new pools only by implementing the "updateFunc"
+    function.
+  * Added: forward deals support in Optimus (#1632).
+    Now Optimus is capable of optimizing orders that are targeting to forward
+    deals in addition to its previous spot-only support. In the config one can
+    specify the maximum deal duration that Optimus will take in action.
+  * Added: expose DWH API on Node (#1626).
+  * Added: add more REST interceptors - logging and tracing (#1623).
+  * Added: return REST errors as JSON (#1621).
+    This commit slightly changes the REST server behavior by forcing to return
+    errors as JSON for the sake of consistency.
+    Previously all errors were returned as a plain text. Now set set the
+    application/json header and wrap the error into a JSON object.
+    Also the encoding/decoding logic was slightly changed - now if a Node is
+    configured into secure mode it will return all responses as encoded byte
+    array. This was done for symmetry, because one can have a client with encoder,
+    and it expects the encoded response. Previously if a request failed in URI
+    parsing stage a plain-text reply was returned. That was unexpected and
+    completely helpless for people that try to work with secure Node in insecure
+    manner. The error says something, but anyway you're unable to do anything with
+    the Node unless you have a client-side encoder/decoder.
+  * Added: enable some of gRPC interceptors for REST (#1620).
+  * Added: teach Optimus to cancel optimization (#1622).
+    Now Optimus can stop its optimization process if a caller no longer awaits for
+    the result.
+  * Added: validate prediction request (#1617).
+  * Added: dwh out of sync mode (#1604).
+  * Added: generalized log parser for Connor. (#1595).
+    This commit removes particular log parser with a single one with a subset of
+    settings which can be applied to (almost) any logs with a number in their
+    fields.
+    Log reader now has 3 options related to logline analyzing:
+    1. String pattern to detect line with logs. E.g: line that has 'Total speed'
+    in it will be analyzed, if it doesn't - we'll skip this line.
+    2. Field number in line. Describes which position in a string is a numeric
+    value that shows task quality (hash rate, actually).
+    3. The multiplier for parsed value. Used when a field contains the value in
+    KHash/s or MHash/s. Use "1" if the multiplier is not applicable for the value.
+  * Added: show trace info in Rendezvous logs (#1601).
+  * Added: price prediction for suppliers (#1594).
+    Node service is now capable to obtain an approximate predicted price for
+    devices configuration, i.e. implements price prediction for suppliers.
+  * Added: adapt extra orders in Connor (#1591).
+    This commit adds config option that change "restoreMarketState" behavior.
+    If "no_cancel" parameter is enabled, Connor will adapt orders that not fits in
+    target orders set.
+  * Changed: single shot ask plans (#1541).
+    This PR changes ask-plan behavior, now after the order is canceled,
+    or a deal is closed ask plan is removed. This should work better with
+    Optimus bot, as it does continuous optimization and also simplifies the code,
+    allowing to make separate scheduling for forwarding deals.
+  * Fixed: set proper status on container exit (#1643).
+  * Fixed: chunked deals fetching in Optimus (#1642).
+    While we're having constantly increasing the number of deals it may appear,
+    that fetching the entire data set of deals can overflow the allowed gRPC
+    response size.
+    This commit fixes that behavior by fetching deals chunked.
+  * Fixed: zero values in DWH (#1638).
+  * Fixed: race condition while resetting puncher (#1637).
+    This commit fixes a thread-safety issue while handling Rendezvous errors.
+    Previously the puncher was reset in another thread, which might cause a race
+    condition, leading to unrecoverable error returned from an acceptor and
+    further worker stop. Now all of this is done in the same thread when the
+    puncher is handled.
+  * Fixed: compare only victim price in Optimus (#1636).
+  * Fixed: forward meta headers to worker interceptor (#1633).
+    This commit adds ability to set worker header via HTTP 1.1 request.
+    Header will be used by WorkerManagement interceptor to create connection.
+  * Fixed: decrease connection timeout in sonmmon (#1630).
+  * Fixed: proper worker startup, removing concurrent container cleanup. (#1602).
+    This PR fixes behaviour when containers are being concurrently removed in
+    event watcher, resulting in error in OnDealFinish call
+    (e.g. inablility to push already removed container to registry).
+    If this situation took place on startup - worker would fail to start.
+  * Fixed: no SIGSEGV while logging requests (#1628).
+  * Fixed: proper full method name for REST server (#1629).
+  * Fixed: don't init Connor's backends twice (#1606).
+  * Fixed: properly generate hash (#1616).
+  * Fixed: sonmmon should not depend on sonmcli (#1618).
+  * Fixed: dedup orders while doing genetics in Optimus (#1611).
+    The God of Random in Optimus sometimes put the same order several times into a
+    genome in genetic optimization, which results in invalid knapsack
+    construction. This commit fixes that behavior by doing orders deduplication
+    while crossing over and mutating genomes.
+  * Fixed: default value for new benchmarks in Optimus (#1610).
+    When we add a new benchmark, Worker is required to be restarted to update
+    those benchmarks. However when doing supplier price prediction, it is possible
+    to forget setting some of the benchmarks, which results in completely ignoring
+    values in Optimus. All of this results in invalid prediction. This commit
+    fixes such behavior.
+  * Fixed: wait for status before starting X (#1605).
+  * Fixed: properly remove ask plan (#1593).
+  * Fixed: set JSON content type for REST responses (#1599).
+  * Fixed: chunked fetching orders in Optimus (#1590).
+    We've reached gRPC frame size limit when fetching too many orders from the
+    DWH. This commit applies paging to avoid this problem.
+  * Fixed: remove redundant and dangerous channel closing (#1592).
+  * Fixed: proper error handling in MultiSig API (#1584).
+  * Fixed: bump version in Makefile (#1588).
+  * Fixed: relay asynchronously (#1589).
+    Do not block on meeting, while holding a lock.
+  * Fixed: socket leak in Relay (#1580).
+    Several weeks ago a new bug was introduced in Relay server - half of the
+    remote peer sockets were leaked forever. This was because of improper
+    synchronization during rendezvous point, where both remote server and client
+    are met. So when a client did its job we closed only a server socket, not the
+    client one and vise-verse.
+    This patch fixes such behavior - everything should work fine from now, at
+    least with dead socket collection.
+    Closes #1566.
+  * Fixed: handle error if failed to create a new account (#1583).
+  * Fixed: check for deal existence before processing (#1557).
+    We can get a race when "waitForDeal"'s timer ticks after the
+    "waitForExternalUpdates"'s one.
+    Deal will be traited as externally opened and its processing will be started.
+    Then waitForDeal will make a tick, detected new deal opened for known order
+    and add the same deal to the processing. This commit adds check that deal is
+    not in the state storage before starting the processing routine.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 18 Oct 2018 08:51:51 +0300
+
 sonm-core (0.4.12) unstable; urgency=low
 
   * Added: introducing GetOrdersByIDs method in DWH (#1570).
