@@ -413,14 +413,22 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 	score := float64(math.MaxFloat64)
 	var candidates []*sonm.GPU
 
-	//// Fast filter by GPU memory benchmark.
-	//// All GPUs in the subset must have at least(!) the required memory
-	//// number.
+	// Index of benchmark mapping.
+	deviceTypes := make([]sonm.DeviceType, len(benchmarks))
+	splittingAlgorithms := make([]sonm.SplittingAlgorithm, len(benchmarks))
+	for id := range benchmarks {
+		deviceTypes[id] = m.mapping.DeviceType(id)
+		splittingAlgorithms[id] = m.mapping.SplittingAlgorithm(id)
+	}
+
+	// Fast filter by GPU memory benchmark.
+	// All GPUs in the subset must have at least(!) the required memory
+	// number.
 	filteredFreeGPUs := make([]*sonm.GPU, 0, len(m.freeGPUs))
 subsetLoop:
 	for _, gpu := range m.freeGPUs {
 		for id, benchmarkValue := range benchmarks {
-			if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_MIN {
+			if splittingAlgorithms[id] == sonm.SplittingAlgorithm_MIN {
 				if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
 					if benchmarkValue > benchmark.Result {
 						continue subsetLoop
@@ -439,8 +447,8 @@ subsetLoop:
 
 			for _, gpu := range subset {
 				for id := range currentBenchmarks {
-					if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
-						if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_PROPORTIONAL {
+					if deviceTypes[id] == sonm.DeviceType_DEV_GPU {
+						if splittingAlgorithms[id] == sonm.SplittingAlgorithm_PROPORTIONAL {
 							if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
 								if benchmark.Result == 0 {
 									if benchmarks[id] == 0 {
@@ -470,8 +478,8 @@ subsetLoop:
 
 			mismatch := false
 			for id := range currentBenchmarks {
-				if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
-					if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_PROPORTIONAL {
+				if deviceTypes[id] == sonm.DeviceType_DEV_GPU {
+					if splittingAlgorithms[id] == sonm.SplittingAlgorithm_PROPORTIONAL {
 						if currentBenchmarks[id] != 0 {
 							mismatch = true
 							break
