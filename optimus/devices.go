@@ -413,26 +413,29 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 	score := float64(math.MaxFloat64)
 	var candidates []*sonm.GPU
 
-	for k := int(minCount); k <= len(m.freeGPUs); k++ {
-	subsetLoop:
-		for _, subset := range m.combinationsGPU(k) {
-			currentScore := 0.0
-			currentBenchmarks := append([]uint64{}, benchmarks...)
-
-			// Fast filter by GPU memory benchmark.
-			// All GPUs in the subset must have at least(!) the required memory
-			// number.
-			for _, gpu := range subset {
-				for id := range currentBenchmarks {
-					if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_MIN {
-						if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
-							if currentBenchmarks[id] > benchmark.Result {
-								continue subsetLoop
-							}
-						}
+	//// Fast filter by GPU memory benchmark.
+	//// All GPUs in the subset must have at least(!) the required memory
+	//// number.
+	filteredFreeGPUs := make([]*sonm.GPU, 0, len(m.freeGPUs))
+subsetLoop:
+	for _, gpu := range m.freeGPUs {
+		for id, benchmarkValue := range benchmarks {
+			if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_MIN {
+				if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+					if benchmarkValue > benchmark.Result {
+						continue subsetLoop
 					}
 				}
 			}
+		}
+
+		filteredFreeGPUs = append(filteredFreeGPUs, gpu)
+	}
+
+	for k := int(minCount); k <= len(filteredFreeGPUs); k++ {
+		for _, subset := range combinationsGPU(filteredFreeGPUs, k) {
+			currentScore := 0.0
+			currentBenchmarks := append([]uint64{}, benchmarks...)
 
 			for _, gpu := range subset {
 				for id := range currentBenchmarks {
