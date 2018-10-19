@@ -66,7 +66,7 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 	r.From = common.HexToAddress(dec.From)
 
 	if dec.To == "" {
-		return fmt.Errorf("unmarshaled to field is empty")
+		dec.To = "0x0"
 	}
 	r.To = common.HexToAddress(dec.To)
 
