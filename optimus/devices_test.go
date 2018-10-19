@@ -12,29 +12,29 @@ import (
 )
 
 func TestGPUCombinationsEmpty(t *testing.T) {
-	assert.Equal(t, 0, len(combinationsGPU([]*sonm.GPU{}, 0)))
+	assert.Equal(t, 0, len(combinationsGPU([]*wrappedGPU{}, 0)))
 }
 
 func TestGPUCombinations(t *testing.T) {
-	devices := []*sonm.GPU{
-		{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
-		{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
-		{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+	devices := []*wrappedGPU{
+		{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
+		{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
+		{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
 	}
 	actual := combinationsGPU(devices, 2)
 
-	expected := [][]*sonm.GPU{
+	expected := [][]*wrappedGPU{
 		{
-			{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
-			{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+			{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
+			{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
 		},
 		{
-			{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
-			{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+			{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
+			{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
 		},
 		{
-			{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
-			{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+			{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
+			{GPU: &sonm.GPU{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}}},
 		},
 	}
 	assert.Equal(t, 3, len(actual))

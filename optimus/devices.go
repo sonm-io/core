@@ -401,6 +401,11 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 	return consumer.Result(value), nil
 }
 
+type wrappedGPU struct {
+	*sonm.GPU
+	BenchmarksCache []uint64
+}
+
 func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.AskPlanGPU, error) {
 	if minCount == 0 {
 		if m.isGPURequired(benchmarks) {
@@ -411,7 +416,7 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 	}
 
 	score := float64(math.MaxFloat64)
-	var candidates []*sonm.GPU
+	var candidates []*wrappedGPU
 
 	// Index of benchmark mapping.
 	deviceTypes := make([]sonm.DeviceType, len(benchmarks))
@@ -424,10 +429,15 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 	// Fast filter by GPU memory benchmark.
 	// All GPUs in the subset must have at least(!) the required memory
 	// number.
-	filteredFreeGPUs := make([]*sonm.GPU, 0, len(m.freeGPUs))
+	filteredFreeGPUs := make([]*wrappedGPU, 0, len(m.freeGPUs))
 subsetLoop:
 	for _, gpu := range m.freeGPUs {
+		benchmarksCache := make([]uint64, len(benchmarks))
 		for id, benchmarkValue := range benchmarks {
+			if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+				benchmarksCache[id] = benchmark.Result
+			}
+
 			if splittingAlgorithms[id] == sonm.SplittingAlgorithm_MIN {
 				if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
 					if benchmarkValue > benchmark.Result {
@@ -437,7 +447,10 @@ subsetLoop:
 			}
 		}
 
-		filteredFreeGPUs = append(filteredFreeGPUs, gpu)
+		filteredFreeGPUs = append(filteredFreeGPUs, &wrappedGPU{
+			GPU:             gpu,
+			BenchmarksCache: benchmarksCache,
+		})
 	}
 
 	for k := int(minCount); k <= len(filteredFreeGPUs); k++ {
@@ -449,28 +462,28 @@ subsetLoop:
 				for id := range currentBenchmarks {
 					if deviceTypes[id] == sonm.DeviceType_DEV_GPU {
 						if splittingAlgorithms[id] == sonm.SplittingAlgorithm_PROPORTIONAL {
-							if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
-								if benchmark.Result == 0 {
-									if benchmarks[id] == 0 {
-										// Nothing to subtract using this benchmark. Nothing to add to the score.
-										// Still try the rest of benchmarks.
-										continue
-									} else {
-										// The GPU set can't fit the benchmark. Well, possibly can,
-										// but without this GPU.
-										// Anyway the score will be +Inf, so definitely it's not the minimum one.
-										break
-									}
-								}
-
-								if currentBenchmarks[id] > benchmark.Result {
-									currentBenchmarks[id] -= benchmark.Result
+							//if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+							benchmark := gpu.BenchmarksCache[id]
+							if benchmark == 0 {
+								if benchmarks[id] == 0 {
+									// Nothing to subtract using this benchmark. Nothing to add to the score.
+									// Still try the rest of benchmarks.
+									continue
 								} else {
-									currentBenchmarks[id] = 0
+									// The GPU set can't fit the benchmark. Well, possibly can,
+									// but without this GPU.
+									// Anyway the score will be +Inf, so definitely it's not the minimum one.
+									break
 								}
-
-								currentScore += math.Pow(math.Max(0, float64(benchmark.Result)-float64(benchmarks[id]))/float64(benchmark.Result), 2)
 							}
+
+							if currentBenchmarks[id] > benchmark {
+								currentBenchmarks[id] -= benchmark
+							} else {
+								currentBenchmarks[id] = 0
+							}
+
+							currentScore += math.Pow(math.Max(0, float64(benchmark)-float64(benchmarks[id]))/float64(benchmark), 2)
 						}
 					}
 				}
@@ -496,7 +509,7 @@ subsetLoop:
 
 			if currentScore < score {
 				score = currentScore
-				candidates = append([]*sonm.GPU{}, subset...)
+				candidates = append([]*wrappedGPU{}, subset...)
 			}
 		}
 	}
@@ -543,21 +556,21 @@ func (m *DeviceManager) isGPURequired(benchmarks []uint64) bool {
 	return false
 }
 
-func (m *DeviceManager) combinationsGPU(k int) [][]*sonm.GPU {
-	return combinationsGPU(m.freeGPUs, k)
-}
+//func (m *DeviceManager) combinationsGPU(k int) [][]*sonm.GPU {
+//	return combinationsGPU(m.freeGPUs, k)
+//}
 
-func combinationsGPU(gpu []*sonm.GPU, k int) [][]*sonm.GPU {
-	var GPUs [][]*sonm.GPU
-	yieldCombinationsGPU(gpu, k, func(gpu []*sonm.GPU) {
-		GPUs = append(GPUs, append([]*sonm.GPU{}, gpu...))
+func combinationsGPU(gpu []*wrappedGPU, k int) [][]*wrappedGPU {
+	var GPUs [][]*wrappedGPU
+	yieldCombinationsGPU(gpu, k, func(gpu []*wrappedGPU) {
+		GPUs = append(GPUs, append([]*wrappedGPU{}, gpu...))
 	})
 
 	return GPUs
 }
 
-func yieldCombinationsGPU(gpu []*sonm.GPU, k int, fn func([]*sonm.GPU)) {
-	subset := make([]*sonm.GPU, k)
+func yieldCombinationsGPU(gpu []*wrappedGPU, k int, fn func([]*wrappedGPU)) {
+	subset := make([]*wrappedGPU, k)
 	last := k - 1
 
 	var recurse func(int, int)
