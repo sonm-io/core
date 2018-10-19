@@ -108,7 +108,7 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 		log:             opts.log,
 		listenerChannel: channel,
 		listener:        listener,
-		puncher:         opts.puncher,
+		puncher:         nil,
 		puncherNew:      opts.puncherNew,
 		nppChannel:      make(chan connTuple, opts.nppBacklog),
 
