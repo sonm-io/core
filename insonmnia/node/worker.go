@@ -176,6 +176,10 @@ func (m *interceptedAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, 
 	default:
 		return handler(srv, ss)
 	}
+	if err != nil {
+		return err
+	}
+
 	defer closer.Close()
 
 	args := []interface{}{ctx}
