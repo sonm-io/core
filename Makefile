@@ -163,7 +163,7 @@ fmt:
 
 test: mock
 	@echo "+ $@"
-	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
+	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor')
 
 # Everything except DWH tests.
 test/lite: mock
