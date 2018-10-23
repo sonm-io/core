@@ -453,10 +453,13 @@ subsetLoop:
 		})
 	}
 
+	// Move this allocation out of the cycle to prevent continuous reallocation.
+	currentBenchmarks := make([]uint64, len(benchmarks))
+
 	for k := int(minCount); k <= len(filteredFreeGPUs); k++ {
 		for _, subset := range combinationsGPU(filteredFreeGPUs, k) {
 			currentScore := 0.0
-			currentBenchmarks := append([]uint64{}, benchmarks...)
+			copy(currentBenchmarks, benchmarks)
 
 			for _, gpu := range subset {
 				for id := range currentBenchmarks {
