@@ -1,3 +1,23 @@
+sonm-core (0.4.14) unstable; urgency=low
+
+  * Added: pool processor for UleyPool (#1650).
+    This commit adds new pool processor for Connor's antifraud system.
+    Can be enabled using "antifraud.pool_processor.format: uley" option.
+  * Fixed: check error in Node's stream interceptor (#1661).
+  * Fixed: getTransactionReceipt To field unmarshalling (#1660).
+  * Fixed: proper error code for Worker (#1647).
+  * Performance: replace using "pow" with hand-written code (#1667).
+  * Performance: optimize reallocations in Optimus (#1662).
+  * Performance: cache GPU benchmarks in Optimus (#1659).
+    Another boost by ~2.
+  * Performance: cache benchmarks meta in Optimus (#1658).
+    This suddenly gives about x100 performance booth in the "consumeGPU" method.
+    The overall performance has been increased in ~2 times.
+  * Performance: pre-filter GPUs in Optimus (#1657).
+    This increases the relative performance of "consumeGPU" method by ~60%.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 23 Oct 2018 12:25:58 +0300
+
 sonm-core (0.4.13) unstable; urgency=low
 
   * Added: multiple pools (#1579).
