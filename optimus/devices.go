@@ -465,7 +465,6 @@ subsetLoop:
 				for id := range currentBenchmarks {
 					if deviceTypes[id] == sonm.DeviceType_DEV_GPU {
 						if splittingAlgorithms[id] == sonm.SplittingAlgorithm_PROPORTIONAL {
-							//if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
 							benchmark := gpu.BenchmarksCache[id]
 							if benchmark == 0 {
 								if benchmarks[id] == 0 {
@@ -486,7 +485,11 @@ subsetLoop:
 								currentBenchmarks[id] = 0
 							}
 
-							currentScore += math.Pow(math.Max(0, float64(benchmark)-float64(benchmarks[id]))/float64(benchmark), 2)
+							// This optimization is a workaround for "math.Pow" that works faster by
+							// excluding some redundant checks inside. Also, "math.Pow" is not inlined
+							// for some reasons.
+							diff := math.Dim(float64(benchmark), float64(benchmarks[id])) / float64(benchmark)
+							currentScore += diff * diff
 						}
 					}
 				}
