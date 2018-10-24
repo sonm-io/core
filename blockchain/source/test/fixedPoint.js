@@ -1,7 +1,6 @@
 import BigNumber from "../node_modules/web3/bower/bignumber.js/bignumber";
 import assertRevert from "./helpers/assertRevert";
 
-const Rating = artifacts.require('./Rating.sol');
 const FixedPoint = artifacts.require('./FixedPoint.sol');
 
 contract('FixedPoint', async function (accounts) {
@@ -27,7 +26,6 @@ contract('FixedPoint', async function (accounts) {
             let precision = await fp.Precision();
             let val = 1 << precision;
             let round = (await fp.Round(val));
-            console.log(round);
             assert.equal(round.toNumber(), 1);
             val *= 42;
             round = (await fp.Round(val));
@@ -118,6 +116,17 @@ contract('FixedPoint', async function (accounts) {
             round = (await fp.Round(num4)).toNumber();
             // 1.01^3000
             assert.equal(round, 9207067941190);
+
+            fp = fp128;
+            num1 = (await fp.FromNatural(999999999));
+            num2 = (await fp.FromNatural(1000000000));
+            num3 = (await fp.Div(num1, num2));
+            num4 = (await fp.Ipow(num3, 365*86400*10));
+            let million = await fp.FromNatural(1000000)
+            let num5 = (await fp.Mul(num4, million));
+            round = (await fp.Round(num5)).toNumber();
+            // 0.999999999^(86400*365*10) * 1e6
+            assert.equal(round, 729526);
         });
     });
 });
