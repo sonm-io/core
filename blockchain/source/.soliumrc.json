@@ -14,6 +14,12 @@
     ],
     "emit": [
       "off"
+    ],
+    "error-reason": [
+      "off"
+    ],
+    "security/no-block-members": [
+      "off"
     ]
   }
 }
