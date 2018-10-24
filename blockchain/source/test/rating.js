@@ -1,54 +1,6 @@
-import BigNumber from "../node_modules/web3/bower/bignumber.js/bignumber";
-
 const Rating = artifacts.require('./Rating.sol');
-const FixedPoint = artifacts.require('./FixedPoint.sol');
 
-contract('FixedPoint', async function (accounts) {
-    let fp1;
-    let fp10;
-    let fp248;
-    let fp255;
-    let somebody = accounts[9];
-    before(async function () {
-        fp1 = await FixedPoint.new(1);
-        fp10 = await FixedPoint.new(10);
-        fp248 = await FixedPoint.new(248);
-        fp255 = await FixedPoint.new(255);
-    });
-
-    describe('Round', function(accounts) {
-        it('should properly round numbers', async function(){
-            let fp = fp10;
-            let precision = await fp.Precision();
-            let val = 1 << precision;
-            let round = (await fp.Round(val));
-            console.log(round);
-            assert.equal(round.toNumber(), 1);
-            val *= 42;
-            round = (await fp.Round(val));
-            assert.equal(round.toNumber(), 42);
-            round = (await fp.Round(val + 2 ** (precision - 1)));
-            assert.equal(round.toNumber(), 43);
-            round = (await fp.Round(val + 2 ** (precision - 1) - 1));
-            assert.equal(round, 42);
-        });
-        it('should properly multiply numbers', async function(){
-            let fp = fp248;
-            let precision = await fp.Precision();
-            let val1 = new BigNumber(2).pow(precision).mul(15);
-            let val2 = new BigNumber(2).pow(precision).mul(16);
-            console.log(val1.toString(2));
-            console.log(val2.toString(2));
-            let mul = (await fp.Mul(val1, val2));
-            console.log(mul.toString(2));
-            let round = (await fp.Round(mul)).toNumber();
-            console.log(round);
-            assert.equal(round, 15*16);
-        });
-    });
-});
-
-// contract('Rating', async function (accounts) {
+contract('Rating', async function (accounts) {
 //     let rating;
 //     let owner = accounts[0];
 //     let somebody = accounts[9];

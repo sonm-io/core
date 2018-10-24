@@ -1,9 +1,11 @@
 pragma solidity ^0.4.23;
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
+import "./FixedPoint.sol";
+import "./transferable.sol";
 
 
-contract RatingData is Ownable {
+contract RatingData is CreatorOwnable {
     mapping(address => uint256) positiveSum;
     mapping(address => uint256) negativeSum;
     mapping(address => uint64) lastBlock;
@@ -16,29 +18,52 @@ contract RatingData is Ownable {
         Positive,
         Negative
     }
+
+    function SetDecayEpoch(uint256 newDecayEpoch) onlyOwner {
+        decayEpoch = newDecayEpoch;
+    }
+
+    function SetDecayValue(uint256 newDecayValue) onlyOwner {
+        decayValue = newDecayValue;
+    }
+
+    function DecayValue() public view returns (uint256) {
+        return decayValue;
+    }
+
+    function DecayEpoch() public view returns (uint256) {
+        return decayEpoch;
+    }
 }
 
 contract Rating is Ownable {
 
     using SafeMath for uint256;
 
+    RatingData ratingData;
+    FixedPoint fp;
     event RatingUpdated(address who, uint price);
     event DecayEpochUpdated(uint256 decayEpoch);
     event DecayValueUpdated(uint256 decayValue);
 
 
 
-    constructor(uint256 _decayEpoch, uint256 _decayValue, uint256 _precision) public {
-//        owner = msg.sender;
-//        decayEpoch = _decayEpoch;
-//        decayValue = _decayValue;
-//        precision = _precision;
+    constructor(address _ratingData, address _fp) public {
+        owner = msg.sender;
+        fp = FixedPoint(_fp);
+        ratingData = RatingData(_ratingData);
+    }
+
+    function transferData(address to) onlyOwner {
+        ratingData.transferOwnership(to);
     }
 
     function SetDecayEpoch(uint256 newDecayEpoch) onlyOwner {
+        ratingData.SetDecayEpoch(newDecayEpoch);
     }
 
-    function SetDecayValue(uint256 newDecayEpoch) onlyOwner {
+    function SetDecayValue(uint256 newDecayValue) onlyOwner {
+        ratingData.SetDecayValue(newDecayValue);
     }
 
     function DecayValue() public view returns (uint256) {
