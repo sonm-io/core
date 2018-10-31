@@ -126,9 +126,6 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		f(options)
 	}
 
-	ovs := nvidiaTuner{devMap: make(map[GPUID]nvidiaDevice)}
-	ovs.options = options
-
 	// get devices list provided by openCL
 	clDevices, err := gpu.GetGPUDevices()
 	if err != nil {
@@ -165,6 +162,17 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	ctrlDevices, err := nvidia.GetControlDevicePaths()
 	if err != nil {
 		log.G(ctx).Error("failed to get control devices paths", zap.Error(err))
+		return nil, err
+	}
+
+	ovs := nvidiaTuner{
+		devMap:  make(map[GPUID]nvidiaDevice),
+		options: options,
+	}
+
+	ovs.options.DriverVersion, err = nvidia.GetDriverVersion()
+	if err != nil {
+		log.G(ctx).Error("failed to get NVIDIA driver version", zap.Error(err))
 		return nil, err
 	}
 
@@ -212,7 +220,9 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		},
 	}
 
-	log.G(ctx).Info("provisioning volumes", zap.String("at", ovs.options.VolumePath))
+	log.G(ctx).Info("provisioning volumes",
+		zap.String("at", ovs.options.VolumePath),
+		zap.String("version", ovs.options.DriverVersion))
 	volumes, err := nvidia.LookupVolumes(ovs.options.VolumePath, ovs.options.DriverVersion, volInfo)
 	if err != nil {
 		return nil, err
