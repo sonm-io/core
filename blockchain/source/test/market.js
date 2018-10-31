@@ -80,7 +80,7 @@ contract('Market', async (accounts) => {
             changeRequests.address,
             benchmarkQuantity,
             netflagsQuantity,
-            {gasLimit: 30000000}
+            { gasLimit: 30000000 }
         );
 
         await administratum.transferOwnership(market.address);

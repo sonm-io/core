@@ -322,7 +322,8 @@ contract Market is Ownable, Pausable {
 
     function CreateChangeRequest(uint dealID, uint newPrice, uint newDuration) public returns (uint changeRequestID) {
 
-        require(msg.sender == dl.GetDealConsumerID(dealID)
+        require(
+            msg.sender == dl.GetDealConsumerID(dealID)
             || msg.sender ==  dl.GetDealMasterID(dealID)
             || msg.sender == dl.GetDealSupplierID(dealID));
         require(dl.GetDealStatus(dealID) == Deals.DealStatus.STATUS_ACCEPTED);
@@ -456,7 +457,8 @@ contract Market is Ownable, Pausable {
     function InternalBill(uint dealID) internal returns (bool){
 
         require(dl.GetDealStatus(dealID) == Deals.DealStatus.STATUS_ACCEPTED);
-        require(msg.sender == dl.GetDealSupplierID(dealID) ||
+        require(
+            msg.sender == dl.GetDealSupplierID(dealID) ||
             msg.sender == dl.GetDealConsumerID(dealID) ||
             msg.sender == dl.GetDealMasterID(dealID));
         uint paidAmount;

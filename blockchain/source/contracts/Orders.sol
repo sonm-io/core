@@ -55,7 +55,8 @@ contract Orders is Ownable {
         owner = msg.sender;
     }
 
-    function Write(OrderType _orderType,
+    function Write(
+        OrderType _orderType,
         OrderStatus _orderStatus,
         address _author,
         address _counterparty,

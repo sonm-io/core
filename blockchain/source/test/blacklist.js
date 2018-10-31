@@ -49,7 +49,7 @@ contract('Blacklist', async function (accounts) {
             changeRequests.address,
             12,
             3,
-            {gasLimit: 30000000});
+            { gasLimit: 30000000 });
     });
 
     it('test ACL', async function () {
