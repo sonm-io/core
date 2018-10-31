@@ -43,8 +43,15 @@ func (m *optimizationInput) VictimPlans() map[string]*sonm.AskPlan {
 	return victims
 }
 
-func (m *optimizationInput) FreeDevices() (*sonm.DevicesReply, error) {
-	return m.freeDevices(map[string]*sonm.AskPlan{})
+func (m *optimizationInput) ForwardPrice() *sonm.Price {
+	plans := make([]*sonm.AskPlan, 0)
+	for _, plan := range m.Plans {
+		if plan.GetDuration().Unwrap() != 0 {
+			plans = append(plans, plan)
+		}
+	}
+
+	return sonm.SumPrice(plans)
 }
 
 func (m *optimizationInput) VirtualFreeDevices() (*sonm.DevicesReply, error) {
@@ -101,22 +108,9 @@ func (m *optimizationInput) UpdateDealPrices(ctx context.Context, market blockch
 	return changes, nil
 }
 
-func (m *optimizationInput) Price() *sonm.Price {
-	var plans []*sonm.AskPlan
-	for _, plan := range m.Plans {
-		plans = append(plans, plan)
-	}
-
-	return sonm.SumPrice(plans)
-}
-
-func (m *optimizationInput) SwingPrice() *sonm.Price {
-	var plans []*sonm.AskPlan
-	for _, plan := range m.VictimPlans() {
-		plans = append(plans, plan)
-	}
-
-	return sonm.SumPrice(plans)
+type priceTuple struct {
+	WorkerPrice     *sonm.Price
+	WorkerSpotPrice *sonm.Price
 }
 
 func (m *optimizationInput) freeDevices(removalVictims map[string]*sonm.AskPlan) (*sonm.DevicesReply, error) {
@@ -264,17 +258,11 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	victimPlans := input.VictimPlans()
 	m.log.Debugw("victim plans", zap.Any("plans", victimPlans))
 
-	naturalFreeDevices, err := input.FreeDevices()
-	if err != nil {
-		return err
-	}
-
 	virtualFreeDevices, err := input.VirtualFreeDevices()
 	if err != nil {
 		return err
 	}
 
-	m.log.Debugw("virtualized worker natural free devices", zap.Any("devices", *naturalFreeDevices))
 	m.log.Debugw("virtualized worker virtual free devices", zap.Any("devices", *virtualFreeDevices))
 
 	// Here we append removal candidate's orders to "orders" from the
@@ -294,19 +282,9 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	// Extended orders set, with added currently executed orders.
 	extOrders := append(append([]*MarketOrder{}, input.Orders...), virtualFreeOrders...)
 
-	var naturalKnapsack, virtualKnapsack *Knapsack
+	var virtualKnapsack *Knapsack
 
 	wg := errgroup.Group{}
-	wg.Go(func() error {
-		m.log.Info("optimizing using natural free devices")
-		knapsack, err := m.optimize(ctx, input.Devices, naturalFreeDevices, input.Orders, nil, m.log.With(zap.String("optimization", "natural")))
-		if err != nil {
-			return err
-		}
-
-		naturalKnapsack = knapsack
-		return nil
-	})
 	wg.Go(func() error {
 		m.log.Info("optimizing using virtual free devices")
 		knapsack, err := m.optimize(ctx, input.Devices, virtualFreeDevices, extOrders, virtualFreeOrders, m.log.With(zap.String("optimization", "virtual")))
@@ -321,35 +299,49 @@ func (m *workerEngine) execute(ctx context.Context) error {
 		return err
 	}
 
-	m.log.Infow("current worker price", zap.String("Σ USD/s", input.Price().GetPerSecond().ToPriceString()))
-	m.log.Infow("current worker swing price", zap.String("Σ USD/s", input.SwingPrice().GetPerSecond().ToPriceString()))
-	m.log.Infow("optimizing using natural free devices done", zap.String("Σ USD/s", naturalKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", naturalKnapsack.Plans()))
+	deviceManager, err := newDeviceManager(input.Devices, virtualFreeDevices, m.benchmarkMapping)
+	if err != nil {
+		return fmt.Errorf("failed to construct device manager: %v", err)
+	}
+
+	currentPrice := priceForPack(ctx, input, deviceManager, virtualFreeOrders)
+	m.log.Infow("current worker price", zap.String("Σ USD/s", currentPrice.WorkerPrice.GetPerSecond().ToPriceString()))
+	m.log.Infow("current worker swing price", zap.String("Σ USD/s", currentPrice.WorkerSpotPrice.GetPerSecond().ToPriceString()))
 	m.log.Infow("optimizing using virtual free devices done", zap.String("Σ USD/s", virtualKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", virtualKnapsack.Plans()))
 
 	// Compare total USD/s before and after. Remove some plans if the diff is
 	// more than the threshold.
-	swingTime := m.cfg.PriceThreshold.Exceeds(virtualKnapsack.Price().GetPerSecond().Unwrap(), input.SwingPrice().GetPerSecond().Unwrap())
+	swingTime := m.cfg.PriceThreshold.Exceeds(virtualKnapsack.Price().GetPerSecond().Unwrap(), currentPrice.WorkerSpotPrice.GetPerSecond().Unwrap())
 
 	var winners []*sonm.AskPlan
 	var victims []*sonm.AskPlan
-	if swingTime {
+	create, remove, ignore := splitPlans(victimPlans, virtualKnapsack.Plans())
+
+	switch {
+	case len(remove) == 0:
+		m.log.Info("using appending strategy")
+		winners = create
+	case swingTime:
 		m.log.Info("using replacement strategy")
 
-		create, remove, ignore := splitPlans(victimPlans, virtualKnapsack.Plans())
-		m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
-		m.log.Infow("removing plans", zap.Any("plans", remove))
-		m.log.Infow("creating plans", zap.Any("plans", create))
+		for _, plan := range remove {
+			if victimPlan, ok := victimPlans[plan.GetID()]; ok {
+				if victimPlan.GetDealID().IsZero() {
+					victims = append(victims, plan)
+				}
+			}
+		}
 
 		winners = create
-		victims = remove
-	} else {
-		m.log.Info("using appending strategy")
-		winners = naturalKnapsack.Plans()
 	}
 
 	if len(winners) == 0 {
 		return fmt.Errorf("no plans found")
 	}
+
+	m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
+	m.log.Infow("removing plans", zap.Any("plans", remove))
+	m.log.Infow("creating plans", zap.Any("plans", create))
 
 	victimIDs := make([]string, 0, len(victims))
 	for _, plan := range victims {
@@ -871,4 +863,21 @@ func planEq(a, b *sonm.AskPlan) bool {
 	return a.GetResources().Eq(b.GetResources()) &&
 		a.GetPrice().GetPerSecond().Cmp(b.GetPrice().GetPerSecond()) == 0 &&
 		a.GetDuration().Unwrap() == b.GetDuration().Unwrap()
+}
+
+func priceForPack(ctx context.Context, input *optimizationInput, manager *DeviceManager, virtualFreeOrders []*MarketOrder) *priceTuple {
+	model := BranchBoundModel{
+		Log: zap.NewNop().Sugar(),
+	}
+	knapsack := NewKnapsack(manager)
+	if err := model.Optimize(ctx, knapsack, virtualFreeOrders); err != nil {
+		return nil
+	}
+
+	price := &priceTuple{
+		WorkerPrice:     input.ForwardPrice().Add(knapsack.Price()),
+		WorkerSpotPrice: knapsack.Price(),
+	}
+
+	return price
 }

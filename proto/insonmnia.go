@@ -148,6 +148,14 @@ func (m *DataSizeRate) MarshalYAML() (interface{}, error) {
 	return string(text), err
 }
 
+func (m *Price) Add(other *Price) *Price {
+	x := m.GetPerSecond().Unwrap()
+	y := other.GetPerSecond().Unwrap()
+	x.Add(x, y)
+	m.PerSecond = NewBigInt(x)
+	return m
+}
+
 func (m *Price) MarshalYAML() (interface{}, error) {
 	v := big.NewFloat(0).SetPrec(256).SetInt(m.PerSecond.Unwrap())
 	div := big.NewFloat(params.Ether).SetPrec(256)
