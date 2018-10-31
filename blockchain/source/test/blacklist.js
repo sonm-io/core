@@ -16,6 +16,10 @@ contract('Blacklist', async function (accounts) {
     let token;
     let oracle;
     let pr;
+    let administratum;
+    let orders;
+    let deals;
+    let changeRequests;
 
     const owner = accounts[0];
     const creeper = accounts[1];
@@ -30,6 +34,7 @@ contract('Blacklist', async function (accounts) {
         oracle = await OracleUSD.new();
         pr = await ProfileRegistry.new();
         await blacklist.AddMaster(master, { from: owner });
+        administratum = await Administratum.new();
         orders = await Orders.new();
         deals = await Deals.new();
         changeRequests = await ChangeRequests.new();
