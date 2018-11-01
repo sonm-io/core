@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/docker/docker/api/types"
@@ -33,9 +36,10 @@ const (
 type sshStatus int
 
 type SSHConfig struct {
-	Endpoint string             `yaml:"endpoint" default:":0"`
-	NPP      npp.Config         `yaml:"npp"`
-	Identity sonm.IdentityLevel `yaml:"identity" default:"identified"`
+	Endpoint  string             `yaml:"endpoint" default:":0"`
+	NPP       npp.Config         `yaml:"npp"`
+	Identity  sonm.IdentityLevel `yaml:"identity" default:"identified"`
+	Blacklist []common.Address   `yaml:"blacklist"`
 }
 
 type PublicKey struct {
@@ -99,17 +103,107 @@ func IsWorkerSSHIdentity(v string) bool {
 	return common.IsHexAddress(v[:2*common.AddressLength])
 }
 
-type connHandler struct {
-	authorizedKeys []common.Address
-	overseer       OverseerView
-	log            *zap.SugaredLogger
+type sshAuthorizationOptions struct {
+	Expiration time.Time
 }
 
-func newConnHandler(authorizedKeys []common.Address, overseer OverseerView, log *zap.SugaredLogger) *connHandler {
+func newSSHAuthorizationOptions() *sshAuthorizationOptions {
+	return &sshAuthorizationOptions{
+		Expiration: time.Unix(math.MaxInt32, 0),
+	}
+}
+
+type SSHAuthorizationOption func(options *sshAuthorizationOptions)
+
+func WithExpiration(duration time.Duration) SSHAuthorizationOption {
+	return func(options *sshAuthorizationOptions) {
+		options.Expiration = time.Now().Add(duration)
+	}
+}
+
+type SSHAuthorization struct {
+	mu sync.RWMutex
+	// Keys from the blacklist are forbidden for any SSH command.
+	//
+	// If the same key is appeared both in the whitelist and blacklist the
+	// precedence will be for the blacklist.
+	deniedKeys map[common.Address]time.Time
+	// Keys from the whitelist are always (or temporary) allowed to execute
+	// any SSH command.
+	allowedKeys map[common.Address]time.Time
+}
+
+func NewSSHAuthorization() *SSHAuthorization {
+	return &SSHAuthorization{
+		deniedKeys:  map[common.Address]time.Time{},
+		allowedKeys: map[common.Address]time.Time{},
+	}
+}
+
+// Allow adds the given key to the whitelist.
+func (m *SSHAuthorization) Allow(key common.Address, options ...SSHAuthorizationOption) {
+	opts := newSSHAuthorizationOptions()
+	for _, o := range options {
+		o(opts)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.allowedKeys[key] = opts.Expiration
+}
+
+// Deny adds the given key to the blacklist.
+func (m *SSHAuthorization) Deny(key common.Address, options ...SSHAuthorizationOption) {
+	opts := newSSHAuthorizationOptions()
+	for _, o := range options {
+		o(opts)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.deniedKeys[key] = opts.Expiration
+}
+
+// IsAllowed returns true if the given key passes the authorization.
+func (m *SSHAuthorization) IsAllowed(key common.Address) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if expirationTime, ok := m.deniedKeys[key]; ok {
+		if time.Now().Before(expirationTime) {
+			return false
+		}
+	}
+
+	if expirationTime, ok := m.allowedKeys[key]; ok {
+		return time.Now().Before(expirationTime)
+	}
+
+	return false
+}
+
+func (m *SSHAuthorization) expirationTimeFromDuration(duration time.Duration) time.Time {
+	expirationTime := time.Unix(math.MaxInt32, 0)
+	if duration != 0 {
+		expirationTime = time.Now().Add(duration)
+	}
+
+	return expirationTime
+}
+
+type connHandler struct {
+	sshAuthorization *SSHAuthorization
+	overseer         OverseerView
+	log              *zap.SugaredLogger
+}
+
+func newConnHandler(sshAuthorization *SSHAuthorization, overseer OverseerView, log *zap.SugaredLogger) *connHandler {
 	return &connHandler{
-		authorizedKeys: authorizedKeys,
-		overseer:       overseer,
-		log:            log,
+		sshAuthorization: sshAuthorization,
+		overseer:         overseer,
+		log:              log,
 	}
 }
 
@@ -169,11 +263,9 @@ func (m *connHandler) process(session sshd.Session) (sshStatus, error) {
 			return sshStatusServerError, fmt.Errorf("failed to verify SSH identity: %v", err)
 		}
 
-		for _, addr := range m.authorizedKeys {
-			if addr == sshIdentity.Addr {
-				m.log.Infof("authorized using %s", addr.Hex())
-				return m.processLogin(session)
-			}
+		if m.sshAuthorization.IsAllowed(sshIdentity.Addr) {
+			m.log.Infof("authorized using %s", sshIdentity.Addr.Hex())
+			return m.processLogin(session)
 		}
 		return sshStatusServerError, fmt.Errorf("access denied")
 	}
@@ -279,8 +371,12 @@ type sshServer struct {
 	log         *zap.SugaredLogger
 }
 
-func NewSSHServer(cfg SSHConfig, signer ssh.Signer, credentials credentials.TransportCredentials, authorizedKeys []common.Address, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
-	connHandler := newConnHandler(authorizedKeys, overseer, log)
+func NewSSHServer(cfg SSHConfig, signer ssh.Signer, credentials credentials.TransportCredentials, sshAuthorization *SSHAuthorization, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
+	for _, addr := range cfg.Blacklist {
+		sshAuthorization.Deny(addr)
+	}
+
+	connHandler := newConnHandler(sshAuthorization, overseer, log)
 
 	server := &sshd.Server{
 		Handler:          connHandler.onSession,
