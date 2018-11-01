@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"os/exec"
 	"strings"
+	"syscall"
+	"unsafe"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/kr/pty"
 	"github.com/sonm-io/core/insonmnia/npp"
+	xssh "github.com/sonm-io/core/insonmnia/ssh"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
@@ -76,20 +83,45 @@ type OverseerView interface {
 	Exec(ctx context.Context, id string, cmd []string, env []string, isTty bool, wCh <-chan sshd.Window) (types.HijackedResponse, error)
 }
 
-type connHandler struct {
-	overseer OverseerView
-	log      *zap.SugaredLogger
+func hasHexPrefix(v string) bool {
+	return len(v) >= 2 && v[0] == '0' && (v[1] == 'x' || v[1] == 'X')
 }
 
-func newConnHandler(overseer OverseerView, log *zap.SugaredLogger) *connHandler {
+func IsWorkerSSHIdentity(v string) bool {
+	if hasHexPrefix(v) {
+		v = v[2:]
+	}
+
+	if len(v) < 2*common.AddressLength {
+		return false
+	}
+
+	return common.IsHexAddress(v[:2*common.AddressLength])
+}
+
+type connHandler struct {
+	authorizedKeys []common.Address
+	overseer       OverseerView
+	log            *zap.SugaredLogger
+}
+
+func newConnHandler(authorizedKeys []common.Address, overseer OverseerView, log *zap.SugaredLogger) *connHandler {
 	return &connHandler{
-		overseer: overseer,
-		log:      log,
+		authorizedKeys: authorizedKeys,
+		overseer:       overseer,
+		log:            log,
 	}
 }
 
 func (m *connHandler) Verify(ctx sshd.Context, key sshd.PublicKey) bool {
-	if err := m.verify(ctx.User(), key); err != nil {
+	user := ctx.User()
+	if IsWorkerSSHIdentity(user) {
+		// We do not return error otherwise, delaying the check to "process"
+		// method to have human-readable errors.
+		return true
+	}
+
+	if err := m.verifyContainerLogin(user, key); err != nil {
 		m.log.Warnw("verification failed", zap.Error(err))
 		return false
 	}
@@ -97,7 +129,7 @@ func (m *connHandler) Verify(ctx sshd.Context, key sshd.PublicKey) bool {
 	return true
 }
 
-func (m *connHandler) verify(taskID string, key sshd.PublicKey) error {
+func (m *connHandler) verifyContainerLogin(taskID string, key sshd.PublicKey) error {
 	m.log.Debugf("public key %s verification from user %s", ssh.FingerprintSHA256(key), taskID)
 
 	containerInfo, ok := m.overseer.ContainerInfo(taskID)
@@ -126,11 +158,24 @@ func (m *connHandler) onSession(session sshd.Session) {
 
 func (m *connHandler) process(session sshd.Session) (sshStatus, error) {
 	m.log.Debugf("processing %v", session.RemoteAddr())
-	_, wCh, isTty := session.Pty()
 
-	cmd := session.Command()
-	if len(cmd) == 0 {
-		cmd = []string{"login", "-f", "root"}
+	if IsWorkerSSHIdentity(session.User()) {
+		sshIdentity, err := xssh.ParseSSHIdentity(session.User())
+		if err != nil {
+			return sshStatusServerError, fmt.Errorf("failed to extract SSH identity: %v", err)
+		}
+
+		if err := sshIdentity.Verify(); err != nil {
+			return sshStatusServerError, fmt.Errorf("failed to verify SSH identity: %v", err)
+		}
+
+		for _, addr := range m.authorizedKeys {
+			if addr == sshIdentity.Addr {
+				m.log.Infof("authorized using %s", addr.Hex())
+				return m.processLogin(session)
+			}
+		}
+		return sshStatusServerError, fmt.Errorf("access denied")
 	}
 
 	identity, err := m.overseer.ConsumerIdentityLevel(session.Context(), session.User())
@@ -147,10 +192,18 @@ func (m *connHandler) process(session sshd.Session) (sshStatus, error) {
 		return sshStatusServerError, fmt.Errorf("failed to find container for task `%s`", session.User())
 	}
 
+	cmd := session.Command()
+	if len(cmd) == 0 {
+		cmd = []string{"login", "-f", "root"}
+	}
+
+	_, wCh, isTty := session.Pty()
+
 	stream, err := m.overseer.Exec(session.Context(), containerInfo.ID, cmd, session.Environ(), isTty, wCh)
 	if err != nil {
 		return sshStatusServerError, err
 	}
+
 	defer stream.Close()
 	outputErr := make(chan error)
 
@@ -169,10 +222,51 @@ func (m *connHandler) process(session sshd.Session) (sshStatus, error) {
 		io.Copy(stream.Conn, session)
 	}()
 
-	err = <-outputErr
-	if err != nil {
+	if err := <-outputErr; err != nil {
 		m.log.Warnw("I/O error during SSH session", zap.Error(err))
 		return sshStatusServerError, nil
+	}
+
+	return sshStatusOK, nil
+}
+
+func (m *connHandler) processLogin(session sshd.Session) (sshStatus, error) {
+	command := session.Command()
+	if len(command) == 0 {
+		sh := os.Getenv("SHELL")
+		if len(sh) == 0 {
+			sh = "/bin/sh"
+		}
+
+		command = []string{sh}
+	}
+
+	m.log.Infof("executing `%s` over SSH", strings.Join(command, " "))
+
+	cmd := exec.Command(strings.Join(command, " "))
+	cmd.Env = session.Environ()
+	ptyReq, winCh, isPty := session.Pty()
+
+	if isPty {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
+		fh, err := pty.Start(cmd)
+		if err != nil {
+			return sshStatusServerError, err
+		}
+
+		go func() {
+			for win := range winCh {
+				setWindowSize(fh, win.Width, win.Height)
+			}
+		}()
+
+		go func() {
+			io.Copy(fh, session)
+		}()
+
+		io.Copy(session, fh)
+	} else {
+		return sshStatusServerError, fmt.Errorf("only shell command currently supported")
 	}
 
 	return sshStatusOK, nil
@@ -185,8 +279,8 @@ type sshServer struct {
 	log         *zap.SugaredLogger
 }
 
-func NewSSHServer(cfg SSHConfig, signer ssh.Signer, credentials credentials.TransportCredentials, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
-	connHandler := newConnHandler(overseer, log)
+func NewSSHServer(cfg SSHConfig, signer ssh.Signer, credentials credentials.TransportCredentials, authorizedKeys []common.Address, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
+	connHandler := newConnHandler(authorizedKeys, overseer, log)
 
 	server := &sshd.Server{
 		Handler:          connHandler.onSession,
@@ -240,4 +334,13 @@ func capitalize(s string) string {
 	}
 
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+func setWindowSize(fh *os.File, w, h int) {
+	syscall.Syscall(
+		syscall.SYS_IOCTL,
+		fh.Fd(),
+		uintptr(syscall.TIOCSWINSZ),
+		uintptr(unsafe.Pointer(&struct{ h, w, x, y uint16 }{uint16(h), uint16(w), 0, 0})),
+	)
 }

@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
@@ -296,7 +297,16 @@ func (m *options) setupSSH(view OverseerView) error {
 			return err
 		}
 
-		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.creds, view, ctxlog.S(m.ctx))
+		authorizedKeys := []common.Address{
+			crypto.PubkeyToAddress(m.key.PublicKey),
+			m.cfg.Master,
+		}
+
+		if m.cfg.Admin != nil {
+			authorizedKeys = append(authorizedKeys, *m.cfg.Admin)
+		}
+
+		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.creds, authorizedKeys, view, ctxlog.S(m.ctx))
 		if err != nil {
 			return err
 		}
