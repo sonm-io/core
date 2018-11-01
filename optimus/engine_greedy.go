@@ -85,13 +85,6 @@ func (m *GreedyLinearRegressionModel) Optimize(ctx context.Context, knapsack *Kn
 
 		order := weightedOrder.Order.Order
 
-		m.log.Debugw("trying to put an order into resources pool",
-			zap.Any("order", *weightedOrder.Order),
-			zap.Float64("weight", weightedOrder.Weight),
-			zap.String("price", order.Price.ToPriceString()),
-			zap.Float64("predictedPrice", weightedOrder.PredictedPrice),
-		)
-
 		switch err := knapsack.Put(order); err {
 		case nil:
 		case errExhausted:
