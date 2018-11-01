@@ -71,5 +71,13 @@ func (m *PredictorService) PredictSupplier(ctx context.Context, request *sonm.Pr
 		return nil, err
 	}
 
-	return &sonm.PredictSupplierReply{Price: sonm.SumPrice(worker.Result)}, nil
+	orderIDs := make([]*sonm.BigInt, 0, len(worker.Result))
+	for _, plan := range worker.Result {
+		orderIDs = append(orderIDs, plan.GetOrderID())
+	}
+
+	return &sonm.PredictSupplierReply{
+		Price:    sonm.SumPrice(worker.Result),
+		OrderIDs: orderIDs,
+	}, nil
 }

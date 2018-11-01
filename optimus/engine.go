@@ -354,8 +354,6 @@ func (m *workerEngine) execute(ctx context.Context) error {
 		// Extract the order ID for whose the selling plan is created.
 		orderID := plan.GetOrderID()
 
-		// Then we need to clean this, because otherwise worker rejects such request.
-		plan.OrderID = nil
 		plan.Identity = m.cfg.Identity
 		plan.Tag = m.tagger.Tag()
 
