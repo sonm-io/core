@@ -324,11 +324,10 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	case swingTime:
 		m.log.Info("using replacement strategy")
 
-		for _, plan := range remove {
-			if victimPlan, ok := victimPlans[plan.GetID()]; ok {
-				if victimPlan.GetDealID().IsZero() {
-					victims = append(victims, plan)
-				}
+		// Remove all spot plans that have no deal associated with.
+		for _, plan := range victimPlans {
+			if plan.GetDealID().IsZero() {
+				victims = append(victims, plan)
 			}
 		}
 
