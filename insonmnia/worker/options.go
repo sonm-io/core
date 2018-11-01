@@ -35,6 +35,10 @@ const (
 	exportKeystorePath    = "/var/lib/sonm/worker_keystore"
 )
 
+var (
+	leakedInsecureKey = common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd")
+)
+
 type options struct {
 	version     string
 	cfg         *Config
@@ -297,16 +301,16 @@ func (m *options) setupSSH(view OverseerView) error {
 			return err
 		}
 
-		authorizedKeys := []common.Address{
-			crypto.PubkeyToAddress(m.key.PublicKey),
-			m.cfg.Master,
-		}
+		sshAuthorization := NewSSHAuthorization()
+		sshAuthorization.Deny(leakedInsecureKey)
+		sshAuthorization.Allow(crypto.PubkeyToAddress(m.key.PublicKey))
+		sshAuthorization.Allow(m.cfg.Master)
 
 		if m.cfg.Admin != nil {
-			authorizedKeys = append(authorizedKeys, *m.cfg.Admin)
+			sshAuthorization.Allow(*m.cfg.Admin)
 		}
 
-		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.creds, authorizedKeys, view, ctxlog.S(m.ctx))
+		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.creds, sshAuthorization, view, ctxlog.S(m.ctx))
 		if err != nil {
 			return err
 		}
