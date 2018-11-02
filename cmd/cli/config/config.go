@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/netutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -19,7 +20,7 @@ const (
 	configName       = "cli.yaml"
 )
 
-// cliConfig implements Config interface
+// Config describes configuration file for the `sonmcli` tool
 type Config struct {
 	Eth        accounts.EthConfig `yaml:"ethereum"`
 	OutFormat  string             `required:"false" default:"" yaml:"output_format"`
@@ -61,6 +62,13 @@ func (cc *Config) Validate() error {
 	if len(cc.WorkerAddr) > 0 {
 		if _, err := auth.NewAddr(cc.WorkerAddr); err != nil {
 			return fmt.Errorf("failed to parse worker address: %s", err)
+		}
+	}
+
+	if len(cc.NodeAddr) > 0 {
+		addr, port, err := netutil.SplitHostPort(cc.NodeAddr)
+		if err != nil || addr == nil || port == 0 {
+			return fmt.Errorf("failed to parse node address, please use `ip:port` format")
 		}
 	}
 	return nil
