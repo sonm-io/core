@@ -139,8 +139,12 @@ build/connor:
 	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${CONNOR} ${GOCMD}/connor
 
 build/sonmmon:
+ifeq ($(GOOS),linux)
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${SONMMON} ${GOCMD}/sonmmon
+else
+	@echo "Skipping build of sonmmon for non-linux target"
+endif
 
 build/insomnia: build/worker build/cli build/node
 
