@@ -88,23 +88,6 @@ contract Deals is Ownable {
         return dealsAmount;
     }
 
-
-
-
-
-    /* function Close(uint dealID) public onlyOwner {
-        require(dealID >= dealsAmount);
-        deals[dealID].params.status = DealStatus.STATUS_CLOSED;
-        deals[dealID].params.endTime = block.timestamp;
-    }
-
-    function Bill(uint dealID, uint _balance, uint _totalPayout, uint _billTS) public onlyOwner {
-        require(dealID >= dealsAmount);
-        deals[dealID].params.blockedBalance = _balance;
-        deals[dealID].params.lastBillTS = _billTS;
-        deals[dealID].params.totalPayout = _totalPayout;
-    } */
-
     function SetDealBenchmarks(uint dealID, uint64[] _benchmarks) public onlyOwner {
         deals[dealID].info.benchmarks = _benchmarks;
     }

@@ -499,7 +499,7 @@ contract Market is Ownable, Pausable {
 
     function ReserveNextPeriodFunds(uint dealID) internal returns (bool) {
         uint nextPeriod;
-        ( , address supplierID, address consumerID , , , , ) = dl.GetDealInfo(dealID);
+        address consumerID = dl.GetDealConsumerID(dealID);
 
         (uint duration, uint price, uint endTime, Deals.DealStatus status, uint blockedBalance, , ) = dl.GetDealParams(dealID);
 
@@ -527,7 +527,6 @@ contract Market is Ownable, Pausable {
                 require(token.transferFrom(consumerID, this, nextPeriodSum));
                 dl.SetDealBlockedBalance(dealID, blockedBalance.add(nextPeriodSum));
             } else {
-              // ?????
                 emit Billed(dealID, blockedBalance);
                 InternalCloseDeal(dealID);
                 RefundRemainingFunds(dealID);
@@ -538,9 +537,9 @@ contract Market is Ownable, Pausable {
     }
 
     function RefundRemainingFunds(uint dealID) internal returns (bool) {
-        ( , , address consumerID , , , , ) = dl.GetDealInfo(dealID);
+        address consumerID = dl.GetDealConsumerID(dealID);
 
-        (, , , , uint blockedBalance, , ) = dl.GetDealParams(dealID);
+        uint blockedBalance = dl.GetDealBlockedBalance(dealID);
 
         if (blockedBalance != 0) {
             token.transfer(consumerID, blockedBalance);
@@ -571,7 +570,7 @@ contract Market is Ownable, Pausable {
     function InternalCloseDeal(uint dealID) internal {
         ( , address supplierID, address consumerID, address masterID, , , ) = dl.GetDealInfo(dealID);
 
-        ( , , , Deals.DealStatus status, , , ) = dl.GetDealParams(dealID);
+        Deals.DealStatus status = dl.GetDealStatus(dealID);
 
         if (status == Deals.DealStatus.STATUS_CLOSED) {
             return;
@@ -601,17 +600,17 @@ contract Market is Ownable, Pausable {
 
     // SETTERS
 
-    function SetProfileRegistryAddress(address _newPR) onlyOwner public returns (bool) {
+    function SetProfileRegistryAddress(address _newPR) public onlyOwner returns (bool) {
         pr = ProfileRegistry(_newPR);
         return true;
     }
 
-    function SetBlacklistAddress(address _newBL) onlyOwner public returns (bool) {
+    function SetBlacklistAddress(address _newBL) public onlyOwner returns (bool) {
         bl = Blacklist(_newBL);
         return true;
     }
 
-    function SetOracleAddress(address _newOracle) onlyOwner public returns (bool) {
+    function SetOracleAddress(address _newOracle) public onlyOwner returns (bool) {
         require(OracleUSD(_newOracle).getCurrentPrice() != 0);
         oracle = OracleUSD(_newOracle);
         return true;
@@ -627,14 +626,14 @@ contract Market is Ownable, Pausable {
         return  true;
     }
 
-    function SetBenchmarksQuantity(uint _newQuantity) onlyOwner public returns (bool) {
+    function SetBenchmarksQuantity(uint _newQuantity) public onlyOwner returns (bool) {
         require(_newQuantity > benchmarksQuantity);
         emit NumBenchmarksUpdated(_newQuantity);
         benchmarksQuantity = _newQuantity;
         return true;
     }
 
-    function SetNetflagsQuantity(uint _newQuantity) onlyOwner public returns (bool) {
+    function SetNetflagsQuantity(uint _newQuantity) public onlyOwner returns (bool) {
         require(_newQuantity > netflagsQuantity);
         emit NumNetflagsUpdated(_newQuantity);
         netflagsQuantity = _newQuantity;
