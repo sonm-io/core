@@ -1281,7 +1281,11 @@ func (m *Worker) getBenchValue(bench *sonm.Benchmark, device interface{}) (uint6
 		return m.hardware.RAM.Device.Total, nil
 	}
 	if bench.GetID() == benchmarks.StorageSize {
-		return disk.FreeDiskSpace(m.ctx)
+		info, err := disk.FreeDiskSpace(m.ctx)
+		if err != nil {
+			return 0, err
+		}
+		return info.FreeBytes, nil
 	}
 	if bench.GetID() == benchmarks.GPUCount {
 		//GPU count is always 1 for each GPU device.
