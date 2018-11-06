@@ -353,7 +353,12 @@ func (m *GeneticModel) Optimize(ctx context.Context, knapsack *Knapsack, orders 
 	simulation := gago.Generational(m.NewGenomeLab(knapsack, orders))
 	simulation.PopSize = m.PopulationSize
 	simulation.Callback = func(ga *gago.GA) {
-		if ga.Generations%(m.MaxGenerations/10) == 0 {
+		progressStep := m.MaxGenerations / 10
+		if progressStep == 0 {
+			progressStep = 1
+		}
+
+		if ga.Generations%progressStep == 0 {
 			m.Log.Debugf("optimization progress %3d/%3d, best price so far: %.12f", ga.Generations, m.MaxGenerations, -ga.HallOfFame[0].Fitness)
 		}
 	}
@@ -370,7 +375,8 @@ func (m *GeneticModel) Optimize(ctx context.Context, knapsack *Knapsack, orders 
 	survived := simulation.HallOfFame[0]
 
 	if survived.Fitness == 0.0 {
-		return fmt.Errorf("failed to evolute in %d generations", simulation.Generations)
+		m.Log.Warnf("failed to evolute in %d generations", simulation.Generations)
+		return nil
 	}
 
 	winnersT, ok := survived.Genome.(interface {
