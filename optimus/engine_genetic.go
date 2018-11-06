@@ -359,7 +359,7 @@ func (m *GeneticModel) Optimize(ctx context.Context, knapsack *Knapsack, orders 
 		}
 
 		if ga.Generations%progressStep == 0 {
-			m.Log.Debugf("optimization progress %3d/%3d, best price so far: %.12f", ga.Generations, m.MaxGenerations, -ga.HallOfFame[0].Fitness)
+			m.Log.Debugf("optimization progress %3d/%3d, best price so far: %.12f", ga.Generations, m.MaxGenerations, math.Max(-ga.HallOfFame[0].Fitness, 0.0))
 		}
 	}
 	simulation.Initialize()
