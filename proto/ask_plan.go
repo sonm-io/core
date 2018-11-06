@@ -151,10 +151,10 @@ func subAtMost(lhs uint64, rhs uint64) uint64 {
 
 // This function substracts as much resources as it can
 func (m *AskPlanResources) SubAtMost(resources *AskPlanResources) error {
+	m.initNilWithZero()
 	if err := m.GPU.Sub(resources.GetGPU()); err != nil {
 		return err
 	}
-	m.initNilWithZero()
 	m.CPU.CorePercents = subAtMost(m.CPU.CorePercents, resources.GetCPU().GetCorePercents())
 	m.RAM.Size.Bytes = subAtMost(m.RAM.Size.Bytes, resources.GetRAM().GetSize().GetBytes())
 	m.Storage.Size.Bytes = subAtMost(m.Storage.Size.Bytes, resources.GetStorage().GetSize().GetBytes())
