@@ -54,7 +54,7 @@ TAGS = nocgo
 
 GPU_SUPPORT ?= false
 ifeq ($(GPU_SUPPORT),true)
-    GPU_TAGS := cl
+    GPU_TAGS          := cl
     CGO_CFLAGS        := ""
     CGO_LDFLAGS       := ""
     CGO_LDFLAGS_ALLOW := ""
