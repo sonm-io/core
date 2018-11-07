@@ -256,6 +256,7 @@ github.com/sshaman1101/nvidia-docker v0.0.0-20180123151056-759a11342d8f h1:eCpVK
 github.com/sshaman1101/nvidia-docker v0.0.0-20180123151056-759a11342d8f/go.mod h1:b7O6MiIOQVIu7sdyTrRe7bv4iRhQZPwrQ3Z3z0FmbIA=
 github.com/sshaman1101/nvidia-docker v0.0.0-20180123151056-ca608186965c8bd0da8d2c123b40086609bb1a32/go.mod h1:b7O6MiIOQVIu7sdyTrRe7bv4iRhQZPwrQ3Z3z0FmbIA=
 github.com/sshaman1101/nvidia-docker v0.0.1/go.mod h1:b7O6MiIOQVIu7sdyTrRe7bv4iRhQZPwrQ3Z3z0FmbIA=
+github.com/sshaman1101/nvidia-docker v0.0.3/go.mod h1:b7O6MiIOQVIu7sdyTrRe7bv4iRhQZPwrQ3Z3z0FmbIA=
 github.com/stretchr/testify v0.0.0-20180319223459-c679ae2cc0cb/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
