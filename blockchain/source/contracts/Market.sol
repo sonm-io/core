@@ -644,4 +644,13 @@ contract Market is Ownable, Pausable {
         token.transfer(owner, token.balanceOf(address(this)));
         selfdestruct(owner);
     }
+
+    function Migrate(address _newMarket) public onlyOwner returns (bool) {
+        token.transfer(_newMarket, token.balanceOf(address(this)));
+        ord.transferOwnership(_newMarket);
+        dl.transferOwnership(_newMarket);
+        cr.transferOwnership(_newMarket);
+        super.pause();
+
+    }
 }
