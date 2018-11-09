@@ -8,6 +8,7 @@ const ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
 const Orders = artifacts.require('./Orders.sol');
 const Deals = artifacts.require('./Deals.sol');
 const ChangeRequests = artifacts.require('./ChangeRequests.sol');
+const AdministratumCrud = artifacts.require('./AdministratumCrud.sol');
 const Administratum = artifacts.require('./Administratum.sol');
 
 contract('Blacklist', async function (accounts) {
@@ -16,6 +17,7 @@ contract('Blacklist', async function (accounts) {
     let token;
     let oracle;
     let pr;
+    let administratumCrud;
     let administratum;
     let orders;
     let deals;
@@ -34,7 +36,8 @@ contract('Blacklist', async function (accounts) {
         oracle = await OracleUSD.new();
         pr = await ProfileRegistry.new();
         await blacklist.AddMaster(master, { from: owner });
-        administratum = await Administratum.new();
+        administratumCrud = await AdministratumCrud.new();
+        administratum = await Administratum.new(administratumCrud.address);
         orders = await Orders.new();
         deals = await Deals.new();
         changeRequests = await ChangeRequests.new();

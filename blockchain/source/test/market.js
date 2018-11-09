@@ -34,6 +34,7 @@ const ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
 const Orders = artifacts.require('./Orders.sol');
 const Deals = artifacts.require('./Deals.sol');
 const ChangeRequests = artifacts.require('./ChangeRequests.sol');
+const AdministratumCrud = artifacts.require('./AdministratumCrud.sol');
 const Administratum = artifacts.require('./Administratum.sol');
 
 const ONE_MILLION_TOKEN = 1e6 * 1e18;
@@ -44,6 +45,7 @@ contract('Market', async (accounts) => {
     let oracle;
     let blacklist;
     let profileRegistry;
+    let administratumCrud;
     let administratum;
     let orders;
     let deals;
@@ -65,7 +67,8 @@ contract('Market', async (accounts) => {
         await oracle.setCurrentPrice(oraclePrice);
         blacklist = await Blacklist.new();
         profileRegistry = await ProfileRegistry.new();
-        administratum = await Administratum.new();
+        administratumCrud = await AdministratumCrud.new();
+        administratum = await Administratum.new(administratumCrud.address);
         orders = await Orders.new();
         deals = await Deals.new();
         changeRequests = await ChangeRequests.new();
@@ -83,6 +86,7 @@ contract('Market', async (accounts) => {
             { gasLimit: 30000000 }
         );
 
+        await administratumCrud.transferOwnership(administratum.address);
         await administratum.transferOwnership(market.address);
         await orders.transferOwnership(market.address);
         await deals.transferOwnership(market.address);
