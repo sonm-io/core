@@ -1,3 +1,4 @@
+let AdministratumCrud = artifacts.require('./AdministratumCrud.sol');
 let Administratum = artifacts.require('./Administratum.sol');
 
 module.exports = function (deployer, network) {
@@ -8,6 +9,6 @@ module.exports = function (deployer, network) {
     } else if (network === 'rinkeby') {
         // later
     } else {
-        deployer.deploy(Administratum);
+        deployer.deploy(Administratum, AdministratumCrud.address);
     }
 };

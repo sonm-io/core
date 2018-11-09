@@ -1,6 +1,7 @@
 let Orders = artifacts.require('./Orders.sol');
 let Deals = artifacts.require('./Deals.sol');
 let ChangeRequests = artifacts.require('./ChangeRequests.sol');
+let AdministratumCrud = artifacts.require('./AdministratumCrud.sol');
 
 module.exports = function (deployer, network) {
     if ((network === 'private') || (network === 'privateLive')) {
@@ -13,5 +14,6 @@ module.exports = function (deployer, network) {
         deployer.deploy(Orders, { gasLimit: 20000000 });
         deployer.deploy(Deals, { gasLimit: 20000000 });
         deployer.deploy(ChangeRequests, { gasLimit: 20000000 });
+        deployer.deploy(AdministratumCrud, { gasLimit: 10000000 });
     }
 };
