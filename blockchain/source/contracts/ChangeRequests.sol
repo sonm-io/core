@@ -106,14 +106,14 @@ contract ChangeRequests is Ownable {
         return requestsAmount;
     }
 
-    function GetChangeRequestInfo(uint changeRequestID) view public
-        returns (
+    function GetChangeRequestInfo(uint changeRequestID) public view
+    returns (
         uint dealID,
         Orders.OrderType requestType,
         uint price,
         uint duration,
         RequestStatus status
-        ) {
+    ) {
         return (
         requests[changeRequestID].dealID,
         requests[changeRequestID].requestType,

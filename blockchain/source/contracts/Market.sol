@@ -84,7 +84,8 @@ contract Market is Ownable, Pausable {
         address _deals,
         address _changeRequests,
         uint _benchmarksQuantity,
-        uint _netflagsQuantity) public {
+        uint _netflagsQuantity
+        ) public {
         token = SNM(_token);
         bl = Blacklist(_blacklist);
         oracle = OracleUSD(_oracle);

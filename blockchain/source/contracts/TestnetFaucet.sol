@@ -19,12 +19,20 @@ contract TestnetFaucet is Ownable {
         return true;
     }
 
+<<<<<<< 72a9ea1ec3aa153afcfd9294eae0fe47986e4804
     function mintToken(address target, uint256 mintedAmount) public onlyOwner returns (bool) {
+=======
+    function mintToken(address target, uint256 mintedAmount) public onlyOwner returns (bool){
+>>>>>>> some style mistakes fixed
         token.mint(target, mintedAmount);
         return true;
     }
 
+<<<<<<< 72a9ea1ec3aa153afcfd9294eae0fe47986e4804
     function() public payable{
+=======
+    function() public payable {
+>>>>>>> some style mistakes fixed
         getTokens();
     }
 

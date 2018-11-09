@@ -95,6 +95,7 @@ contract Deals is Ownable {
     function SetDealSupplierID(uint dealID, address _supplierID) public onlyOwner {
         deals[dealID].info.supplierID = _supplierID;
     }
+    
     function SetDealConsumerID(uint dealID, address _consumerID) public onlyOwner {
         deals[dealID].info.consumerID = _consumerID;
     }
@@ -138,6 +139,7 @@ contract Deals is Ownable {
     function SetDealPrice(uint dealID, uint _price) public onlyOwner {
         deals[dealID].params.price = _price;
     }
+
     function SetDealDuration(uint dealID, uint _duration) public onlyOwner {
         deals[dealID].params.duration = _duration;
     }
@@ -171,7 +173,7 @@ contract Deals is Ownable {
         );
     }
 
-    function GetDealParams(uint dealID) view public
+    function GetDealParams(uint dealID) public view
     returns (
         uint duration,
         uint price,

@@ -53,7 +53,11 @@ contract ProfileRegistry is Ownable, Pausable {
         validators[msg.sender] = - 1;
     }
 
+<<<<<<< 72a9ea1ec3aa153afcfd9294eae0fe47986e4804
     function AddValidator(address _validator, int8 _level) public onlySonm whenNotPaused returns (address) {
+=======
+    function AddValidator(address _validator, int8 _level) public onlySonm whenNotPaused returns (address){
+>>>>>>> some style mistakes fixed
         require(_level > 0);
         require(GetValidatorLevel(_validator) == 0);
         validators[_validator] = _level;
@@ -61,14 +65,22 @@ contract ProfileRegistry is Ownable, Pausable {
         return _validator;
     }
 
+<<<<<<< 72a9ea1ec3aa153afcfd9294eae0fe47986e4804
     function RemoveValidator(address _validator) public onlySonm whenNotPaused returns (address) {
+=======
+    function RemoveValidator(address _validator) public onlySonm whenNotPaused returns (address){
+>>>>>>> some style mistakes fixed
         require(GetValidatorLevel(_validator) > 0);
         validators[_validator] = 0;
         emit ValidatorDeleted(_validator);
         return _validator;
     }
 
+<<<<<<< 72a9ea1ec3aa153afcfd9294eae0fe47986e4804
     function GetValidatorLevel(address _validator) public view returns (int8) {
+=======
+    function GetValidatorLevel(address _validator) public view returns (int8){
+>>>>>>> some style mistakes fixed
         return validators[_validator];
     }
 
@@ -115,6 +127,7 @@ contract ProfileRegistry is Ownable, Pausable {
         emit CertificateUpdated(_id);
     }
 
+<<<<<<< 72a9ea1ec3aa153afcfd9294eae0fe47986e4804
     function GetCertificate(uint256 _id) public view returns (address, address, uint256, bytes) {
         return (certificates[_id].from, certificates[_id].to, certificates[_id].attributeType, certificates[_id].value);
     }
@@ -128,6 +141,21 @@ contract ProfileRegistry is Ownable, Pausable {
     }
 
     function GetProfileLevel(address _owner) public view returns (IdentityLevel) {
+=======
+    function GetCertificate(uint256 _id) public view returns (address, address, uint256, bytes){
+        return (certificates[_id].from, certificates[_id].to, certificates[_id].attributeType, certificates[_id].value);
+    }
+
+    function GetAttributeValue(address _owner, uint256 _type) public view returns (bytes){
+        return certificateValue[_owner][_type];
+    }
+
+    function GetAttributeCount(address _owner, uint256 _type) public view returns (uint256){
+        return certificateCount[_owner][_type];
+    }
+
+    function GetProfileLevel(address _owner) public view returns (IdentityLevel){
+>>>>>>> some style mistakes fixed
         if (GetAttributeValue(_owner, 1401).length > 0) {
             return IdentityLevel.PROFESSIONAL;
         } else if (GetAttributeValue(_owner, 1301).length > 0) {

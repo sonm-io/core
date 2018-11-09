@@ -108,7 +108,7 @@ contract Orders is Ownable {
         return ordersAmount;
     }
 
-    function GetOrderInfo(uint orderID) view public
+    function GetOrderInfo(uint orderID) public view
     returns (
         OrderType orderType,
         address author,
@@ -137,51 +137,51 @@ contract Orders is Ownable {
         info.frozenSum
         );
     }
-    function GetOrderType(uint orderID) view public returns (OrderType) {
+    function GetOrderType(uint orderID) public view returns (OrderType) {
         return orders[orderID].info.orderType;
     }
 
-    function GetOrderAuthor(uint orderID) view public returns (address) {
+    function GetOrderAuthor(uint orderID) public view returns (address) {
         return orders[orderID].info.author;
     }
 
-    function GetOrderCounterparty(uint orderID) view public returns (address) {
+    function GetOrderCounterparty(uint orderID) public view returns (address) {
         return orders[orderID].info.counterparty;
     }
 
-    function GetOrderDuration(uint orderID) view public returns (uint) {
+    function GetOrderDuration(uint orderID) public view returns (uint) {
         return orders[orderID].info.duration;
     }
 
-    function GetOrderPrice(uint orderID) view public returns (uint) {
+    function GetOrderPrice(uint orderID) public view returns (uint) {
         return orders[orderID].info.price;
     }
 
-    function GetOrderNetflags(uint orderID) view public returns (bool[]) {
+    function GetOrderNetflags(uint orderID) public view returns (bool[]) {
         return orders[orderID].info.netflags;
     }
 
-    function GetOrderIdentityLevel(uint orderID) view public returns (ProfileRegistry.IdentityLevel) {
+    function GetOrderIdentityLevel(uint orderID) public view returns (ProfileRegistry.IdentityLevel) {
         return orders[orderID].info.identityLevel;
     }
 
-    function GetOrderBlacklist(uint orderID) view public returns (address) {
+    function GetOrderBlacklist(uint orderID) public view returns (address) {
         return orders[orderID].info.blacklist;
     }
 
-    function GetOrderTag(uint orderID) view public returns (bytes32) {
+    function GetOrderTag(uint orderID) public view returns (bytes32) {
         return orders[orderID].info.tag;
     }
 
-    function GetOrderBenchmarks(uint orderID) view public returns (uint64[]) {
+    function GetOrderBenchmarks(uint orderID) public view returns (uint64[]) {
         return orders[orderID].info.benchmarks;
     }
-    function GetOrderFrozenSum(uint orderID) view public returns (uint) {
+    function GetOrderFrozenSum(uint orderID) public view returns (uint) {
         return orders[orderID].info.frozenSum;
     }
 
 
-    function GetOrderParams(uint orderID) view public
+    function GetOrderParams(uint orderID) public view
     returns (
         OrderStatus orderStatus,
         uint dealID
@@ -193,11 +193,11 @@ contract Orders is Ownable {
         );
     }
 
-    function GetOrderStatus(uint orderID) view public returns (OrderStatus) {
+    function GetOrderStatus(uint orderID) public view returns (OrderStatus) {
         return orders[orderID].params.orderStatus;
     }
 
-    function GetOrderDealID(uint orderID) view public returns (uint) {
+    function GetOrderDealID(uint orderID) public view returns (uint) {
         return orders[orderID].params.dealID;
     }
 }
