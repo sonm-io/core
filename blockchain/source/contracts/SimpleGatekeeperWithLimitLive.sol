@@ -102,7 +102,7 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
         freezingTime = _freezingTime;
     }
 
-    function GetFreezingTime() view public returns (uint256) {
+    function GetFreezingTime() public view returns (uint256) {
         return freezingTime;
     }
 
