@@ -12,7 +12,7 @@ contract Rating is Ownable {
     using FixedPoint128 for uint256;
 
     RatingData ratingData;
-    event RatingUpdated(address who, uint price);
+    event RatingUpdated(address who);
     event DecayValueUpdated(uint256 decayValue);
 
     enum Outcome {
@@ -33,7 +33,11 @@ contract Rating is Ownable {
         ratingData = RatingData(_ratingData);
     }
 
-    function transferData(address to) public onlyOwner {
+    function SetRatingData(address _ratingData) public onlyOwner {
+        ratingData = RatingData(_ratingData);
+    }
+
+    function TransferData(address to) public onlyOwner {
         ratingData.transferOwnership(to);
     }
 
@@ -133,5 +137,8 @@ contract Rating is Ownable {
             applyNegativeOutcome(Role.Master, supplierMaster, consumerRating, fpSum);
             applyNegativeOutcome(Role.Worker, supplierWorker, consumerRating, fpSum);
         }
+        emit RatingUpdated(consumer);
+        emit RatingUpdated(supplierWorker);
+        emit RatingUpdated(supplierMaster);
     }
 }
