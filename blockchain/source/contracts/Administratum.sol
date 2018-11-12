@@ -4,9 +4,8 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./AdministratumCrud.sol";
 
 contract Administratum is Ownable {
+
     // events
-
-
     event WorkerAnnounced(address indexed worker, address indexed master);
     event WorkerConfirmed(address indexed worker, address indexed master, address indexed confirmator);
     event WorkerRemoved(address indexed worker, address indexed master);
@@ -59,6 +58,11 @@ contract Administratum is Ownable {
         return true;
     }
 
+    function Migrate (address _newAdministratum) public onlyOwner {
+        crud.transferOwnership(_newAdministratum);
+        suicide(msg.sender);
+    }
+
 
     //INTERNAL
     // check if transaction sended by valid admin
@@ -73,6 +77,9 @@ contract Administratum is Ownable {
     function GetMaster(address _worker) public view returns (address master) {
         return  crud.GetMaster(_worker);
     }
+
+
+
 
     //modifiers
 

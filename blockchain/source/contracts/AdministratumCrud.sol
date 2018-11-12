@@ -3,9 +3,8 @@ pragma solidity ^0.4.23;
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 contract AdministratumCrud is Ownable {
+
     // events
-
-
     event WorkerAnnounced(address indexed worker, address indexed master);
     event WorkerConfirmed(address indexed worker, address indexed master);
     event WorkerRemoved(address indexed worker, address indexed master);

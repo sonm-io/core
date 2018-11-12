@@ -17,7 +17,6 @@ contract Deals is Ownable {
     struct Deal {
         DealInfo info;
         DealParams params;
-
     }
 
     struct DealInfo {
@@ -95,7 +94,7 @@ contract Deals is Ownable {
     function SetDealSupplierID(uint dealID, address _supplierID) public onlyOwner {
         deals[dealID].info.supplierID = _supplierID;
     }
-    
+
     function SetDealConsumerID(uint dealID, address _consumerID) public onlyOwner {
         deals[dealID].info.consumerID = _consumerID;
     }
