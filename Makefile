@@ -52,14 +52,9 @@ SONMMON    := ${TARGETDIR}/sonmmon_$(OS_ARCH)
 
 TAGS = nocgo
 
-GPU_SUPPORT ?= false
+GPU_SUPPORT ?= true
 ifeq ($(GPU_SUPPORT),true)
     GPU_TAGS := cl
-    # Required for build nvidia-docker libs with NVML included via cgo.
-    NV_CGO            := vendor/github.com/sshaman1101/nvidia-docker/build
-    CGO_LDFLAGS       := -L$(shell pwd)/${NV_CGO}/lib
-    CGO_CFLAGS        := -I$(shell pwd)/${NV_CGO}/include
-    CGO_LDFLAGS_ALLOW := '-Wl,--unresolved-symbols=ignore-in-object-files'
 endif
 
 # This can be set to "false" to enable cross-compilation on non-linux planforms for linux.
@@ -87,7 +82,7 @@ build/worker:
 			@exit 1
         endif
     endif
-	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS) ${NL_TAGS}" -ldflags "-s $(LDFLAGS)" -o ${WORKER} ${GOCMD}/worker
+	${GO} build -tags "$(TAGS) $(GPU_TAGS) ${NL_TAGS}" -ldflags "-s $(LDFLAGS)" -o ${WORKER} ${GOCMD}/worker
 
 build/dwh:
 	@echo "+ $@"

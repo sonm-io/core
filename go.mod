@@ -129,7 +129,7 @@ require (
 	github.com/spf13/jwalterweatherman v0.0.0-20180109140146-7c0cea34c8ec
 	github.com/spf13/pflag v1.0.0
 	github.com/spf13/viper v0.0.0-20180404183325-8dc2790b029d
-	github.com/sshaman1101/nvidia-docker v0.0.1
+	github.com/sshaman1101/nvidia-docker v0.0.3
 	github.com/stretchr/testify v1.2.2
 	github.com/syndtr/goleveldb v0.0.0-20180815032940-ae2bd5eed72d
 	github.com/tcnksm/go-input v0.0.0-20180404061846-548a7d7a8ee8
