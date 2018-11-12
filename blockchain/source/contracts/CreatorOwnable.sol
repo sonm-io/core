@@ -8,7 +8,11 @@ contract CreatorOwnable is Ownable {
         creator = msg.sender;
     }
 
-    modifier onlyOwner() {
+    function transferOwnership(address _newOwner) public ownerOrCreator {
+        _transferOwnership(_newOwner);
+    }
+
+    modifier ownerOrCreator() {
         require(msg.sender == owner || msg.sender == creator);
         _;
     }
