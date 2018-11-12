@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/oleiade/lane.v1"
 )
 
 func TestPoolProcessorQueue_Decide(t *testing.T) {

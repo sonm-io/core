@@ -8,6 +8,7 @@ import (
 
 	"github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
+	"github.com/tcnksm/go-input"
 )
 
 var (

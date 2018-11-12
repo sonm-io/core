@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/libp2p/go-reuseport"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
+	"gopkg.in/oleiade/lane.v1"
 )
 
 // NATPuncher describes an interface of NAT Punching Protocol.

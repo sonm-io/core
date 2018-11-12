@@ -3,6 +3,7 @@ package worker
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/dwh"

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var (

@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"net"
 	"strings"
 	"sync"
 	"time"
@@ -165,16 +164,15 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey, validPeriod time.Duration) (cert []
 	}
 	issuerCommonName.WriteString(base32.StdEncoding.EncodeToString(signature.Serialize()))
 
-	//dnsName := ethcrypto.PubkeyToAddress(ethpriv.PublicKey)
+	dnsName := ethcrypto.PubkeyToAddress(ethpriv.PublicKey)
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(100),
 		Subject: pkix.Name{
-			CommonName: "127.0.0.1",
+			CommonName: issuerCommonName.String(),
 		},
-		NotBefore:   time.Now().Add(-time.Hour * 1),
-		NotAfter:    time.Now().Add(validPeriod),
-		DNSNames:    []string{"localhost"},
-		IPAddresses: []net.IP{net.ParseIP("127.0.0.1")},
+		NotBefore: time.Now().Add(-time.Hour * 1),
+		NotAfter:  time.Now().Add(validPeriod),
+		DNSNames:  []string{dnsName.Hex()},
 
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
