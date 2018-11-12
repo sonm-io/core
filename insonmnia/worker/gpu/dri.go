@@ -24,16 +24,22 @@ var (
 )
 
 type DRICard struct {
-	Num      int
-	Name     string
-	Path     string
-	Devices  []string
-	DeviceID uint64
-	VendorID uint64
-	Major    uint64
-	Minor    uint64
-	PCIBusID string
-	Memory   uint64
+	Num       int
+	Name      string
+	Path      string
+	Devices   []string
+	DeviceID  uint64
+	VendorID  uint64
+	Major     uint64
+	Minor     uint64
+	PCIBusID  string
+	Memory    uint64
+	HwmonPath string
+}
+
+type DRICardMetrics struct {
+	Temperature float64
+	Fan         float64
 }
 
 func NewDRICard(num int, name, path string) (DRICard, error) {
@@ -54,6 +60,11 @@ func NewDRICard(num int, name, path string) (DRICard, error) {
 	}
 
 	err = c.collectPCIBusID()
+	if err != nil {
+		return DRICard{}, err
+	}
+
+	err = c.collectHwmonPath()
 	if err != nil {
 		return DRICard{}, err
 	}
@@ -135,6 +146,88 @@ func (card *DRICard) collectPCIBusID() error {
 	}
 
 	return errors.New("cannot find PCI slot name into the file")
+}
+
+func (card *DRICard) collectHwmonPath() error {
+	p := fmt.Sprintf("/sys/dev/char/%d:%d/device/hwmon", card.Major, card.Minor)
+
+	dir, err := ioutil.ReadDir(p)
+	if err != nil {
+		// if we can't find such directory - just skip it,
+		// hwmon dir may be not present for on-board card.
+		return nil
+	}
+
+	for _, fd := range dir {
+		if fd.IsDir() && strings.Contains(fd.Name(), "hwmon") {
+			card.HwmonPath = fmt.Sprintf("%s/%s", p, fd.Name())
+			break
+		}
+	}
+
+	return nil
+}
+
+func (card *DRICard) readFanSpeed() (float64, error) {
+	rawPwm1, err := ioutil.ReadFile(card.HwmonPath + "/pwm1")
+	if err != nil {
+		return 0, fmt.Errorf("failed to read pwm1 data: %v", err)
+	}
+
+	rawPwmMax, err := ioutil.ReadFile(card.HwmonPath + "/pwm1_max")
+	if err != nil {
+		return 0, fmt.Errorf("failed to read pwm1_max data: %v", err)
+	}
+
+	pwm1, err := strconv.ParseFloat(strings.TrimSpace(string(rawPwm1)), 64)
+	if err != nil {
+		return 0, err
+	}
+
+	pwmMax, err := strconv.ParseFloat(strings.TrimSpace(string(rawPwmMax)), 64)
+	if err != nil {
+		return 0, err
+	}
+
+	speedPercent := pwm1 / pwmMax * 100
+	return speedPercent, nil
+}
+
+func (card *DRICard) readTemperature() (float64, error) {
+	rawTemp, err := ioutil.ReadFile(card.HwmonPath + "/temp1_input")
+	if err != nil {
+		return 0, err
+	}
+
+	temp, err := strconv.ParseFloat(strings.TrimSpace(string(rawTemp)), 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return temp / 1000, nil
+}
+
+func (card *DRICard) Metrics() (*DRICardMetrics, error) {
+	if len(card.HwmonPath) == 0 {
+		return nil, fmt.Errorf("metrics interface is not available for %s", card.Name)
+	}
+
+	fan, err := card.readFanSpeed()
+	if err != nil {
+		return nil, err
+	}
+
+	temp, err := card.readTemperature()
+	if err != nil {
+		return nil, err
+	}
+
+	m := &DRICardMetrics{
+		Fan:         fan,
+		Temperature: temp,
+	}
+
+	return m, nil
 }
 
 // readSysClassValue reads value from /sys/class/xxx file and
