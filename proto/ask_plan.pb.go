@@ -11,6 +11,7 @@ It is generated from these files:
 	capabilities.proto
 	container.proto
 	dwh.proto
+	geoip.proto
 	insonmnia.proto
 	marketplace.proto
 	net.proto
@@ -82,6 +83,8 @@ It has these top-level messages:
 	BlacklistQuery
 	DWHStatsReply
 	OrdersByIDsRequest
+	GeoIPCountry
+	GeoIP
 	Empty
 	ID
 	NumericID

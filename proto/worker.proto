@@ -4,6 +4,7 @@ import "ask_plan.proto";
 import "bigint.proto";
 import "capabilities.proto";
 import "container.proto";
+import "geoip.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
 import "net.proto";
@@ -111,6 +112,7 @@ message StatusReply {
     EthAddress admin = 9;
     bool isMasterConfirmed = 10;
     bool isBenchmarkFinished = 11;
+    GeoIP geo = 12;
 }
 
 message AskPlansReply {
