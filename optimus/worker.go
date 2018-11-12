@@ -68,6 +68,17 @@ type WorkerManagementClientAPI interface {
 	NextMaintenance(ctx context.Context, request *sonm.Empty, opts ...grpc.CallOption) (*sonm.Timestamp, error)
 }
 
+type workerManagementClientAPI struct {
+	WorkerManagementClientAPI
+}
+
+func (m *workerManagementClientAPI) CreateAskPlan(ctx context.Context, request *sonm.AskPlan, opts ...grpc.CallOption) (*sonm.ID, error) {
+	// We need to clean this, because otherwise worker rejects such request.
+	request.OrderID = nil
+
+	return m.WorkerManagementClientAPI.CreateAskPlan(ctx, request, opts...)
+}
+
 // WorkerManagementClientExt extends default "WorkerManagementClient" with an
 // ability to remove multiple ask-plans.
 type WorkerManagementClientExt interface {
