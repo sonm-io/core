@@ -74,11 +74,15 @@ contract SimpleGatekeeperWithLimit is Ownable {
     }
 
     function Payin(uint256 _value) public {
+        PayinTargeted(_value, msg.sender);
+    }
+
+    function PayinTargeted(uint256 _value, address _target) public {
         require(_value > commission);
         require(token.transferFrom(msg.sender, this, _value));
         transactionAmount = transactionAmount + 1;
         commissionBalance = commissionBalance.add(commission);
-        emit PayinTx(msg.sender, transactionAmount,  _value.sub(commission));
+        emit PayinTx(_target, transactionAmount,  _value.sub(commission));
     }
 
     function Payout(address _to, uint256 _value, uint256 _txNumber) public {
