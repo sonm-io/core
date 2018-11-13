@@ -20,7 +20,7 @@ contract OracleUSD is Ownable {
         emit PriceChanged(_price);
     }
 
-    function getCurrentPrice() view public returns (uint){
+    function getCurrentPrice() public view returns (uint){
         return currentPrice;
     }
 }
