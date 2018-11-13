@@ -64,10 +64,7 @@ func NewDRICard(num int, name, path string) (DRICard, error) {
 		return DRICard{}, err
 	}
 
-	err = c.collectHwmonPath()
-	if err != nil {
-		return DRICard{}, err
-	}
+	c.collectHwmonPath()
 
 	return c, nil
 }
