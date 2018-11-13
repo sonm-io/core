@@ -8,16 +8,21 @@ import (
 	"github.com/docker/docker/client"
 )
 
+type Info struct {
+	AvailableBytes uint64
+	FreeBytes      uint64
+}
+
 // FreeDiskSpace returns free bytes for docker root path.
-func FreeDiskSpace(ctx context.Context) (uint64, error) {
+func FreeDiskSpace(ctx context.Context) (*Info, error) {
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		return 0, fmt.Errorf("could not get docker client: %s", err)
+		return nil, fmt.Errorf("could not get docker client: %s", err)
 	}
 
 	info, err := cli.Info(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("could not get docker info: %s", err)
+		return nil, fmt.Errorf("could not get docker info: %s", err)
 	}
 
 	path := info.DockerRootDir
@@ -25,10 +30,13 @@ func FreeDiskSpace(ctx context.Context) (uint64, error) {
 	if err := syscall.Statfs(path, &stat); err != nil {
 		// if we cannot stat docker root - use system root
 		if err := syscall.Statfs("/", &stat); err != nil {
-			return 0, fmt.Errorf("could not perform statfs syscall: %s", err)
+			return nil, fmt.Errorf("could not perform statfs syscall: %s", err)
 		}
 	}
 
-	// Available blocks * size per block = available space in bytes
-	return stat.Bavail * uint64(stat.Bsize), nil
+	// blocks * size per block = total size in bytes
+	return &Info{
+		AvailableBytes: stat.Bavail * uint64(stat.Bsize),
+		FreeBytes:      stat.Bfree * uint64(stat.Bsize),
+	}, nil
 }
