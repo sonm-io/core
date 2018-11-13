@@ -13,10 +13,83 @@ import (
 	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/rcrowley/go-metrics"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 )
+
+// NetworkStatsExt extends the Docker "NetworkStats" structure by adding
+// rate meters.
+type NetworkStatsExt struct {
+	types.NetworkStats
+
+	RxBytesRate   metrics.Meter
+	RxPacketsRate metrics.Meter
+	RxErrorsRate  metrics.Meter
+	RxDroppedRate metrics.Meter
+	TxBytesRate   metrics.Meter
+	TxPacketsRate metrics.Meter
+	TxErrorsRate  metrics.Meter
+	TxDroppedRate metrics.Meter
+}
+
+// NewNetworkStatsExt constructs a new extended network stats, initializing
+// with the given argument.
+func NewNetworkStatsExt(v types.NetworkStats) *NetworkStatsExt {
+	return &NetworkStatsExt{
+		NetworkStats: v,
+
+		RxBytesRate:   metrics.NewMeter(),
+		RxPacketsRate: metrics.NewMeter(),
+		RxErrorsRate:  metrics.NewMeter(),
+		RxDroppedRate: metrics.NewMeter(),
+		TxBytesRate:   metrics.NewMeter(),
+		TxPacketsRate: metrics.NewMeter(),
+		TxErrorsRate:  metrics.NewMeter(),
+		TxDroppedRate: metrics.NewMeter(),
+	}
+}
+
+// Update updates the current extended network stats, calculating rates.
+func (m *NetworkStatsExt) Update(v types.NetworkStats) {
+	m.RxBytesRate.Mark(int64(v.RxBytes - m.RxBytes))
+	m.RxPacketsRate.Mark(int64(v.RxPackets - m.RxPackets))
+	m.RxErrorsRate.Mark(int64(v.RxErrors - m.RxErrors))
+	m.RxDroppedRate.Mark(int64(v.RxDropped - m.RxDropped))
+	m.TxBytesRate.Mark(int64(v.TxBytes - m.TxBytes))
+	m.TxPacketsRate.Mark(int64(v.TxPackets - m.TxPackets))
+	m.TxErrorsRate.Mark(int64(v.TxErrors - m.TxErrors))
+	m.TxDroppedRate.Mark(int64(v.TxDropped - m.TxDropped))
+
+	m.NetworkStats = v
+}
+
+type containerStats struct {
+	types.StatsJSON
+
+	NetworksExt map[string]*NetworkStatsExt
+}
+
+func newContainerStats() *containerStats {
+	return &containerStats{
+		NetworksExt: map[string]*NetworkStatsExt{},
+	}
+}
+
+func (m *containerStats) Update(v types.StatsJSON) {
+	for name, networkStats := range v.Networks {
+		networkStatsExt, ok := m.NetworksExt[name]
+		if !ok {
+			networkStatsExt = NewNetworkStatsExt(networkStats)
+			m.NetworksExt[name] = networkStatsExt
+		}
+
+		networkStatsExt.Update(networkStats)
+	}
+
+	m.StatsJSON = v
+}
 
 type containerDescriptor struct {
 	client *client.Client
@@ -25,7 +98,7 @@ type containerDescriptor struct {
 	ID              string
 	CommitedImageID string
 	description     Description
-	stats           types.StatsJSON
+	stats           *containerStats
 
 	cleanup plugin.Cleanup
 }
@@ -37,6 +110,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 		ID:          ID,
 		client:      dockerClient,
 		description: d,
+		stats:       newContainerStats(),
 	}
 
 	cleanup, err := tuners.GetCleanup(ctx, &d)
@@ -56,6 +130,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	cont := containerDescriptor{
 		client:      dockerClient,
 		description: d,
+		stats:       newContainerStats(),
 	}
 
 	exposedPorts, portBindings, err := d.Expose()
