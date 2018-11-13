@@ -12,6 +12,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
 
     let owner = accounts[0];
     let user = accounts[1];
+    let target = accounts[2];
     let creeper = accounts[3];
 
     let keeper = accounts[5];
@@ -19,7 +20,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
     const oneMinute = 60;
     const fiveMinute = 300;
 
-    describe('PayIn', () => {
+    describe('Payin', () => {
         let tx;
 
         let startGatekeeperBalance;
@@ -79,6 +80,70 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
 
             it('should revert', async () => {
                 await assertRevert(gatekeeper.Payin(testValue, { from: userWithoutAllowance }));
+            });
+        });
+    });
+
+    describe('PayinTargeted', () => {
+        let tx;
+
+        let startGatekeeperBalance;
+        let startUserBalance;
+
+        let testValue = 100;
+
+        before(async () => {
+            token = await SNM.new({ from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+
+            await token.transfer(user, testValue, { from: owner });
+            await token.approve(gatekeeper.address, testValue, { from: user });
+
+            startGatekeeperBalance = (await token.balanceOf(gatekeeper.address)).toNumber();
+            startUserBalance = (await token.balanceOf(user)).toNumber();
+        });
+
+        it('should exec', async () => {
+            tx = await gatekeeper.PayinTargeted(testValue, target, { from: user });
+        });
+
+        it('should transfer token from user to gatekeeper', async () => {
+            let endGatekeeperBalance = (await token.balanceOf(gatekeeper.address)).toNumber();
+            assert.equal(startGatekeeperBalance, endGatekeeperBalance - testValue);
+
+            let endUserBalance = (await token.balanceOf(user)).toNumber();
+            assert.equal(startUserBalance, endUserBalance + testValue);
+        });
+
+        it('should spend `PayinTx` event to target', () => {
+            assert.equal(tx.logs.length, 1);
+            assert.equal(tx.logs[0].event, 'PayinTx');
+            assert.equal(tx.logs[0].args.from, target);
+            assert.equal(tx.logs[0].args.txNumber, 1);
+            assert.equal(tx.logs[0].args.value, testValue);
+        });
+
+        describe('when user hasnt balance', () => {
+            let userWithoutBalance = accounts[3];
+
+            before(async () => {
+                await token.approve(gatekeeper.address, testValue, { from: user });
+            });
+
+            it('should revert', async () => {
+                await assertRevert(gatekeeper.PayinTargeted(testValue, target, { from: userWithoutBalance }));
+            });
+        });
+
+        describe('when user hasnt allowance', () => {
+            let userWithoutAllowance = accounts[4];
+
+            before(async () => {
+                await token.transfer(userWithoutAllowance, testValue, { from: owner });
+            });
+
+            it('should revert', async () => {
+                await assertRevert(gatekeeper.PayinTargeted(testValue, target, { from: userWithoutAllowance }));
             });
         });
     });
