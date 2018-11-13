@@ -148,14 +148,14 @@ func (card *DRICard) collectPCIBusID() error {
 	return errors.New("cannot find PCI slot name into the file")
 }
 
-func (card *DRICard) collectHwmonPath() error {
+func (card *DRICard) collectHwmonPath() {
 	p := fmt.Sprintf("/sys/dev/char/%d:%d/device/hwmon", card.Major, card.Minor)
 
 	dir, err := ioutil.ReadDir(p)
 	if err != nil {
 		// if we can't find such directory - just skip it,
 		// hwmon dir may be not present for on-board card.
-		return nil
+		return
 	}
 
 	for _, fd := range dir {
@@ -164,8 +164,6 @@ func (card *DRICard) collectHwmonPath() error {
 			break
 		}
 	}
-
-	return nil
 }
 
 func (card *DRICard) readFanSpeed() (float64, error) {
