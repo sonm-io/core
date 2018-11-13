@@ -183,12 +183,15 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 		return nil, err
 	}
 
-	if err := m.setupRunningContainers(); err != nil {
+	// First we setup salesman here to restore all known ask plans to perform container restoration.
+	if err := m.setupSalesman(); err != nil {
 		m.Close()
 		return nil, err
 	}
 
-	if err := m.setupSalesman(); err != nil {
+	// at this step all ask plans should be restored and task resources can be successfully consumed by scheduler.
+	// Note: if some ask plans were removed due to resource lack corresponding containers will be removed in setupRunningContainers
+	if err := m.setupRunningContainers(); err != nil {
 		m.Close()
 		return nil, err
 	}
