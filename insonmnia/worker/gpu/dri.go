@@ -159,7 +159,7 @@ func (card *DRICard) collectHwmonPath() error {
 	}
 
 	for _, fd := range dir {
-		if fd.IsDir() && strings.Contains(fd.Name(), "hwmon") {
+		if fd.IsDir() && strings.HasPrefix(fd.Name(), "hwmon") {
 			card.HwmonPath = fmt.Sprintf("%s/%s", p, fd.Name())
 			break
 		}
