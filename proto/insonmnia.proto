@@ -47,6 +47,15 @@ message NetworkUsage {
     uint64 rxErrors = 6;
     uint64 txDropped = 7;
     uint64 rxDropped = 8;
+
+    double txBytesRate = 9;
+    double rxBytesRate = 10;
+    double txPacketsRate = 11;
+    double rxPacketsRate = 12;
+    double txErrorsRate = 13;
+    double rxErrorsRate = 14;
+    double txDroppedRate = 15;
+    double rxDroppedRate = 16;
 }
 
 message ResourceUsage {

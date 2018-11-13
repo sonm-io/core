@@ -160,7 +160,7 @@ func (c *ContainerInfo) IntoProto(ctx context.Context) *sonm.TaskStatusReply {
 type ContainerMetrics struct {
 	cpu types.CPUStats
 	mem types.MemoryStats
-	net map[string]types.NetworkStats
+	net map[string]*NetworkStatsExt
 }
 
 func (m *ContainerMetrics) Marshal() *sonm.ResourceUsage {
@@ -173,6 +173,13 @@ func (m *ContainerMetrics) Marshal() *sonm.ResourceUsage {
 			RxPackets: n.RxPackets,
 			TxErrors:  n.TxErrors,
 			RxErrors:  n.RxErrors,
+
+			TxBytesRate:   n.TxBytesRate.Rate1(),
+			RxBytesRate:   n.RxBytesRate.Rate1(),
+			TxPacketsRate: n.TxPacketsRate.Rate1(),
+			RxPacketsRate: n.RxPacketsRate.Rate1(),
+			TxErrorsRate:  n.TxErrorsRate.Rate1(),
+			RxErrorsRate:  n.RxErrorsRate.Rate1(),
 		}
 	}
 
@@ -283,7 +290,7 @@ func (o *overseer) Info(ctx context.Context) (map[string]ContainerMetrics, error
 		metrics := ContainerMetrics{
 			cpu: container.stats.CPUStats,
 			mem: container.stats.MemoryStats,
-			net: container.stats.Networks,
+			net: container.stats.NetworksExt,
 		}
 
 		info[container.ID] = metrics
@@ -434,7 +441,7 @@ func (o *overseer) collectStats() {
 				log.G(o.ctx).Debug("received container stats", zap.String("id", id), zap.Any("stats", stats))
 				o.mu.Lock()
 				if container, ok := o.containers[id]; ok {
-					container.stats = stats
+					container.stats.Update(stats)
 				}
 				o.mu.Unlock()
 			}
