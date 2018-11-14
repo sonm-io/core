@@ -6,14 +6,8 @@ contract Administratable {
 
 
     event OwnershipRenounced(address indexed previousOwner);
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
-    event AdministratorshipTransferred(
-        address indexed previousAdministrator,
-        address indexed newAdministrator
-    );
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event AdministratorshipTransferred(address indexed previousAdministrator, address indexed newAdministrator);
 
     constructor() public {
         owner = msg.sender;
