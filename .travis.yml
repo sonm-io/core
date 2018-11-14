@@ -23,9 +23,6 @@ before_install:
   - sudo apt-get update
   - sudo apt-get install debhelper devscripts fakeroot dh-systemd ocl-icd-opencl-dev libnl-3-dev libnl-route-3-dev btrfs-tools libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev -y
 
-install:
-  - git submodule update
-
 script:
     - go get github.com/golang/mock/gomock
     - go get github.com/golang/mock/mockgen
