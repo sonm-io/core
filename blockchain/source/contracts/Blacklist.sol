@@ -43,19 +43,19 @@ contract Blacklist is Ownable {
         return true;
     }
 
-    function AddMaster(address _root) onlyOwner public returns (bool) {
+    function AddMaster(address _root) public onlyOwner returns (bool) {
         require(master[_root] == false);
         master[_root] = true;
         return true;
     }
 
-    function RemoveMaster(address _root) onlyOwner public returns (bool) {
+    function RemoveMaster(address _root) public onlyOwner returns (bool) {
         require(master[_root] == true);
         master[_root] = false;
         return true;
     }
 
-    function SetMarketAddress(address _market) onlyOwner public returns (bool) {
+    function SetMarketAddress(address _market) public onlyOwner returns (bool) {
         market = _market;
         return true;
     }
