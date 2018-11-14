@@ -7,7 +7,7 @@ import "zeppelin-solidity/contracts/lifecycle/Pausable.sol";
 
 contract ProfileRegistry is Ownable, Pausable {
 
-    modifier onlySonm(){
+    modifier onlySonm() {
         require(GetValidatorLevel(msg.sender) == - 1);
         _;
     }
@@ -53,7 +53,7 @@ contract ProfileRegistry is Ownable, Pausable {
         validators[msg.sender] = - 1;
     }
 
-    function AddValidator(address _validator, int8 _level) onlySonm whenNotPaused public returns (address){
+    function AddValidator(address _validator, int8 _level) public onlySonm whenNotPaused returns (address) {
         require(_level > 0);
         require(GetValidatorLevel(_validator) == 0);
         validators[_validator] = _level;
@@ -61,18 +61,18 @@ contract ProfileRegistry is Ownable, Pausable {
         return _validator;
     }
 
-    function RemoveValidator(address _validator) onlySonm whenNotPaused public returns (address){
+    function RemoveValidator(address _validator) public onlySonm whenNotPaused returns (address) {
         require(GetValidatorLevel(_validator) > 0);
         validators[_validator] = 0;
         emit ValidatorDeleted(_validator);
         return _validator;
     }
 
-    function GetValidatorLevel(address _validator) view public returns (int8){
+    function GetValidatorLevel(address _validator) public view returns (int8) {
         return validators[_validator];
     }
 
-    function CreateCertificate(address _owner, uint256 _type, bytes _value) whenNotPaused public {
+    function CreateCertificate(address _owner, uint256 _type, bytes _value) public whenNotPaused {
         //Check validator level
         if (_type >= 1100) {
             int8 attributeLevel = int8(_type / 100 % 10);
@@ -101,7 +101,7 @@ contract ProfileRegistry is Ownable, Pausable {
         emit CertificateCreated(certificatesCount);
     }
 
-    function RemoveCertificate(uint256 _id) whenNotPaused public {
+    function RemoveCertificate(uint256 _id) public whenNotPaused {
         Certificate memory crt = certificates[_id];
 
         require(crt.to == msg.sender || crt.from == msg.sender || GetValidatorLevel(msg.sender) == -1);
@@ -115,19 +115,19 @@ contract ProfileRegistry is Ownable, Pausable {
         emit CertificateUpdated(_id);
     }
 
-    function GetCertificate(uint256 _id) view public returns (address, address, uint256, bytes){
+    function GetCertificate(uint256 _id) public view returns (address, address, uint256, bytes) {
         return (certificates[_id].from, certificates[_id].to, certificates[_id].attributeType, certificates[_id].value);
     }
 
-    function GetAttributeValue(address _owner, uint256 _type) view public returns (bytes){
+    function GetAttributeValue(address _owner, uint256 _type) public view returns (bytes) {
         return certificateValue[_owner][_type];
     }
 
-    function GetAttributeCount(address _owner, uint256 _type) view public returns (uint256){
+    function GetAttributeCount(address _owner, uint256 _type) public view returns (uint256) {
         return certificateCount[_owner][_type];
     }
 
-    function GetProfileLevel(address _owner) view public returns (IdentityLevel){
+    function GetProfileLevel(address _owner) public view returns (IdentityLevel) {
         if (GetAttributeValue(_owner, 1401).length > 0) {
             return IdentityLevel.PROFESSIONAL;
         } else if (GetAttributeValue(_owner, 1301).length > 0) {
@@ -139,12 +139,12 @@ contract ProfileRegistry is Ownable, Pausable {
         }
     }
 
-    function AddSonmValidator(address _validator) onlyOwner public returns (bool) {
+    function AddSonmValidator(address _validator) public onlyOwner returns (bool) {
         validators[_validator] = -1;
         return true;
     }
 
-    function RemoveSonmValidator(address _validator) onlyOwner public returns (bool) {
+    function RemoveSonmValidator(address _validator) public onlyOwner returns (bool) {
         require(GetValidatorLevel(_validator) == -1);
         validators[_validator] = 0;
         return true;

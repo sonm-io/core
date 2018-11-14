@@ -19,7 +19,7 @@ contract('SimpleGatekeeperWithLimitLive', (accounts) => {
     const oneMinute = 60;
     const fiveMinute = 300;
 
-    describe('PayIn', () => {
+    describe('Payin', () => {
         let tx;
 
         let startGatekeeperBalance;

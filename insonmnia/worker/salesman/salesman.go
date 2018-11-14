@@ -370,6 +370,9 @@ func (m *Salesman) restoreState(ctx context.Context) error {
 	m.log.Infow("removed no longer used networks", zap.Any("networks", *pruneReply))
 
 	for _, plan := range m.askPlans {
+		// We reset deal id here in order to restart order processing and reassign deal properly to ask plan.
+		// We could do it here synchronously, but this would slower startup.
+		plan.DealID = nil
 		if err := m.resources.Consume(plan); err != nil {
 			m.log.Warnf("dropping ask plan %s due to resource changes", plan.ID)
 			//Ignore error here, as resources that were not consumed can not be released.
