@@ -12,94 +12,112 @@ class Assertions {
         this.administrator = administrator;
     }
 
-    async assertTransferOwnershipFromAdmin(to) {
-        await ass
+    async assertTransferOwnershipViaAdmin(to) {
+        await this.assertTransferOwnership(this.administrator, to);
     }
 
-    async assertTransferOwnershipFromOwner(to) {
-
+    async assertTransferOwnershipViaOwner(to) {
+        await this.assertTransferOwnership(this.owner, to);
     }
 
-    async assertTransferOwnership(from, to) {
-        let tx = await
-        this.contract.transferOwnership(to, {from: from});
+    async assertTransferOwnership(via, to) {
+        assert.notEqual(to, this.somebody);
+        assert.notEqual(to, this.owner);
+        await assertRevert(this.contract.testOnlyOwner({from: to}));
+        let tx = await this.contract.transferOwnership(to, {from: via});
         assert.equal(tx.logs.length, 1);
-        assert.equal(tx.logs[0].event, 'ownershipTransferred');
+        assert.equal(tx.logs[0].event, 'OwnershipTransferred');
         assert.equal(tx.logs[0].args.newOwner, to);
+        if(this.owner !== this.administrator) {
+            await assertRevert(this.contract.testOnlyOwner({from: this.owner}));
+        } else {
+            await assertRevert(this.contract.testOnlyOwner({from: this.somebody}));
+        }
+        this.owner = to;
     }
 
-    async assertTransferAdministratorship(via, to) {
-        let tx = await
-        this.contract.transferAdministratorship(to, {from: via});
+    async assertTransferAdministratorship(to) {
+        assert.notEqual(to, this.administrator);
+        await assertRevert(this.contract.transferAdministratorship(to, {from: to}));
+        let tx = await this.contract.transferAdministratorship(to, {from: this.administrator});
         assert.equal(tx.logs.length, 1);
-        assert.equal(tx.logs[0].event, 'administratorshipTransferred');
+        assert.equal(tx.logs[0].event, 'AdministratorshipTransferred');
         assert.equal(tx.logs[0].args.newAdministrator, to);
+        await assertRevert(this.contract.transferAdministratorship(to, {from: this.administrator}));
+        this.administrator = to;
     }
 
-    async assertOnlyOwner(owner) {
-        assertRevert(contract.testOnlyOwner({from: this.somebody}));
-        let tx = await
-        this.contract.testOnlyOwner({from: owner});
+    async assertOnlyOwner() {
+        await assertRevert(this.contract.testOnlyOwner({from: this.somebody}));
+        let tx = await this.contract.testOnlyOwner({from: this.owner});
         assert.equal(tx.logs.length, 1);
         assert.equal(tx.logs[0].event, 'Call');
         assert.equal(tx.logs[0].args.method.toString(), "onlyOwner");
     }
 
+    async assertOwnerOrAdministratorViaOwner() {
+        await this.assertOwnerOrAdministrator(this.owner);
+    }
+
+    async assertOwnerOrAdministratorViaAdministrator() {
+        await this.assertOwnerOrAdministrator(this.administrator);
+    }
+
     async assertOwnerOrAdministrator(ownerOrAdministrator) {
-        assertRevert(contract.testOwnerOrAdministartor({from: this.somebody}));
-        let tx = await
-        this.contract.testOwnerOrAdministrator({from: ownerOrAdministrator});
+        await assertRevert(this.contract.testOwnerOrAdministrator({from: this.somebody}));
+        let tx = await this.contract.testOwnerOrAdministrator({from: ownerOrAdministrator});
         assert.equal(tx.logs.length, 1);
         assert.equal(tx.logs[0].event, 'Call');
         assert.equal(tx.logs[0].args.method.toString(), "ownerOrAdministrator");
     }
 }
 
+async function makeAssertions(accounts) {
+    let dummy = await Dummy.new({ from: accounts[0] });
+    await dummy.transferAdministratorship(accounts[2], {from: accounts[0]});
+    return new Assertions(dummy, accounts[9], accounts[0], accounts[2]);
+}
+
+
 contract('Administratable', function (accounts) {
-    let dummy;
-    let assertions;
     let firstOwner = accounts[0];
     let secondOwner = accounts[1];
     let firstAdministrator = accounts[2];
     let secondAdministrator = accounts[3];
-
-    before(async function () {
-        dummy = await Dummy.new({ from: firstOwner });
-        await dummy.transferAdministratorship(firstAdministrator);
-        assertions = Assertions.new(dummy, accounts[9]);
+    let assertions;
+    before(async () => {
+        assertions = await makeAssertions(accounts);
     });
 
     describe('OwnerOrAdministratorModifier', function() {
         it('should not permit to execute ownerOrAdministrator functions to anybody except owner or administrator', async function() {
-            await assertOwnerOrAdministrator(dummy, firstOwner, somebody);
-            await assertOwnerOrAdministrator(dummy, firstAdministrator, somebody);
+            await assertions.assertOwnerOrAdministratorViaAdministrator();
+            await assertions.assertOwnerOrAdministratorViaOwner();
         });
         it('should correctly transfer administratorship', async function (){
             // check case when admin and owner is one address
-            await assertTransferAdministratorship(dummy, firstAdministrator, firstOwner);
-            await assertOwnerOrAdministrator(dummy, firstOwner, firstAdministrator);
+            await assertions.assertTransferAdministratorship(firstOwner);
+            await assertions.assertOwnerOrAdministratorViaAdministrator();
 
-            // transfer via owner
-            await assertTransferAdministratorship(dummy, firstOwner, secondAdministrator);
-            await assertTransferAdministratorship(dummy, firstOwner, firstAdministrator);
-
-            // transfer via
-            await assertTransferAdministratorship(dummy, secondAdministrator, firstAdministrator);
+            // transfer via administrator
+            await assertions.assertTransferAdministratorship(secondAdministrator);
+            await assertions.assertTransferAdministratorship(firstAdministrator);
+            await assertions.assertOwnerOrAdministratorViaAdministrator();
         });
     });
 
     describe('OnlyOwner modifier', function() {
         it('should not permit to execute onlyOwner functions to anybody except owner', async function() {
-            assertOnlyOwner(dummy, firstOwner, somebody);
+            await assertions.assertOnlyOwner();
         });
-        it('should correctly transfer ownership from owner', async function(){
-            await assertTransferOwnership(dummy, firstOwner, secondOwner);
-            assertRevert(dummy.transferOwnership(secondOwner, {from: firstOwner}));
-            await assertOnlyOwner(dummy, secondOwner, firstOwner);
-            await assertTransferOwnership(dummy, secondOwner, firstOwner);
-            await assertOnlyOwner(dummy, firstOwner, secondOwner);
+        it('should correctly transfer ownership via owner', async function(){
+            await assertions.assertTransferOwnershipViaOwner(secondOwner);
+            await assertions.assertTransferOwnershipViaOwner(firstOwner);
         });
         it('should correctly transfer ownership via administrator', async function(){
+            await assertions.assertTransferOwnershipViaAdmin(secondOwner);
+            await assertions.assertTransferOwnershipViaAdmin(firstOwner);
+        });
     });
 
 });

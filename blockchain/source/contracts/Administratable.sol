@@ -1,5 +1,4 @@
 pragma solidity ^0.4.23;
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 contract Administratable {
     address public owner;
@@ -31,6 +30,11 @@ contract Administratable {
         _;
     }
 
+    modifier onlyAdministrator() {
+        require(msg.sender == administrator);
+        _;
+    }
+
     function renounceOwnership() public ownerOrAdministrator {
         emit OwnershipRenounced(owner);
         owner = address(0);
@@ -46,7 +50,7 @@ contract Administratable {
         owner = _newOwner;
     }
 
-    function transferAdministratorship(address _newAdministrator) public ownerOrAdministrator {
+    function transferAdministratorship(address _newAdministrator) public onlyAdministrator {
         _transferAdministratorship(_newAdministrator);
     }
 

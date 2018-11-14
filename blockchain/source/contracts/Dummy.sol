@@ -2,7 +2,6 @@ pragma solidity ^0.4.23;
 import "./Administratable.sol";
 
 contract Dummy is Administratable {
-    bool dummy;
 
     event Call(string method);
 
