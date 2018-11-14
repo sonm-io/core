@@ -24,7 +24,7 @@ type PredictSupplierRequest struct {
 func (m *PredictSupplierRequest) Reset()                    { *m = PredictSupplierRequest{} }
 func (m *PredictSupplierRequest) String() string            { return proto.CompactTextString(m) }
 func (*PredictSupplierRequest) ProtoMessage()               {}
-func (*PredictSupplierRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{0} }
+func (*PredictSupplierRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{0} }
 
 func (m *PredictSupplierRequest) GetDevices() *DevicesReply {
 	if m != nil {
@@ -41,7 +41,7 @@ type PredictSupplierReply struct {
 func (m *PredictSupplierReply) Reset()                    { *m = PredictSupplierReply{} }
 func (m *PredictSupplierReply) String() string            { return proto.CompactTextString(m) }
 func (*PredictSupplierReply) ProtoMessage()               {}
-func (*PredictSupplierReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{1} }
+func (*PredictSupplierReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{1} }
 
 func (m *PredictSupplierReply) GetPrice() *Price {
 	if m != nil {
@@ -167,9 +167,9 @@ var _OrderPredictor_serviceDesc = grpc.ServiceDesc{
 	Metadata: "optimus.proto",
 }
 
-func init() { proto.RegisterFile("optimus.proto", fileDescriptor10) }
+func init() { proto.RegisterFile("optimus.proto", fileDescriptor11) }
 
-var fileDescriptor10 = []byte{
+var fileDescriptor11 = []byte{
 	// 262 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0xdd, 0x4a, 0xfc, 0x30,
 	0x10, 0xc5, 0xb7, 0xff, 0xbf, 0x5f, 0xa4, 0xd5, 0xc5, 0x20, 0xb2, 0x14, 0x2f, 0xd6, 0x5e, 0xf5,

@@ -46,6 +46,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/xgrpc"
+	"github.com/sonm-io/core/util/xnet"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -114,7 +115,7 @@ type Server struct {
 	cfg      ServerConfig
 	log      *zap.Logger
 	server   *grpc.Server
-	resolver resolver
+	resolver *xnet.ExternalPublicIPResolver
 
 	mu sync.Mutex
 	rv map[nppc.ResourceID]*meeting
@@ -143,7 +144,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 			xgrpc.RequestLogInterceptor([]string{}),
 			xgrpc.VerifyInterceptor(),
 		),
-		resolver: newExternalResolver(""),
+		resolver: xnet.NewExternalPublicIPResolver(""),
 		rv:       map[nppc.ResourceID]*meeting{},
 	}
 

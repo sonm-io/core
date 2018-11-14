@@ -415,12 +415,6 @@ func WithDWH(d sonm.DWHClient) Option {
 	}
 }
 
-func WithCreds(creds credentials.TransportCredentials) Option {
-	return func(o *options) {
-		o.creds = creds
-	}
-}
-
 func WithVersion(v string) Option {
 	return func(o *options) {
 		o.version = v
