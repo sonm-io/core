@@ -46,6 +46,7 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xdocker"
 	"github.com/sonm-io/core/util/xgrpc"
+	"github.com/sonm-io/core/util/xnet"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -317,13 +318,25 @@ func (m *Worker) setupMaster() error {
 }
 
 func (m *Worker) setupGeoIP() error {
-	if len(m.publicIPs) == 0 {
-		return fmt.Errorf("failed to detect at least one public IP address")
+	var publicGeoIP net.IP
+	for _, publicIP := range m.publicIPs {
+		if ip := net.ParseIP(publicIP); ip != nil {
+			publicGeoIP = ip
+			break
+		}
 	}
 
-	ip := net.ParseIP(m.publicIPs[0])
-	if ip == nil {
-		return fmt.Errorf("failed to detect at least one public IP address")
+	if publicGeoIP == nil {
+		log.G(m.ctx).Info("no public IP detected in network interfaces, nor specified in the config, falling back to external resolver")
+
+		ip, err := xnet.NewExternalPublicIPResolver("").PublicIP()
+		if err != nil {
+			return fmt.Errorf("failed to detect at least one public IP address")
+		}
+
+		log.S(m.ctx).Infof("successfully resolved public IP: %s", ip.String())
+
+		publicGeoIP = ip
 	}
 
 	geoIPService, err := NewGeoIPService(&GeoIPServiceConfig{})
@@ -331,7 +344,7 @@ func (m *Worker) setupGeoIP() error {
 		return err
 	}
 
-	country, err := geoIPService.Country(ip)
+	country, err := geoIPService.Country(publicGeoIP)
 	if err != nil {
 		return fmt.Errorf("failed to detect machine's country by geo IP: %v", err)
 	}
