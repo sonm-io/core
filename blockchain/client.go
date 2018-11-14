@@ -56,7 +56,7 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 	r.BlockNumber = v.Int64()
 
 	if dec.BlockHash == "" {
-		return fmt.Errorf("unmarshaled block hash is empty")
+		return fmt.Errorf("unmarshaled BlockHash is empty")
 	}
 	r.BlockHash = common.HexToHash(dec.BlockHash)
 
