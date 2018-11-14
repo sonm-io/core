@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package sonm;
+
+message GeoIPCountry {
+    string IsoCode = 1;
+}
+
+message GeoIP {
+    GeoIPCountry country = 1;
+}

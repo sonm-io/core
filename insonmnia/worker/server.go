@@ -27,6 +27,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/oschwald/geoip2-golang"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
@@ -45,6 +46,7 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xdocker"
 	"github.com/sonm-io/core/util/xgrpc"
+	"github.com/sonm-io/core/util/xnet"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -129,6 +131,9 @@ type Worker struct {
 	startTime           time.Time
 	isMasterConfirmed   bool
 	isBenchmarkFinished bool
+
+	// Geolocation info.
+	country *geoip2.Country
 }
 
 func NewWorker(opts ...Option) (m *Worker, err error) {
@@ -143,6 +148,11 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 	}
 
 	if err := m.SetupDefaults(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupGeoIP(); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -307,6 +317,43 @@ func (m *Worker) setupMaster() error {
 	// master is confirmed when expected master addr is equal to existing
 	// addr recorded into blockchain.
 	m.isMasterConfirmed = m.cfg.Master.Big().Cmp(addr.Big()) == 0
+	return nil
+}
+
+func (m *Worker) setupGeoIP() error {
+	var publicGeoIP net.IP
+	for _, publicIP := range m.publicIPs {
+		if ip := net.ParseIP(publicIP); ip != nil {
+			publicGeoIP = ip
+			break
+		}
+	}
+
+	if publicGeoIP == nil {
+		log.G(m.ctx).Info("no public IP detected in network interfaces, nor specified in the config, falling back to external resolver")
+
+		ip, err := xnet.NewExternalPublicIPResolver("").PublicIP()
+		if err != nil {
+			return fmt.Errorf("failed to detect at least one public IP address")
+		}
+
+		log.S(m.ctx).Infof("successfully resolved public IP: %s", ip.String())
+
+		publicGeoIP = ip
+	}
+
+	geoIPService, err := NewGeoIPService(&GeoIPServiceConfig{})
+	if err != nil {
+		return err
+	}
+
+	country, err := geoIPService.Country(publicGeoIP)
+	if err != nil {
+		return fmt.Errorf("failed to detect machine's country by geo IP: %v", err)
+	}
+
+	m.country = country
+
 	return nil
 }
 
@@ -489,6 +536,11 @@ func (m *Worker) Status(ctx context.Context, _ *sonm.Empty) (*sonm.StatusReply, 
 		Admin:               adminAddr,
 		IsMasterConfirmed:   m.isMasterConfirmed,
 		IsBenchmarkFinished: m.isBenchmarkFinished,
+		Geo: &sonm.GeoIP{
+			Country: &sonm.GeoIPCountry{
+				IsoCode: m.country.Country.IsoCode,
+			},
+		},
 	}
 
 	return reply, nil

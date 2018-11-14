@@ -159,6 +159,7 @@ func printWorkerStatus(cmd *cobra.Command, stat *sonm.StatusReply) {
 		if !stat.GetAdmin().IsZero() {
 			cmd.Printf("Admin address:     %s\r\n", stat.GetAdmin().Unwrap().Hex())
 		}
+		cmd.Printf("Country (ISO):     %s\r\n", stat.GetGeo().GetCountry().GetIsoCode())
 		cmd.Printf("Task count:        %d\r\n", stat.GetTaskCount())
 		cmd.Printf("DWH status:        %s\r\n", stat.GetDWHStatus())
 		cmd.Printf("Rendezvous status: %s\r\n", stat.GetRendezvousStatus())
