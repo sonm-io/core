@@ -1,5 +1,5 @@
 pragma solidity ^0.4.23;
-import "./Administratable.sol";
+import "../Administratable.sol";
 
 contract Dummy is Administratable {
 
