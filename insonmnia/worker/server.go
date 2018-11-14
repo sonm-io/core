@@ -43,6 +43,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/debug"
+	"github.com/sonm-io/core/util/defergroup"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xdocker"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -136,80 +137,75 @@ type Worker struct {
 	country *geoip2.Country
 }
 
-func NewWorker(opts ...Option) (m *Worker, err error) {
+func NewWorker(opts ...Option) (*Worker, error) {
 	o := &options{}
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	m = &Worker{
+	m := &Worker{
 		options:    o,
 		containers: make(map[string]*ContainerInfo),
 	}
 
-	if err := m.SetupDefaults(); err != nil {
+	dg := defergroup.DeferGroup{}
+	dg.Defer(func() {
 		m.Close()
+	})
+
+	if err := m.SetupDefaults(); err != nil {
 		return nil, err
 	}
 
 	if err := m.setupGeoIP(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	if err := m.setupAuthorization(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	if err := m.setupStatusServer(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	if err := m.setupMaster(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	if err := m.setupControlGroup(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	if err := m.setupHardware(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	if err := m.runBenchmarks(); err != nil {
-		m.Close()
 		return nil, err
 	}
 	m.isBenchmarkFinished = true
 
 	if err := m.setupResources(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	// First we setup salesman here to restore all known ask plans to perform container restoration.
 	if err := m.setupSalesman(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	// At this step, all ask plans should be restored and task resources can be successfully consumed by the scheduler.
 	// Note: if some ask plans were removed due to resource lack corresponding containers will be removed in "setupRunningContainers".
 	if err := m.setupRunningContainers(); err != nil {
-		m.Close()
 		return nil, err
 	}
 
 	if err := m.setupSSH(&overseerView{worker: m}); err != nil {
-		m.Close()
 		return nil, err
 	}
+
+	dg.CancelExec()
 
 	return m, nil
 }
