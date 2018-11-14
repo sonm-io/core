@@ -189,7 +189,7 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 		return nil, err
 	}
 
-	// at this step all ask plans should be restored and task resources can be successfully consumed by scheduler.
+	// At this step, all ask plans should be restored and task resources can be successfully consumed by the scheduler.
 	// Note: if some ask plans were removed due to resource lack corresponding containers will be removed in setupRunningContainers
 	if err := m.setupRunningContainers(); err != nil {
 		m.Close()
