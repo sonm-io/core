@@ -348,7 +348,7 @@ sonm-core (0.4.11) unstable; urgency=low
     all available token params, not only reward and net difficulty.
   * Fixed: proper env params applying in Connor (#1474).
   * Fixed: restrict image push with KYC level (#1458).
-    This PR introduces Administratable which checks KYC level and allow only users of a
+    This PR introduces ACL which checks KYC level and allow only users of a
     specific level to push custom images on the worker. Also, it's made
     configurable and it is reused in whitelist configuration.
   * Fixed: drop task if the deal was closed during startup (#1476).
