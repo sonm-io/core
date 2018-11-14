@@ -33,6 +33,10 @@ contract Rating is Ownable {
         ratingData = RatingData(_ratingData);
     }
 
+    function GetRatingData() public view returns (address) {
+        return address(ratingData);
+    }
+
     function SetRatingData(address _ratingData) public onlyOwner {
         ratingData = RatingData(_ratingData);
     }
@@ -98,7 +102,7 @@ contract Rating is Ownable {
 
     function applyDecay(Role role, address who, uint64 when) private {
         uint64 lastBlockTs = ratingData.LastBlockTs(uint8(role), who);
-        require(when > lastBlockTs);
+        require(when >= lastBlockTs);
         ratingData.SetLastBlockTs(uint8(role), who, when);
         if(lastBlockTs == 0) {
             return;
@@ -118,7 +122,9 @@ contract Rating is Ownable {
         ratingData.IncSum(uint8(role), uint8(Outcome.ClaimRejected), who, negPart);
     }
 
-    function RegisterOutcome(Outcome outcome, address consumer, address supplierWorker, address supplierMaster, uint256 sum, uint64 when) public onlyOwner {
+    function RegisterOutcome(
+        Outcome outcome, address consumer, address supplierWorker, address supplierMaster, uint256 sum, uint64 when
+    ) public onlyOwner {
         if(outcome >= Outcome.Invalid){
             revert("invalid outcome specified");
         }

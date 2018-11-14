@@ -25,6 +25,7 @@ library FixedPointUtil {
         return lhs - rhs;
     }
 
+    // solium-disable-next-line security/no-assign-params
     function Mul(uint256 lhs, uint256 rhs, uint8 precision) internal pure returns (uint256) {
         require(precision > 0);
         if (lhs == 0 || rhs == 0) {
@@ -47,6 +48,7 @@ library FixedPointUtil {
         revert();
     }
 
+    // solium-disable-next-line security/no-assign-params
     function Div(uint256 lhs, uint256 rhs, uint8 precision) internal pure returns (uint256) {
         require(precision > 0);
         require(rhs > 0);
@@ -62,6 +64,7 @@ library FixedPointUtil {
     }
 
     // Exponentiation by squaring algorithm
+    // solium-disable-next-line security/no-assign-params
     function Ipow(uint256 value, uint256 exponent, uint8 precision) internal pure returns (uint256) {
         uint256 real_result = FromNatural(1, precision);
 
