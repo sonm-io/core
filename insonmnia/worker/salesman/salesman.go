@@ -371,7 +371,7 @@ func (m *Salesman) restoreState(ctx context.Context) error {
 
 	for _, plan := range m.askPlans {
 		// We reset deal id here in order to restart order processing and reassign deal properly to ask plan.
-		// we could do it here synchronously, but this would slower startup.
+		// We could do it here synchronously, but this would slower startup.
 		plan.DealID = nil
 		if err := m.resources.Consume(plan); err != nil {
 			m.log.Warnf("dropping ask plan %s due to resource changes", plan.ID)
