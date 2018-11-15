@@ -54,9 +54,7 @@ func TestTransformEnvVars(t *testing.T) {
 
 func TestCollectTasksStatuses(t *testing.T) {
 	m := Worker{
-		options: &options{
-			ctx: context.Background(),
-		},
+		ctx: context.Background(),
 		containers: map[string]*ContainerInfo{
 			"aaa1": {status: sonm.TaskStatusReply_UNKNOWN},
 			"aaa2": {status: sonm.TaskStatusReply_UNKNOWN},
