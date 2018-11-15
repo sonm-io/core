@@ -55,8 +55,7 @@ func run(app cmd.AppContext) error {
 		return nil
 	})
 
-	w, err := worker.NewWorker(worker.WithConfig(cfg), worker.WithContext(ctx), worker.WithStateStorage(storage),
-		worker.WithVersion(app.Version))
+	w, err := worker.NewWorker(cfg, storage, worker.WithContext(ctx), worker.WithVersion(app.Version))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}

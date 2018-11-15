@@ -3,12 +3,18 @@ package worker
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	"net"
+	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -20,24 +26,29 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gliderlabs/ssh"
+	sshd "github.com/gliderlabs/ssh"
 	"github.com/gogo/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/oschwald/geoip2-golang"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/disk"
+	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/proto"
@@ -45,20 +56,26 @@ import (
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/defergroup"
 	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/netutil"
 	"github.com/sonm-io/core/util/xdocker"
 	"github.com/sonm-io/core/util/xgrpc"
 	"github.com/sonm-io/core/util/xnet"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	workerAPIPrefix = "/sonm.WorkerManagement/"
-	taskAPIPrefix   = "/sonm.Worker/"
+	workerAPIPrefix       = "/sonm.WorkerManagement/"
+	taskAPIPrefix         = "/sonm.Worker/"
+	sshPrivateKeyKey      = "ssh_private_key"
+	ethereumPrivateKeyKey = "ethereum_private_key"
+	exportKeystorePath    = "/var/lib/sonm/worker_keystore"
 )
 
 var (
@@ -77,6 +94,8 @@ var (
 		workerAPIPrefix + "RemoveBenchmark",
 		workerAPIPrefix + "PurgeBenchmarks",
 	}
+
+	leakedInsecureKey = common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd")
 )
 
 type overseerView struct {
@@ -105,13 +124,29 @@ func (m *overseerView) ExecIdentity() sonm.IdentityLevel {
 	return m.worker.cfg.SSH.Identity
 }
 
-func (m *overseerView) Exec(ctx context.Context, id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error) {
+func (m *overseerView) Exec(ctx context.Context, id string, cmd []string, env []string, isTty bool, wCh <-chan sshd.Window) (types.HijackedResponse, error) {
 	return m.worker.ovs.Exec(ctx, id, cmd, env, isTty, wCh)
 }
 
 // Worker holds information about jobs, make orders to Observer and communicates with Worker
 type Worker struct {
-	*options
+	ctx     context.Context
+	cfg     *Config
+	storage *state.Storage
+
+	ovs         Overseer
+	ssh         SSH
+	key         *ecdsa.PrivateKey
+	publicIPs   []string
+	benchmarks  benchmarks.BenchList
+	eth         blockchain.API
+	dwh         sonm.DWHClient
+	creds       credentials.TransportCredentials
+	certRotator util.HitlessCertRotator
+	plugins     *plugin.Repository
+	whitelist   Whitelist
+	matcher     matcher.Matcher
+	version     string
 
 	mu        sync.Mutex
 	hardware  *hardware.Hardware
@@ -137,15 +172,18 @@ type Worker struct {
 	country *geoip2.Country
 }
 
-func NewWorker(opts ...Option) (*Worker, error) {
-	o := &options{}
-	for _, opt := range opts {
-		opt(o)
+func NewWorker(cfg *Config, storage *state.Storage, options ...Option) (*Worker, error) {
+	opts := newOptions()
+	for _, opt := range options {
+		opt(opts)
 	}
 
 	m := &Worker{
-		options:    o,
-		containers: make(map[string]*ContainerInfo),
+		cfg:        cfg,
+		ctx:        opts.ctx,
+		storage:    storage,
+		version:    opts.version,
+		containers: map[string]*ContainerInfo{},
 	}
 
 	dg := defergroup.DeferGroup{}
@@ -153,7 +191,7 @@ func NewWorker(opts ...Option) (*Worker, error) {
 		m.Close()
 	})
 
-	if err := m.SetupDefaults(); err != nil {
+	if err := m.init(); err != nil {
 		return nil, err
 	}
 
@@ -208,6 +246,305 @@ func NewWorker(opts ...Option) (*Worker, error) {
 	dg.CancelExec()
 
 	return m, nil
+}
+
+func (m *Worker) init() error {
+	if err := m.setupKey(); err != nil {
+		return err
+	}
+
+	if err := m.setupBlockchainAPI(); err != nil {
+		return err
+	}
+
+	if err := m.setupPlugins(); err != nil {
+		return err
+	}
+
+	if err := m.setupCredentials(); err != nil {
+		return err
+	}
+
+	if err := m.setupDWH(); err != nil {
+		return err
+	}
+
+	if err := m.setupWhitelist(); err != nil {
+		return err
+	}
+
+	if err := m.setupMatcher(); err != nil {
+		return err
+	}
+
+	if err := m.setupBenchmarks(); err != nil {
+		return err
+	}
+
+	if err := m.setupNetworkOptions(); err != nil {
+		return err
+	}
+
+	if err := m.setupOverseer(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Worker) setupKey() error {
+	if m.key == nil {
+		var data []byte
+		loaded, err := m.storage.Load(ethereumPrivateKeyKey, &data)
+		if err != nil {
+			return err
+		}
+
+		if !loaded {
+			key, err := crypto.GenerateKey()
+			if err != nil {
+				return err
+			}
+
+			if err := m.storage.Save(ethereumPrivateKeyKey, crypto.FromECDSA(key)); err != nil {
+				return err
+			}
+
+			m.key = key
+		} else {
+			key, err := crypto.ToECDSA(data)
+			if err != nil {
+				return err
+			}
+
+			m.key = key
+		}
+	}
+
+	if err := m.exportKey(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Worker) exportKey() error {
+	if err := os.MkdirAll(exportKeystorePath, 0700); err != nil {
+		return err
+	}
+
+	ks := keystore.NewKeyStore(exportKeystorePath, keystore.LightScryptN, keystore.LightScryptP)
+	if !ks.HasAddress(crypto.PubkeyToAddress(m.key.PublicKey)) {
+		_, err := ks.ImportECDSA(m.key, "sonm")
+		return err
+	}
+
+	return nil
+}
+
+func (m *Worker) setupBlockchainAPI() error {
+	if m.eth == nil {
+		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain), blockchain.WithNiceMarket())
+		if err != nil {
+			return err
+		}
+
+		m.eth = eth
+	}
+
+	return nil
+}
+
+func (m *Worker) setupPlugins() error {
+	plugins, err := plugin.NewRepository(m.ctx, m.cfg.Plugins)
+	if err != nil {
+		return err
+	}
+
+	m.plugins = plugins
+	return nil
+}
+
+func (m *Worker) setupCredentials() error {
+	if m.creds == nil {
+		certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
+		if err != nil {
+			return err
+		}
+
+		m.certRotator = certRotator
+		m.creds = util.NewTLS(TLSConfig)
+	}
+
+	return nil
+}
+
+func (m *Worker) setupDWH() error {
+	if m.dwh == nil {
+		cc, err := xgrpc.NewClient(m.ctx, m.cfg.DWH.Endpoint, m.creds)
+		if err != nil {
+			return err
+		}
+
+		m.dwh = sonm.NewDWHClient(cc)
+	}
+
+	return nil
+}
+
+func (m *Worker) setupWhitelist() error {
+	if m.whitelist == nil {
+		cfg := m.cfg.Whitelist
+		if len(cfg.PrivilegedAddresses) == 0 {
+			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, crypto.PubkeyToAddress(m.key.PublicKey).Hex())
+			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, m.cfg.Master.Hex())
+			if m.cfg.Admin != nil {
+				cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, m.cfg.Admin.Hex())
+			}
+		}
+
+		m.whitelist = NewWhitelist(m.ctx, &cfg)
+	}
+
+	return nil
+}
+
+func (m *Worker) setupMatcher() error {
+	if m.matcher == nil {
+		if m.cfg.Matcher != nil {
+			matcher, err := matcher.NewMatcher(&matcher.Config{
+				Key:        m.key,
+				DWH:        m.dwh,
+				Eth:        m.eth,
+				PollDelay:  m.cfg.Matcher.PollDelay,
+				QueryLimit: m.cfg.Matcher.QueryLimit,
+				Log:        log.S(m.ctx),
+			})
+			if err != nil {
+				return fmt.Errorf("cannot create matcher: %v", err)
+			}
+
+			m.matcher = matcher
+		} else {
+			m.matcher = matcher.NewDisabledMatcher()
+		}
+	}
+
+	return nil
+}
+
+func (m *Worker) setupBenchmarks() error {
+	if m.benchmarks == nil {
+		benchList, err := benchmarks.NewBenchmarksList(m.ctx, m.cfg.Benchmarks)
+		if err != nil {
+			return err
+		}
+
+		m.benchmarks = benchList
+	}
+
+	return nil
+}
+
+func (m *Worker) setupNetworkOptions() error {
+	// Use public IPs from config (if provided).
+	publicIPs := m.cfg.PublicIPs
+	if len(publicIPs) > 0 {
+		m.publicIPs = netutil.SortedIPs(publicIPs)
+		return nil
+	}
+
+	// Scan interfaces if there's no config and no NAT.
+	rawPublicIPs, err := netutil.GetPublicIPs()
+	if err != nil {
+		return err
+	}
+
+	for _, ip := range rawPublicIPs {
+		publicIPs = append(publicIPs, ip.String())
+	}
+	m.publicIPs = netutil.SortedIPs(publicIPs)
+
+	return nil
+}
+
+func encodeRSAPrivateKeyToPEM(privateKey *rsa.PrivateKey) []byte {
+	privateKeyData := x509.MarshalPKCS1PrivateKey(privateKey)
+	block := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   privateKeyData,
+	}
+
+	return pem.EncodeToMemory(&block)
+}
+
+func (m *Worker) setupSSH(view OverseerView) error {
+	if m.cfg.SSH != nil {
+		signer, err := m.loadOrGenerateSSHSigner()
+		if err != nil {
+			return err
+		}
+
+		sshAuthorization := NewSSHAuthorization()
+		sshAuthorization.Deny(leakedInsecureKey)
+		sshAuthorization.Allow(crypto.PubkeyToAddress(m.key.PublicKey))
+		sshAuthorization.Allow(m.cfg.Master)
+
+		if m.cfg.Admin != nil {
+			sshAuthorization.Allow(*m.cfg.Admin)
+		}
+
+		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.creds, sshAuthorization, view, log.S(m.ctx))
+		if err != nil {
+			return err
+		}
+
+		m.ssh = ssh
+		return nil
+	}
+
+	if m.ssh == nil {
+		m.ssh = nilSSH{}
+	}
+
+	return nil
+}
+
+func (m *Worker) loadOrGenerateSSHSigner() (ssh.Signer, error) {
+	var privateKeyData []byte
+	ok, err := m.storage.Load(sshPrivateKeyKey, &privateKeyData)
+	if err != nil {
+		return nil, err
+	}
+
+	if ok {
+		return ssh.ParsePrivateKey(privateKeyData)
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := m.storage.Save(sshPrivateKeyKey, encodeRSAPrivateKeyToPEM(privateKey)); err != nil {
+		return nil, err
+	}
+
+	return ssh.NewSignerFromSigner(privateKey)
+}
+
+func (m *Worker) setupOverseer() error {
+	if m.ovs == nil {
+		ovs, err := NewOverseer(m.ctx, m.plugins)
+		if err != nil {
+			return err
+		}
+
+		m.ovs = ovs
+	}
+
+	return nil
 }
 
 // Serve starts handling incoming API gRPC requests
@@ -368,9 +705,8 @@ func (m *Worker) setupAuthorization() error {
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),
 		// Note: need to refactor auth router to support multiple prefixes for methods.
-		// auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow(workerManagementMethods...).With(managementAuth),
-		// everyone can get worker's status
+		// Everyone can get worker's status.
 		auth.Allow(workerAPIPrefix+"Status").With(auth.NewNilAuthorization()),
 		auth.Allow(taskAPIPrefix+"TaskStatus").With(newAnyOfAuth(
 			managementAuth,
@@ -378,22 +714,22 @@ func (m *Worker) setupAuthorization() error {
 		)),
 		auth.Allow(taskAPIPrefix+"StopTask").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"JoinNetwork").With(newDealAuthorization(m.ctx, m, newFromNamedTaskDealExtractor(m, "TaskID"))),
-		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.StartTaskRequest).GetDealID().Unwrap().String()), nil
+		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return request.(*sonm.StartTaskRequest).GetDealID(), nil
 		}))),
-		auth.Allow(taskAPIPrefix+"PurgeTasks").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.PurgeTasksRequest).GetDealID().Unwrap().String()), nil
+		auth.Allow(taskAPIPrefix+"PurgeTasks").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return request.(*sonm.PurgeTasksRequest).GetDealID(), nil
 		}))),
 		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"PushTask").With(newAllOfAuth(
 			newDealAuthorization(m.ctx, m, newContextDealExtractor()),
 			newKYCAuthorization(m.ctx, m.cfg.Whitelist.PrivilegedIdentityLevel, m.eth.ProfileRegistry())),
 		),
-		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.PullTaskRequest).DealId), nil
+		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return sonm.NewBigIntFromString(request.(*sonm.PullTaskRequest).GetDealId())
 		}))),
-		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.ID).GetId()), nil
+		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return sonm.NewBigIntFromString(request.(*sonm.ID).GetId())
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
@@ -1037,6 +1373,11 @@ func (m *Worker) RunSSH(ctx context.Context) error {
 
 // RunBenchmarks perform benchmarking of Worker's resources.
 func (m *Worker) runBenchmarks() error {
+	if m.cfg.Development.DisableBenchmarking {
+		log.S(m.ctx).Warn("benchmarking is disabled due to development mode activated")
+		return nil
+	}
+
 	requiredBenchmarks := m.benchmarks.ByID()
 	for _, bench := range requiredBenchmarks {
 		err := m.runBenchmark(bench)
