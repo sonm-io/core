@@ -578,7 +578,7 @@ func (m *Worker) Serve() error {
 }
 
 func (m *Worker) waitMasterApproved() error {
-	if m.cfg.Development != nil && m.cfg.Development.DisableMasterApproval {
+	if m.cfg.Development.DisableMasterApproval {
 		log.S(m.ctx).Debug("skip waiting for master approval: disabled")
 		return nil
 	}
@@ -628,7 +628,7 @@ func (m *Worker) ethAddr() common.Address {
 }
 
 func (m *Worker) setupMaster() error {
-	if m.cfg.Development != nil && m.cfg.Development.DisableMasterApproval {
+	if m.cfg.Development.DisableMasterApproval {
 		return nil
 	}
 
