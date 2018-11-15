@@ -744,6 +744,13 @@ func (m *sqlStorage) UpdateDealConditionEndTime(conn queryConn, dealConditionID,
 	return err
 }
 
+func (m *sqlStorage) InsertDealPayment(conn queryConn, billTS uint64, amount *big.Int, dealID *big.Int) error {
+	query, args, err := m.builder().Insert("DealPayments").Values(
+		billTS, util.BigIntToPaddedString(amount), dealID.String()).ToSql()
+	_, err = conn.Exec(query, args...)
+	return err
+}
+
 func (m *sqlStorage) InsertWorker(conn queryConn, masterID, workerID common.Address) error {
 	query, args, err := m.builder().Insert("Workers").Values(masterID.Hex(), workerID.Hex(), false).
 		Suffix("ON CONFLICT (MasterID, WorkerID) DO NOTHING").ToSql()
