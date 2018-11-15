@@ -32,6 +32,7 @@ type WhitelistConfig struct {
 }
 
 type DevConfig struct {
+	DisableBenchmarking   bool `yaml:"disable_benchmarking"`
 	DisableMasterApproval bool `yaml:"disable_master_approval"`
 }
 

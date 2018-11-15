@@ -1037,6 +1037,11 @@ func (m *Worker) RunSSH(ctx context.Context) error {
 
 // RunBenchmarks perform benchmarking of Worker's resources.
 func (m *Worker) runBenchmarks() error {
+	if m.cfg.Development.DisableBenchmarking {
+		log.S(m.ctx).Warn("benchmarking is disabled due to development mode activated")
+		return nil
+	}
+
 	requiredBenchmarks := m.benchmarks.ByID()
 	for _, bench := range requiredBenchmarks {
 		err := m.runBenchmark(bench)
