@@ -378,22 +378,22 @@ func (m *Worker) setupAuthorization() error {
 		)),
 		auth.Allow(taskAPIPrefix+"StopTask").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"JoinNetwork").With(newDealAuthorization(m.ctx, m, newFromNamedTaskDealExtractor(m, "TaskID"))),
-		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.StartTaskRequest).GetDealID().Unwrap().String()), nil
+		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return request.(*sonm.StartTaskRequest).GetDealID(), nil
 		}))),
-		auth.Allow(taskAPIPrefix+"PurgeTasks").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.PurgeTasksRequest).GetDealID().Unwrap().String()), nil
+		auth.Allow(taskAPIPrefix+"PurgeTasks").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return request.(*sonm.PurgeTasksRequest).GetDealID(), nil
 		}))),
 		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"PushTask").With(newAllOfAuth(
 			newDealAuthorization(m.ctx, m, newContextDealExtractor()),
 			newKYCAuthorization(m.ctx, m.cfg.Whitelist.PrivilegedIdentityLevel, m.eth.ProfileRegistry())),
 		),
-		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.PullTaskRequest).DealId), nil
+		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return sonm.NewBigIntFromString(request.(*sonm.PullTaskRequest).GetDealId())
 		}))),
-		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-			return structs.DealID(request.(*sonm.ID).GetId()), nil
+		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+			return sonm.NewBigIntFromString(request.(*sonm.ID).GetId())
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
