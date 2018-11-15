@@ -49,6 +49,8 @@ service WorkerManagement {
     rpc RemoveBenchmark(NumericID) returns (Empty) {}
     // Schedule full rebenchmarking on next restart
     rpc PurgeBenchmarks(Empty) returns (Empty) {}
+    // Metrics returns hardware metrics for this worker.
+    rpc Metrics(WorkerMetricsRequest) returns (WorkerMetricsResponse) {}
 }
 
 service Worker {
@@ -201,4 +203,44 @@ message DebugStateReply {
 
 message PurgeTasksRequest {
     BigInt dealID = 1;
+}
+
+message WorkerMetricsRequest {}
+
+message GPUMetrics {
+    // pci bus id
+    string id = 1;
+    // human-friendly device name
+    string name = 2;
+    // core temperature, celsius
+    float temperature = 3;
+    // fan speed in percent from max
+    float fan = 4;
+    // power consumption, watts
+    float power = 5;
+}
+
+message CPUMetrics {
+    float utilization = 1;
+}
+
+message RAMMetrics {
+    uint64 total = 1;
+    uint64 free = 2;
+}
+
+message DiskMetrics {
+    uint64 total = 1;
+    uint64 free = 2;
+}
+
+message WorkerMetricsResponse{
+    float LA1 = 1;
+    float LA5 = 2;
+    float LA15 = 3;
+
+    CPUMetrics cpuMetrics = 4;
+    RAMMetrics ramMetrics = 5;
+    DiskMetrics diskMetrics = 6;
+    repeated GPUMetrics GPUMetrics = 7;
 }

@@ -168,6 +168,12 @@ It has these top-level messages:
 	SalesmanData
 	DebugStateReply
 	PurgeTasksRequest
+	WorkerMetricsRequest
+	GPUMetrics
+	CPUMetrics
+	RAMMetrics
+	DiskMetrics
+	WorkerMetricsResponse
 */
 package sonm
 

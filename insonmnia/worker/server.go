@@ -48,6 +48,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
+	"github.com/sonm-io/core/insonmnia/worker/metrics"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
@@ -93,6 +94,7 @@ var (
 		workerAPIPrefix + "DebugState",
 		workerAPIPrefix + "RemoveBenchmark",
 		workerAPIPrefix + "PurgeBenchmarks",
+		workerAPIPrefix + "Metrics",
 	}
 
 	leakedInsecureKey = common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd")
@@ -170,6 +172,8 @@ type Worker struct {
 
 	// Geolocation info.
 	country *geoip2.Country
+	// hardware metrics for various hardware types
+	metrics *metrics.Handler
 }
 
 func NewWorker(cfg *Config, storage *state.Storage, options ...Option) (*Worker, error) {
@@ -258,6 +262,10 @@ func (m *Worker) init() error {
 	}
 
 	if err := m.setupPlugins(); err != nil {
+		return err
+	}
+
+	if err := m.setupMetrics(); err != nil {
 		return err
 	}
 
@@ -362,6 +370,17 @@ func (m *Worker) setupPlugins() error {
 	}
 
 	m.plugins = plugins
+	return nil
+}
+
+func (m *Worker) setupMetrics() error {
+	h, err := metrics.NewHandler(m.ctx, m.cfg.Plugins.GPUs)
+	if err != nil {
+		return err
+	}
+
+	m.metrics = h
+	m.metrics.Run(m.ctx)
 	return nil
 }
 
@@ -2009,6 +2028,10 @@ func (m *Worker) AskPlanByTaskID(taskID string) (*sonm.AskPlan, error) {
 		return nil, err
 	}
 	return m.salesman.AskPlan(planID)
+}
+
+func (m *Worker) Metrics(ctx context.Context, req *sonm.WorkerMetricsRequest) (*sonm.WorkerMetricsResponse, error) {
+	return m.metrics.Get(), nil
 }
 
 // Close disposes all resources related to the Worker
