@@ -353,6 +353,9 @@ contract Market is Ownable, Pausable {
             changeRequestsCrud.SetActualChangeRequest(dealID, 1, currentID);
 
             if (newDuration == dealsCrud.GetDealDuration(dealID) && newPrice > dealsCrud.GetDealPrice(dealID)) {
+                if (changeRequestsCrud.GetChangeRequestPrice(matchingID) <= newPrice) {
+                    changeRequestsCrud.SetChangeRequestStatus(matchingID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
+                }
                 changeRequestsCrud.SetChangeRequestStatus(currentID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
                 Bill(dealID);
                 dealsCrud.SetDealPrice(dealID, newPrice);
@@ -388,6 +391,9 @@ contract Market is Ownable, Pausable {
 
 
             if (newDuration == dealsCrud.GetDealDuration(dealID) && newPrice < dealsCrud.GetDealPrice(dealID)) {
+                if (changeRequestsCrud.GetChangeRequestPrice(matchingID) >= newPrice) {
+                    changeRequestsCrud.SetChangeRequestStatus(matchingID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
+                }
                 changeRequestsCrud.SetChangeRequestStatus(currentID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
                 Bill(dealID);
                 dealsCrud.SetDealPrice(dealID, newPrice);
@@ -398,7 +404,7 @@ contract Market is Ownable, Pausable {
                 && changeRequestsCrud.GetChangeRequestPrice(matchingID) >= newPrice) {
 
                 changeRequestsCrud.SetChangeRequestStatus(currentID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
-                changeRequestsCrud.SetChangeRequestStatus(changeRequestsCrud.GetActualChangeRequest(dealID, 1), ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
+                changeRequestsCrud.SetChangeRequestStatus(matchingID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
                 emit DealChangeRequestUpdated(matchingID); //bug
                 changeRequestsCrud.SetActualChangeRequest(dealID, 0, 0);
                 changeRequestsCrud.SetActualChangeRequest(dealID, 1, 0);
