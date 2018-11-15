@@ -20,8 +20,6 @@ import (
 var (
 	errNoPeerInfo       = status.Error(codes.Unauthenticated, "no peer info")
 	errNoDealProvided   = status.Error(codes.Unauthenticated, "no `deal` metadata provided")
-	errNoDealFieldFound = status.Error(codes.Internal, "no `Deal` field found")
-	errInvalidDealField = status.Error(codes.Internal, "invalid `Deal` field type")
 	errNoTaskFieldFound = status.Errorf(codes.Internal, "no task `ID` field found")
 	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
 )
