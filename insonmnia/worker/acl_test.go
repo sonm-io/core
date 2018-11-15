@@ -9,7 +9,6 @@ import (
 	"github.com/golang/mock/gomock"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,12 +51,12 @@ func TestContextDealMetaData(t *testing.T) {
 	md := newContextDealExtractor()
 	dealID, err := md(ctx, nil)
 	require.NoError(t, err)
-	assert.Equal(t, structs.DealID("66"), dealID)
+	assert.Equal(t, sonm.NewBigIntFromInt(66), dealID)
 }
 
 func startTaskDealExtractor() DealExtractor {
-	return newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
-		return structs.DealID(request.(*sonm.StartTaskRequest).GetDealID().Unwrap().String()), nil
+	return newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
+		return request.(*sonm.StartTaskRequest).GetDealID(), nil
 	})
 }
 

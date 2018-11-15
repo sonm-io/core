@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/structs"
 	// alias here is required for dumb gomock
 	sonm "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
@@ -20,14 +19,12 @@ import (
 var (
 	errNoPeerInfo       = status.Error(codes.Unauthenticated, "no peer info")
 	errNoDealProvided   = status.Error(codes.Unauthenticated, "no `deal` metadata provided")
-	errNoDealFieldFound = status.Error(codes.Internal, "no `Deal` field found")
-	errInvalidDealField = status.Error(codes.Internal, "invalid `Deal` field type")
 	errNoTaskFieldFound = status.Errorf(codes.Internal, "no task `ID` field found")
 	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
 )
 
 // DealExtractor allows to extract deal id that is used for authorization.
-type DealExtractor func(ctx context.Context, request interface{}) (structs.DealID, error)
+type DealExtractor func(ctx context.Context, request interface{}) (*sonm.BigInt, error)
 
 type dealAuthorization struct {
 	ctx       context.Context
@@ -114,18 +111,23 @@ func (m *kycAuthorization) Authorize(ctx context.Context, request interface{}) e
 // NewContextDealExtractor constructs a deal id extractor that requires the
 // specified context to have "deal" metadata.
 func newContextDealExtractor() DealExtractor {
-	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
+	return func(ctx context.Context, request interface{}) (*sonm.BigInt, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
-			return "", errNoPeerInfo
+			return nil, errNoPeerInfo
 		}
 
 		dealMD := md["deal"]
 		if len(dealMD) == 0 {
-			return "", errNoDealProvided
+			return nil, errNoDealProvided
 		}
 
-		return structs.DealID(dealMD[0]), nil
+		dealID, err := sonm.NewBigIntFromString(dealMD[0])
+		if err != nil {
+			return nil, err
+		}
+
+		return dealID, nil
 	}
 }
 
@@ -138,42 +140,42 @@ func newFromTaskDealExtractor(worker *Worker) DealExtractor {
 
 // todo: do not accept Worker as param, use some interface that have TaskStatus method.
 func newFromNamedTaskDealExtractor(worker *Worker, name string) DealExtractor {
-	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
+	return func(ctx context.Context, request interface{}) (*sonm.BigInt, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		taskID := reflect.Indirect(requestValue.FieldByName(name))
 		if !taskID.IsValid() {
-			return "", errNoTaskFieldFound
+			return nil, errNoTaskFieldFound
 		}
 
 		if taskID.Type().Kind() != reflect.String {
-			return "", errInvalidTaskField
+			return nil, errInvalidTaskField
 		}
 
 		_, err := worker.TaskStatus(ctx, &sonm.ID{Id: taskID.String()})
 		if err != nil {
-			return "", status.Errorf(codes.NotFound, "task %s not found", taskID.String())
+			return nil, status.Errorf(codes.NotFound, "task %s not found", taskID.String())
 		}
 
 		askPlan, err := worker.AskPlanByTaskID(taskID.Interface().(string))
 		if err != nil {
-			return "", status.Errorf(codes.NotFound, "ask plan for task %s not found: %s", taskID.String(), err)
+			return nil, status.Errorf(codes.NotFound, "ask plan for task %s not found: %s", taskID.String(), err)
 		}
 		if askPlan.GetDealID().IsZero() {
-			return "", status.Errorf(codes.NotFound, "deal for ask plan %s, task %s not found, probably it has been ended",
+			return nil, status.Errorf(codes.NotFound, "deal for ask plan %s, task %s not found, probably it has been ended",
 				askPlan.GetID(), taskID.String())
 		}
-		return structs.DealID(askPlan.GetDealID().Unwrap().String()), nil
+		return askPlan.GetDealID(), nil
 	}
 }
 
-func newRequestDealExtractor(fn func(request interface{}) (structs.DealID, error)) DealExtractor {
-	return newCustomDealExtractor(func(ctx context.Context, request interface{}) (structs.DealID, error) {
+func newRequestDealExtractor(fn func(request interface{}) (*sonm.BigInt, error)) DealExtractor {
+	return newCustomDealExtractor(func(ctx context.Context, request interface{}) (*sonm.BigInt, error) {
 		return fn(request)
 	})
 }
 
-func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (structs.DealID, error)) DealExtractor {
-	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
+func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (*sonm.BigInt, error)) DealExtractor {
+	return func(ctx context.Context, request interface{}) (*sonm.BigInt, error) {
 		return fn(ctx, request)
 	}
 }
