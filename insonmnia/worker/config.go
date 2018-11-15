@@ -53,7 +53,7 @@ type Config struct {
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
 	Salesman          salesman.YAMLConfig `yaml:"salesman"`
 	Master            common.Address      `yaml:"master" required:"true"`
-	Development       *DevConfig          `yaml:"development"`
+	Development       DevConfig           `yaml:"development"`
 	Admin             *common.Address     `yaml:"admin"`
 	Debug             *debug.Config       `yaml:"debug"`
 }
