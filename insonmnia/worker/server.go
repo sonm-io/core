@@ -1015,7 +1015,7 @@ func (m *Worker) taskAllowed(ctx context.Context, request *sonm.StartTaskRequest
 	}
 	if level < m.cfg.Whitelist.PrivilegedIdentityLevel {
 		volumes := spec.GetContainer().GetVolumes()
-		mounts := request.GetSpec().GetContainer().GetMounts()
+		mounts := spec.GetContainer().GetMounts()
 		if (volumes != nil && len(volumes) > 0) || (mounts != nil && len(mounts) > 0) {
 			return false, ref, fmt.Errorf("mounting volumes is forbidden due to kyc level")
 		}
