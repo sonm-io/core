@@ -237,7 +237,8 @@ func (card *DRICard) readPowerConsumption() (float64, error) {
 	return 0, fmt.Errorf("cannot find average power consumption param in the amdgpu_pm_info")
 }
 
-func (card *DRICard) Metrics() (*DRICardMetrics, error) {
+// Status returns hardware stats for the card
+func (card *DRICard) Status() (*DRICardMetrics, error) {
 	if len(card.HwmonPath) == 0 {
 		return nil, fmt.Errorf("metrics interface is not available for %s", card.Name)
 	}

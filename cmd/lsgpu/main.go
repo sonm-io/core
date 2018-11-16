@@ -19,7 +19,7 @@ func main() {
 
 	for _, card := range cards {
 		fmt.Printf("Card: %s\r\n", card.Path)
-		if m, err := card.Metrics(); err == nil {
+		if m, err := card.Status(); err == nil {
 			fmt.Printf(" t = %.1f (fan = %.1f%%)\r\n", m.Temperature, m.Fan)
 			fmt.Printf(" power = %.1fW\r\n", m.Power)
 		} else {
