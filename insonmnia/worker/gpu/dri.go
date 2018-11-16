@@ -208,6 +208,11 @@ func (card *DRICard) readPowerConsumption() (float64, error) {
 
 	raw, err := ioutil.ReadFile(p)
 	if err != nil {
+		if strings.Contains(err.Error(), "permission denied") {
+			// ignore permission error, it allows us to run worker as regular user
+			return 0, nil
+		}
+
 		return 0, err
 	}
 
