@@ -448,6 +448,7 @@ func (m *L1Processor) onBilled(eventTS uint64, dealID, payedAmount *big.Int) err
 		return fmt.Errorf("failed to UpdateDealConditionPayout: %v", err)
 	}
 
+	err = m.storage.InsertDealPayment(conn, eventTS, payedAmount, dealID)
 	if err != nil {
 		return fmt.Errorf("insertDealPayment failed: %v", err)
 	}
