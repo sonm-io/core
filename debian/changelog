@@ -16,7 +16,7 @@ sonm-core (0.4.15) unstable; urgency=low
     rates.
     Required for determining the network pressure caused by a task.
   * Added: add PayoutTargeted to Gatekeeper (#1695).
-    This PR add "PayoutTargeted" func ti sidechain gatekeeper(only sidechain,
+    This PR add "PayoutTargeted" func to sidechain gatekeeper(only sidechain,
     masterchain gate not need this).
     PayoutTargeted create transfer to targeted destination.
   * Added: added used bytes for the disk benchmark (#1687).
