@@ -1,3 +1,67 @@
+sonm-core (0.4.15) unstable; urgency=low
+
+  * Added: allow to disable Worker benchmarking in dev mode (#1707).
+  * Added: worker geolocation (#1692).
+    Now Workers are capable to detect the country ISO code where they are located
+    and provide it in the status handler.
+  * Added: ability to collect metrics from DRI devices (#1697).
+    Now we're trying to find hwmon path on the device initialization.
+    If we can do this, the monitoring interface for this card became available.
+    The "Monitoring" method reads some data from the "/sys/dev" internals, all
+    behavior has been ported from the [ROC-smi
+    tool](https://github.com/RadeonOpenCompute/ROC-smi).
+  * Added: extended network metrics in Worker (#1691).
+    The extended network metrics are now returned when requesting
+    container/task stats. This includes traffic/packet minute-averaged
+    rates.
+    Required for determining the network pressure caused by a task.
+  * Added: add PayoutTargeted to Gatekeeper (#1695).
+    This PR add "PayoutTargeted" func ti sidechain gatekeeper(only sidechain,
+    masterchain gate not need this).
+    PayoutTargeted create transfer to targeted destination.
+  * Added: added used bytes for the disk benchmark (#1687).
+    We must avoid two syscalls to gather disk space. Also will be useful for
+    worker monitoring suite.
+  * Added: return order IDs after price prediction (#1682).
+  * Added: SSH keys management (#1681).
+    This PR allows to specify untrusted and leaked ETH addresses that are not
+    allowed to be used for remote SSH login. This includes our public test key,
+    that is widely used for testing. More can be specified in Worker's config.
+  * Added: Optimus should no longer remove active plans (#1679).
+    Currently, after the optimization process is done, Optimus replaces some of
+    ask-plans with the new ones, dropping currently running deals, which causes
+    painful races in the entire SONM network - all running bots are greedily
+    engaged on a new profitable order, but only one of them succeeds.
+    The new logic in the Worker should eliminate this race, we just support it in
+    Optimus. Now it will cancel ask-plans only if there is no deal associated with
+    it, delegating other plan management logic to the Worker.
+  * Added: SSH on Worker host (#1644).
+    Now it is possible to SSH to a Worker using Node proxy, which is especially
+    useful for debugging. Internally it works the same way as we did SSH into
+    containers, except the user identity, which is now can be a public ETH address
+    of a Worker.
+  * Fixed: record deal payments (DWH) (#1714).
+    Deal payments were not recorded to the DB for some reason. Now - they should.
+  * Fixed: avoid nil pointer dereferences if DevConfig is empty (#1713).
+  * Fixed: add mount.cifs package to debian dependencies (#1710).
+    Closes #1705.
+  * Fixed: properly restore worker state on restart (#1698).
+    This PR fixes the bug when the Worker forgets about his tasks after the
+    restart.
+  * Fixed: proper initialize GPU resources before substraction (#1686).
+  * Fixed: validate node addr from config (#1684).
+  * Fixed: failed genetic model should not interrupt optimization (#1685).
+    If a genetic model in Optimus fails to find a genome that has non-zero fitness
+    it no longer interrupts the entire optimization process, instead writing a log
+    message.
+    This should also fix an issue in the price predictor.
+  * Fixed: proper version for nvidia plugin (#1678).
+    Fixes a situation when nvidia drivers was updated, but docker knows about the
+    volume with the previous version of drivers. Now the plugis will obtain driver
+    version and create new volume if it does not exists.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 16 Nov 2018 12:45:18 +0300
+
 sonm-core (0.4.14) unstable; urgency=low
 
   * Added: pool processor for UleyPool (#1650).
