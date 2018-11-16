@@ -40,6 +40,8 @@ sonm-core (0.4.15) unstable; urgency=low
     useful for debugging. Internally it works the same way as we did SSH into
     containers, except the user identity, which is now can be a public ETH address
     of a Worker.
+  * Fixed: avoid eth addr in connection string for insecure connections (#1719).
+  * Fixed: allow to mount volumes only to privileged KYC level (#1717).
   * Fixed: record deal payments (DWH) (#1714).
     Deal payments were not recorded to the DB for some reason. Now - they should.
   * Fixed: avoid nil pointer dereferences if DevConfig is empty (#1713).
