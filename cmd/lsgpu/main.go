@@ -21,6 +21,7 @@ func main() {
 		fmt.Printf("Card: %s\r\n", card.Path)
 		if m, err := card.Metrics(); err == nil {
 			fmt.Printf(" t = %.1f (fan = %.1f%%)\r\n", m.Temperature, m.Fan)
+			fmt.Printf(" power = %.1fW\r\n", m.Power)
 		} else {
 			fmt.Printf(" metrics is not available\r\n")
 		}

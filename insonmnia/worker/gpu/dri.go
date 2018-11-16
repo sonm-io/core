@@ -40,6 +40,7 @@ type DRICard struct {
 type DRICardMetrics struct {
 	Temperature float64
 	Fan         float64
+	Power       float64
 }
 
 func NewDRICard(num int, name, path string) (DRICard, error) {
@@ -202,6 +203,40 @@ func (card *DRICard) readTemperature() (float64, error) {
 	return temp / 1000, nil
 }
 
+func (card *DRICard) readPowerConsumption() (float64, error) {
+	p := fmt.Sprintf("/sys/kernel/debug/dri/%d/amdgpu_pm_info", card.Num)
+
+	raw, err := ioutil.ReadFile(p)
+	if err != nil {
+		if strings.Contains(err.Error(), "permission denied") {
+			// ignore permission error, it allows us to run worker as regular user
+			return 0, nil
+		}
+
+		return 0, err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(raw)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "average GPU") {
+			f := strings.Fields(line)
+			if len(f) == 0 {
+				return 0, fmt.Errorf("cannot extract power info from amdgpu_pm_info")
+			}
+
+			power, err := strconv.ParseFloat(strings.TrimSpace(f[0]), 64)
+			if err != nil {
+				return 0, err
+			}
+
+			return power, nil
+		}
+	}
+
+	return 0, fmt.Errorf("cannot find average power consumption param in the amdgpu_pm_info")
+}
+
 func (card *DRICard) Metrics() (*DRICardMetrics, error) {
 	if len(card.HwmonPath) == 0 {
 		return nil, fmt.Errorf("metrics interface is not available for %s", card.Name)
@@ -217,9 +252,15 @@ func (card *DRICard) Metrics() (*DRICardMetrics, error) {
 		return nil, err
 	}
 
+	power, err := card.readPowerConsumption()
+	if err != nil {
+		return nil, err
+	}
+
 	m := &DRICardMetrics{
 		Fan:         fan,
 		Temperature: temp,
+		Power:       power,
 	}
 
 	return m, nil
