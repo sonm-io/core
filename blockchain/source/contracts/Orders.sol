@@ -1,9 +1,9 @@
 pragma solidity ^0.4.23;
 
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./Administratable.sol";
 import "./ProfileRegistry.sol";
 
-contract Orders is Ownable {
+contract Orders is Administratable {
     //events
 
     //enums
@@ -53,6 +53,7 @@ contract Orders is Ownable {
 
     constructor() public {
         owner = msg.sender;
+        administrator = msg.sender;
     }
 
     function Write(

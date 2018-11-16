@@ -1,11 +1,11 @@
 pragma solidity ^0.4.23;
 
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./Administratable.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
 import "./Orders.sol";
 
 
-contract ChangeRequests is Ownable {
+contract ChangeRequests is Administratable {
     using SafeMath for uint256;
 
     mapping(uint => ChangeRequest) requests;
@@ -33,6 +33,7 @@ contract ChangeRequests is Ownable {
 
     constructor() public {
         owner = msg.sender;
+        administrator = msg.sender;
     }
 
     function Write(

@@ -1,9 +1,9 @@
 pragma solidity ^0.4.23;
 
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./Administratable.sol";
 
 
-contract Deals is Ownable {
+contract Deals is Administratable {
     //events
 
     //enums
@@ -48,44 +48,9 @@ contract Deals is Ownable {
     //Constructor
     constructor() public {
         owner = msg.sender;
+        administrator = msg.sender;
     }
 
-    function Write(
-        uint64[] _benchmarks,
-        address _supplierID,
-        address _consumerID,
-        address _masterID,
-        uint _askID,
-        uint _bidID,
-        uint _duration,
-        uint _price,
-        uint _startTime,
-        uint _endTime,
-        DealStatus _status,
-        uint _blockedBalance,
-        uint _totalPayout,
-        uint _lastBillTS) public onlyOwner returns(uint) {
-
-        dealsAmount += 1;
-
-        deals[dealsAmount].info.benchmarks = _benchmarks;
-        deals[dealsAmount].info.supplierID = _supplierID;
-        deals[dealsAmount].info.consumerID = _consumerID;
-        deals[dealsAmount].info.masterID = _masterID;
-        deals[dealsAmount].info.askID = _askID;
-        deals[dealsAmount].info.bidID = _bidID;
-        deals[dealsAmount].info.startTime = _startTime;
-        deals[dealsAmount].params.duration = _duration;
-        deals[dealsAmount].params.price = _price;
-        deals[dealsAmount].params.endTime = _endTime;
-        deals[dealsAmount].params.status = _status;
-        deals[dealsAmount].params.blockedBalance = _blockedBalance;
-        deals[dealsAmount].params.totalPayout = _totalPayout;
-        deals[dealsAmount].params.lastBillTS = _lastBillTS;
-
-
-        return dealsAmount;
-    }
 
     function SetDealBenchmarks(uint dealID, uint64[] _benchmarks) public onlyOwner {
         deals[dealID].info.benchmarks = _benchmarks;

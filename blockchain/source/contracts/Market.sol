@@ -212,7 +212,8 @@ contract Market is Ownable, Pausable {
             ordersCrud.GetOrderStatus(_askID) == Orders.OrderStatus.ORDER_ACTIVE
             && ordersCrud.GetOrderStatus(_bidID) == Orders.OrderStatus.ORDER_ACTIVE);
         require(ordersCrud.GetOrderCounterparty(_askID) == 0x0 || ordersCrud.GetOrderCounterparty(_askID) == ordersCrud.GetOrderAuthor(_bidID));
-        require(ordersCrud.GetOrderCounterparty(_bidID) == 0x0
+        require(
+            ordersCrud.GetOrderCounterparty(_bidID) == 0x0
             || ordersCrud.GetOrderCounterparty(_bidID) == administratum.GetMaster(ordersCrud.GetOrderAuthor(_askID))
             || ordersCrud.GetOrderCounterparty(_bidID) == ordersCrud.GetOrderAuthor(_askID));
         require(ordersCrud.GetOrderType(_askID) == Orders.OrderType.ORDER_ASK);

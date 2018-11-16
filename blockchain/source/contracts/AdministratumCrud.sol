@@ -1,8 +1,8 @@
 pragma solidity ^0.4.23;
 
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./Administratable.sol";
 
-contract AdministratumCrud is Ownable {
+contract AdministratumCrud is Administratable {
 
     // events
     event WorkerAnnounced(address indexed worker, address indexed master);
@@ -24,6 +24,7 @@ contract AdministratumCrud is Ownable {
     //constructor
     constructor(){
         owner = msg.sender;
+        administrator = msg.sender;
     }
 
     function SetMaster(address _worker, address _master) public onlyOwner {
