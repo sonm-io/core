@@ -10,7 +10,6 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
-	"github.com/sonm-io/core/util/netutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -65,12 +64,6 @@ func (cc *Config) Validate() error {
 		}
 	}
 
-	if len(cc.NodeAddr) > 0 {
-		addr, port, err := netutil.SplitHostPort(cc.NodeAddr)
-		if err != nil || addr == nil || port == 0 {
-			return fmt.Errorf("failed to parse node address, please use `ip:port` format")
-		}
-	}
 	return nil
 }
 

@@ -2,7 +2,9 @@ package commands
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/xgrpc"
 	"google.golang.org/grpc"
@@ -12,7 +14,23 @@ import (
 //
 // Note that `timeoutFlag`, `nodeAddressFlag` and `creds` are set implicitly because it is global for all CLI-related stuff.
 func newClientConn(ctx context.Context) (*grpc.ClientConn, error) {
-	return xgrpc.NewClient(ctx, nodeAddress(), creds)
+	var addr string
+
+	fullEndpoint, err := auth.NewAddr(nodeAddress())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse node address: %v", err)
+	}
+
+	if insecureFlag {
+		addr, err = fullEndpoint.Addr()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse node addr: %v", err)
+		}
+	} else {
+		addr = fullEndpoint.String()
+	}
+
+	return xgrpc.NewClient(ctx, addr, creds)
 }
 
 func newWorkerManagementClient(ctx context.Context) (sonm.WorkerManagementClient, error) {
