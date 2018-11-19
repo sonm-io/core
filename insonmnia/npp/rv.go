@@ -5,9 +5,11 @@ import (
 	"net"
 
 	"github.com/libp2p/go-reuseport"
+	"github.com/lucas-clemente/quic-go"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/util/xgrpc"
+	"github.com/sonm-io/core/util/xnet"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -19,7 +21,8 @@ type rendezvousClient struct {
 
 	// The underlying connection. Held here for information reasons, it is
 	// closed internally in the gRPC client.
-	conn net.Conn
+	conn    net.Conn
+	UDPConn net.PacketConn
 }
 
 func newRendezvousClient(ctx context.Context, addr auth.Addr, credentials credentials.TransportCredentials) (*rendezvousClient, error) {
@@ -47,7 +50,36 @@ func newRendezvousClient(ctx context.Context, addr auth.Addr, credentials creden
 		return nil, err
 	}
 
-	return &rendezvousClient{client, conn}, nil
+	return &rendezvousClient{Client: client, conn: conn}, nil
+}
+
+func newRendezvousQUICClient(ctx context.Context, udpConn net.PacketConn, addr auth.Addr, credentials *xgrpc.TransportCredentials) (*rendezvousClient, error) {
+	netAddr, err := addr.Addr()
+	if err != nil {
+		return nil, err
+	}
+
+	udpNetAddr, err := net.ResolveUDPAddr("udp", netAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	session, err := quic.Dial(udpConn, udpNetAddr, netAddr, credentials.TLSConfig, xnet.DefaultQUICConfig())
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := xnet.NewQUICConn(session)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := rendezvous.NewRendezvousClient(ctx, addr.String(), credentials, xgrpc.WithConn(conn))
+	if err != nil {
+		return nil, err
+	}
+
+	return &rendezvousClient{Client: client, conn: conn, UDPConn: udpConn}, nil
 }
 
 // LocalAddr returns the local network address.

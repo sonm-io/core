@@ -31,13 +31,12 @@ func start(app cmd.AppContext) error {
 	}
 	defer certRotator.Close()
 
-	credentials := util.NewTLS(TLSConfig)
-
 	options := []rendezvous.Option{
+		rendezvous.WithCredentials(TLSConfig),
+		rendezvous.WithQUIC(),
 		rendezvous.WithLogger(log.G(ctx)),
-		rendezvous.WithCredentials(credentials),
 	}
-	server, err := rendezvous.NewServer(*cfg, options...)
+	server, err := rendezvous.NewServer(cfg, options...)
 	if err != nil {
 		return fmt.Errorf("failed to create Rendezvous server: %s", err)
 	}

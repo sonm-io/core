@@ -10,6 +10,7 @@ github.com/Masterminds/squirrel v0.0.0-20180612165926-7d201d09bfa8/go.mod h1:xnK
 github.com/MaxHalford/gago v0.0.0-20180803141938-502b393f59df h1:bvQ23VGspQtwqPLkq0ElO6Y0oIMEvVtH6RoQG7gSIBI=
 github.com/MaxHalford/gago v0.0.0-20180803141938-502b393f59df/go.mod h1:AQUEEjyx2VRPxPFDNBANzFOANctuUGeLIIieu3UUjsQ=
 github.com/NVIDIA/nvidia-docker v0.0.0-20170722195403-d8e8727788aa/go.mod h1:Owm+QXUYchDJTSFtwr8Q0xN+XCus9ltrQwSeCqqRXpg=
+github.com/StackExchange/wmi v0.0.0-20170410192909-ea383cf3ba6e h1:IHXQQIpxASe3m0Jtcd3XongL+lxHNd5nUmvHxJARUmg=
 github.com/StackExchange/wmi v0.0.0-20170410192909-ea383cf3ba6e/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 h1:kFOfPq6dUM1hTo4JG6LR5AXSUEsOjtdm0kw0FtQtMJA=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
@@ -21,6 +22,8 @@ github.com/asaskevich/govalidator v0.0.0-20180319081651-7d2e70ef918f h1:/8NcnxL6
 github.com/asaskevich/govalidator v0.0.0-20180319081651-7d2e70ef918f/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
 github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a h1:BtpsbiV638WQZwhA98cEZw2BsbnQJrbd0BI7tsy0W1c=
 github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
+github.com/bifurcation/mint v0.0.0-20181105071958-a14404e9a861 h1:x17NvoJaphEzay72TFej4OSSsgu3xRYBLkbIwdofS/4=
+github.com/bifurcation/mint v0.0.0-20181105071958-a14404e9a861/go.mod h1:zVt7zX3K/aDCk9Tj+VM7YymsX66ERvzCJzw8rFCX2JU=
 github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/btcsuite/btcd v0.0.0-20171023093315-c7588cbf7690 h1:YSTjdPEsX8T2D31S9U7c4xxo0sQGa6TZ65cpCd7yVqU=
@@ -32,6 +35,8 @@ github.com/cdipaolo/goml v0.0.0-20161030204843-e2d8def04c9a h1:+8ndgVCRTyBJKTxfd
 github.com/cdipaolo/goml v0.0.0-20161030204843-e2d8def04c9a/go.mod h1:sduMkaHcXDIWurl/Bd/z0rNEUHw5tr6LUA9IO8E9o0o=
 github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2 h1:MmeatFT1pTPSVb4nkPmBFN/LRZ97vPjsFKsZrU3KKTs=
 github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2/go.mod h1:GJKEexRPVJrBSOjoqN5VNOIKJ5Q3RViH6eu3puDRwx4=
+github.com/cheekybits/genny v1.0.0 h1:uGGa4nei+j20rOSeDeP5Of12XVm7TGUd4dJA9RDitfE=
+github.com/cheekybits/genny v1.0.0/go.mod h1:+tQajlRqAUrPI7DOSpB0XAqZYtQakVtB7wXkRAgjxjQ=
 github.com/cnf/structhash v0.0.0-20170702194520-7710f1f78fb9 h1:Z6eVYnPyw1IbfiL+z+13vZhe3cI1lhE5nhRQbSxQFME=
 github.com/cnf/structhash v0.0.0-20170702194520-7710f1f78fb9/go.mod h1:pCxVEbcm3AMg7ejXyorUXi6HQCzOIBf7zEDVPtw0/U4=
 github.com/containerd/cgroups v0.0.0-20170714210333-6d5c608c203d h1:M7/OEkUwIjjSck/krOAf+5ErhE90WAyb53NGfWoygwc=
@@ -130,6 +135,7 @@ github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c h1:kQWxfPIHVLbgLzphq
 github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c/go.mod h1:lADxMC39cJJqL93Duh1xhAs4I2Zs8mKS89XWXFGp9cs=
 github.com/huin/goupnp v0.0.0-20180415215157-1395d1447324 h1:PV190X5/DzQ/tbFFG5YpT5mH6q+cHlfgqI5JuRnH9oE=
 github.com/huin/goupnp v0.0.0-20180415215157-1395d1447324/go.mod h1:MZ2ZmwcBpvOoJ22IJsc7va19ZwoheaBk43rKg12SKag=
+github.com/inconshreveable/mousetrap v1.0.0 h1:Z8tu5sraLXCXIcARxBp/8cbvlwVa7Z1NHg9XEKhtSvM=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/influxdata/influxdb v0.0.0-20180412224233-7ebfc9c544e0 h1:UACGhl+uO8HlQlk0VHPcf1XxgrpGiCyamQe088piHLA=
 github.com/influxdata/influxdb v0.0.0-20180412224233-7ebfc9c544e0/go.mod h1:qZna6X/4elxqT3yI9iZYdZrWWdeFOOprn86kgg4+IzY=
@@ -155,6 +161,12 @@ github.com/libp2p/go-reuseport v0.1.10 h1:luit4a4lmixdyb1MXs8YNHkVe4cZx0ETN630HL
 github.com/libp2p/go-reuseport v0.1.10/go.mod h1:UeLFiw50cCfyDHBpU0sXBR8ul1MO/m51mXpRO/SYjCE=
 github.com/libp2p/go-sockaddr v0.0.0-20180128062301-09ae606455f8 h1:zKo9Niz9yo6aGKQy4aoILJ1XiWlyJYAVLznJASTI83U=
 github.com/libp2p/go-sockaddr v0.0.0-20180128062301-09ae606455f8/go.mod h1:N/q858DTOi0BT81GpvIRIls1x7my5oLpbxYZnbRXVBM=
+github.com/lucas-clemente/aes12 v0.0.0-20171027163421-cd47fb39b79f h1:sSeNEkJrs+0F9TUau0CgWTTNEwF23HST3Eq0A+QIx+A=
+github.com/lucas-clemente/aes12 v0.0.0-20171027163421-cd47fb39b79f/go.mod h1:JpH9J1c9oX6otFSgdUHwUBUizmKlrMjxWnIAjff4m04=
+github.com/lucas-clemente/quic-go v0.10.0 h1:xEF+pSHYAOcu+U10Meunf+DTtc8vhQDRqlA0BJ6hufc=
+github.com/lucas-clemente/quic-go v0.10.0/go.mod h1:wuD+2XqEx8G9jtwx5ou2BEYBsE+whgQmlj0Vz/77PrY=
+github.com/lucas-clemente/quic-go-certificates v0.0.0-20160823095156-d2f86524cced h1:zqEC1GJZFbGZA0tRyNZqRjep92K5fujFtFsu5ZW7Aug=
+github.com/lucas-clemente/quic-go-certificates v0.0.0-20160823095156-d2f86524cced/go.mod h1:NCcRLrOTZbzhZvixZLlERbJtDtYsmMw8Jc4vS8Z0g58=
 github.com/magiconair/properties v0.0.0-20180217134545-2c9e95027885 h1:HWxJJvF+QceKcql4r9PC93NtMEgEBfBxlQrZPvbcQvs=
 github.com/magiconair/properties v0.0.0-20180217134545-2c9e95027885/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mattn/go-colorable v0.0.0-20180310133214-efa589957cd0 h1:cDvUG90i1ssGJGqMNx2Ubbn+bx7VOzjdvQ45zpy0X4w=
@@ -304,6 +316,7 @@ gopkg.in/bluesuncorp/validator.v9 v9.15.0/go.mod h1:sz1RrKEIYJCpC5S6ruDsBWo5vYV6
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/go-playground/validator.v8 v8.18.2 h1:lFB4DoMU6B626w8ny76MV7VX6W2VHct2GVOI3xgiMrQ=
 gopkg.in/go-playground/validator.v8 v8.18.2/go.mod h1:RX2a/7Ha8BgOhfk7j780h4/u/RRjR0eouCJSH80/M2Y=
+gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce h1:+JknDZhAj8YMt7GC73Ei8pv4MzjDUNPHgQWJdtMAaDU=
 gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce/go.mod h1:5AcXVHNjg+BDxry382+8OKon8SEWiKktQR07RKPsv1c=
 gopkg.in/olebedev/go-duktape.v3 v3.0.0-20180302121509-abf0ba0be5d5 h1:VWXVtmkY4YFVuF1FokZ0PUsuvtx3Di6z/m47daSP5f0=
 gopkg.in/olebedev/go-duktape.v3 v3.0.0-20180302121509-abf0ba0be5d5/go.mod h1:uAJfkITjFhyEEuUfm7bsmCZRbW5WRq8s9EY8HZ6hCns=

@@ -1,19 +1,22 @@
 package rendezvous
 
 import (
+	"crypto/tls"
+
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/credentials"
 )
 
 type options struct {
-	log         *zap.Logger
-	credentials credentials.TransportCredentials
+	Log         *zap.Logger
+	Credentials *xgrpc.TransportCredentials
+	EnableQUIC  bool
 }
 
 func newOptions() *options {
 	return &options{
-		log:         zap.NewNop(),
-		credentials: nil,
+		Log:         zap.NewNop(),
+		Credentials: nil,
 	}
 }
 
@@ -26,7 +29,7 @@ type Option func(options *options)
 // entirely.
 func WithLogger(log *zap.Logger) Option {
 	return func(options *options) {
-		options.log = log
+		options.Log = log
 	}
 }
 
@@ -36,8 +39,19 @@ func WithLogger(log *zap.Logger) Option {
 // authentication. Clients that require TLS will fail the handshake process
 // and disconnect from such server.
 // Note that we use ETH based TLS credentials.
-func WithCredentials(credentials credentials.TransportCredentials) Option {
+func WithCredentials(cfg *tls.Config) Option {
 	return func(options *options) {
-		options.credentials = credentials
+		options.Credentials = xgrpc.NewTransportCredentials(cfg)
+	}
+}
+
+// WithQUIC activates QUIC support in the Rendezvous server, allowing to
+// penetrate NAT for UDP.
+// When using this option it is REQUIRED to specify transport credentials by
+// passing "WithCredentials" option, because QUIC provides security protection
+// equivalent to TLS.
+func WithQUIC() Option {
+	return func(options *options) {
+		options.EnableQUIC = true
 	}
 }

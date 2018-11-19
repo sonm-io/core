@@ -47,6 +47,10 @@ type dialMetrics struct {
 	// UsingNATHistogram describes the distribution of resolve and connect
 	// times for successful connection attempts using NPP NAT traversal.
 	UsingNATHistogram prometheus.Histogram
+	// UsingQNATHistogram describes the distribution of resolve and connect
+	// times for successful connection attempts using NPP NAT traversal over
+	// UDP for QUIC.
+	UsingQNATHistogram prometheus.Histogram
 	// UsingRelayHistogram describes the distribution of resolve and connect
 	// times for successful connection attempts using Relay server.
 	UsingRelayHistogram prometheus.Histogram
@@ -67,6 +71,7 @@ func newDialMetrics() *dialMetrics {
 		NumFailed:               prometheus.NewCounter(prometheus.CounterOpts{}),
 		UsingTCPDirectHistogram: prometheus.NewHistogram(prometheus.HistogramOpts{}),
 		UsingNATHistogram:       prometheus.NewHistogram(prometheus.HistogramOpts{}),
+		UsingQNATHistogram:      prometheus.NewHistogram(prometheus.HistogramOpts{}),
 		UsingRelayHistogram:     prometheus.NewHistogram(prometheus.HistogramOpts{}),
 		SummaryHistogram:        prometheus.NewHistogram(prometheus.HistogramOpts{}),
 		LastTimeActive:          prometheus.NewGauge(prometheus.GaugeOpts{}),

@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"crypto/tls"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
@@ -39,6 +40,8 @@ type serverOptions struct {
 	allowREST         bool
 	optionsREST       []rest.Option
 	exposeGRPCMetrics bool
+	EnableQUIC        bool
+	TLSConfig         *tls.Config
 	sshProxy          SSHServer
 	log               *zap.Logger
 }
@@ -60,6 +63,15 @@ func WithGRPCServer() ServerOption {
 func WithGRPCSecure(credentials credentials.TransportCredentials, key *ecdsa.PrivateKey) ServerOption {
 	return func(o *serverOptions) error {
 		o.optionsGRPC = append(o.optionsGRPC, xgrpc.Credentials(auth.NewWalletAuthenticator(credentials, crypto.PubkeyToAddress(key.PublicKey))))
+		return nil
+	}
+}
+
+func WithQUIC(cfg *tls.Config) ServerOption {
+	return func(o *serverOptions) error {
+		o.TLSConfig = cfg
+		o.EnableQUIC = true
+
 		return nil
 	}
 }
@@ -93,7 +105,7 @@ func WithGRPCServerMetrics() ServerOption {
 	}
 }
 
-func WithSSH(cfg ssh.ProxyServerConfig, privateKey *ecdsa.PrivateKey, credentials credentials.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) ServerOption {
+func WithSSH(cfg ssh.ProxyServerConfig, privateKey *ecdsa.PrivateKey, credentials *xgrpc.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) ServerOption {
 	return func(o *serverOptions) error {
 		server, err := ssh.NewSSHProxyServer(cfg, privateKey, credentials, market, log)
 		if err != nil {

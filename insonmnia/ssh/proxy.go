@@ -11,17 +11,16 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	sshd "github.com/gliderlabs/ssh"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/credentials"
-
-	sshd "github.com/gliderlabs/ssh"
 )
 
 const (
@@ -65,7 +64,7 @@ func convertHostSigners(v []ssh.Signer) []sshd.Signer {
 // agent.
 //
 // Example of external usage: "ssh <DealID>.<TaskID>@<host> -p <port>".
-func NewSSHProxyServer(cfg ProxyServerConfig, privateKey *ecdsa.PrivateKey, credentials credentials.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) (*SSHProxyServer, error) {
+func NewSSHProxyServer(cfg ProxyServerConfig, privateKey *ecdsa.PrivateKey, credentials *xgrpc.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) (*SSHProxyServer, error) {
 	options := []npp.Option{
 		npp.WithProtocol(proto),
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),

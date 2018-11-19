@@ -4,27 +4,32 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/credentials"
 )
 
 // Option is a function that configures the listener or dialer.
 type Option func(o *options) error
 
+type puncherFactory func(ctx context.Context) (NATPuncher, error)
+
 type options struct {
 	log                   *zap.Logger
-	puncherNew            func(ctx context.Context) (NATPuncher, error)
+	puncherNew            puncherFactory
+	puncherNewQUIC        puncherFactory
 	nppBacklog            int
 	nppMinBackoffInterval time.Duration
 	nppMaxBackoffInterval time.Duration
 	relayListener         *relay.Listener
 	relayDialer           *relay.Dialer
-	protocol              string
+	Protocol              string
 }
 
 func newOptions() *options {
@@ -33,33 +38,79 @@ func newOptions() *options {
 		nppBacklog:            128,
 		nppMinBackoffInterval: 500 * time.Millisecond,
 		nppMaxBackoffInterval: 8000 * time.Millisecond,
-		protocol:              sonm.DefaultNPPProtocol,
+		Protocol:              sonm.DefaultNPPProtocol,
 	}
 }
 
-// WithRendezvous is an option that specifies Rendezvous client settings.
+// WithRendezvous is an option that specifies Rendezvous client settings and
+// activates NAT punching protocol.
 //
 // Without this option no intermediate server will be used for obtaining
 // peer's endpoints and the entire connection establishment process will fall
 // back to the old good plain TCP connection.
-func WithRendezvous(cfg rendezvous.Config, credentials credentials.TransportCredentials) Option {
+func WithRendezvous(cfg rendezvous.Config, credentials *xgrpc.TransportCredentials) Option {
 	return func(o *options) error {
 		if len(cfg.Endpoints) == 0 {
 			return nil
 		}
 
-		o.puncherNew = func(ctx context.Context) (NATPuncher, error) {
-			for _, addr := range cfg.Endpoints {
-				client, err := newRendezvousClient(ctx, addr, credentials)
-				if err == nil {
-					return newNATPuncher(ctx, cfg, client, o.protocol, o.log)
-				}
+		o.puncherNew = newTCPPuncherFactory(cfg, credentials, o)
+
+		if credentials.TLSConfig != nil {
+			// Preliminary create and save UDP socket for QUIC communication.
+			//
+			// We chose the port automatically here. However, the UDP socket is
+			// reused for ALL connections to be able to keep NAT mapping
+			// unchanged. This increases successful connection establishing
+			// probability after the hole has been punched at least once.
+			//
+			// IPv4 restriction is required, because in case of dual-stack
+			// remote network with global IPv6 address NAT isn't a problem anymore.
+			conn, err := net.ListenPacket("udp4", "0.0.0.0:0")
+			if err != nil {
+				return err
 			}
 
-			return nil, fmt.Errorf("failed to connect to %+v", cfg.Endpoints)
+			o.puncherNewQUIC = newQUICPuncherFactory(cfg, credentials, conn, o)
 		}
 
 		return nil
+	}
+}
+
+func newTCPPuncherFactory(cfg rendezvous.Config, credentials *xgrpc.TransportCredentials, options *options) puncherFactory {
+	return func(ctx context.Context) (NATPuncher, error) {
+		errs := multierror.NewMultiError()
+
+		for _, addr := range cfg.Endpoints {
+			client, err := newRendezvousClient(ctx, addr, credentials)
+			if err != nil {
+				errs = multierror.AppendUnique(errs, err)
+				continue
+			}
+
+			return newNATPuncher(ctx, cfg, client, options.Protocol, options.log)
+		}
+
+		return nil, fmt.Errorf("failed to connect to %+v: %v", cfg.Endpoints, errs.Error())
+	}
+}
+
+func newQUICPuncherFactory(cfg rendezvous.Config, credentials *xgrpc.TransportCredentials, conn net.PacketConn, options *options) puncherFactory {
+	return func(ctx context.Context) (NATPuncher, error) {
+		errs := multierror.NewMultiError()
+
+		for _, addr := range cfg.Endpoints {
+			client, err := newRendezvousQUICClient(ctx, conn, addr, credentials)
+			if err != nil {
+				errs = multierror.AppendUnique(errs, err)
+				continue
+			}
+
+			return newQUICPuncher(client, credentials.TLSConfig, options.Protocol, options.log)
+		}
+
+		return nil, fmt.Errorf("failed to connect to %+v: %v", cfg.Endpoints, errs.Error())
 	}
 }
 
@@ -122,9 +173,15 @@ func WithNPPBackoff(min, max time.Duration) Option {
 	}
 }
 
+// WithProtocol is an option that specifies application level protocol.
+//
+// In case of servers it will publish itself with a connection ID "PROTOCOL://ETH_ADDRESS".
+// In case of clients this option helps to distinguish whether the destination
+// peer supports such protocol.
+// For example this option is used for punching NAT for SSH connections.
 func WithProtocol(protocol string) Option {
 	return func(o *options) error {
-		o.protocol = protocol
+		o.Protocol = protocol
 		return nil
 	}
 }

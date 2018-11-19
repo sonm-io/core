@@ -74,6 +74,9 @@ type Listener struct {
 	puncherNew func(ctx context.Context) (NATPuncher, error)
 	nppChannel chan connTuple
 
+	puncherQUIC    NATPuncher
+	puncherNewQUIC func(ctx context.Context) (NATPuncher, error)
+
 	relayListener *relay.Listener
 	relayChannel  chan connTuple
 
@@ -112,6 +115,9 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 		puncherNew:      opts.puncherNew,
 		nppChannel:      make(chan connTuple, opts.nppBacklog),
 
+		puncherQUIC:    nil,
+		puncherNewQUIC: opts.puncherNewQUIC,
+
 		relayListener: opts.relayListener,
 		relayChannel:  make(chan connTuple, opts.nppBacklog),
 
@@ -120,6 +126,7 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 	}
 
 	go m.listen(ctx)
+	go m.listenQUIC(ctx)
 	go m.listenPuncher(ctx)
 	go m.listenRelay(ctx)
 
@@ -139,6 +146,56 @@ func (m *Listener) listen(ctx context.Context) {
 			m.log.Info("finished listening on Accept error", zap.Error(err))
 			return
 		}
+	}
+}
+
+func (m *Listener) listenQUIC(ctx context.Context) error {
+	if m.puncherNewQUIC == nil {
+		return nil
+	}
+
+	defer m.log.Info("finished listening QUIC NPP")
+
+	timeout := m.minBackoffInterval
+
+	for {
+		timer := time.NewTimer(timeout)
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+			// Okay, let's go.
+		}
+
+		if m.puncherQUIC == nil {
+			m.log.Debug("constructing new QUIC puncher")
+			puncher, err := m.puncherNewQUIC(ctx)
+			if err != nil {
+				m.log.Warn("failed to construct a QUIC puncher", zap.Error(err))
+				if timeout < m.maxBackoffInterval {
+					timeout = 2 * timeout
+				}
+				continue
+			}
+
+			m.log.Debug("QUIC puncher has been constructed", zap.Stringer("remote", puncher.RemoteAddr()))
+			m.puncherQUIC = puncher
+
+			timeout = m.minBackoffInterval
+		}
+
+		connTuple := newConnTuple(m.puncherQUIC.AcceptContext(ctx))
+		if connTuple.IsRendezvousError() {
+			// In case of any rendezvous errors it's better to reconnect.
+			// Just in case.
+			// todo: reconnect only if error is on network level.
+			m.puncherQUIC.Close()
+			m.puncherQUIC = nil
+		}
+
+		m.nppChannel <- connTuple
 	}
 }
 

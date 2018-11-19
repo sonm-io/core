@@ -66,7 +66,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
@@ -143,7 +142,7 @@ type Worker struct {
 	benchmarks  benchmarks.BenchList
 	eth         blockchain.API
 	dwh         sonm.DWHClient
-	creds       credentials.TransportCredentials
+	credentials *xgrpc.TransportCredentials
 	certRotator util.HitlessCertRotator
 	plugins     *plugin.Repository
 	whitelist   Whitelist
@@ -387,14 +386,14 @@ func (m *Worker) setupMetrics() error {
 }
 
 func (m *Worker) setupCredentials() error {
-	if m.creds == nil {
+	if m.credentials == nil {
 		certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
 		if err != nil {
 			return err
 		}
 
 		m.certRotator = certRotator
-		m.creds = util.NewTLS(TLSConfig)
+		m.credentials = xgrpc.NewTransportCredentials(TLSConfig)
 	}
 
 	return nil
@@ -402,7 +401,7 @@ func (m *Worker) setupCredentials() error {
 
 func (m *Worker) setupDWH() error {
 	if m.dwh == nil {
-		cc, err := xgrpc.NewClient(m.ctx, m.cfg.DWH.Endpoint, m.creds)
+		cc, err := xgrpc.NewClient(m.ctx, m.cfg.DWH.Endpoint, m.credentials)
 		if err != nil {
 			return err
 		}
@@ -516,7 +515,7 @@ func (m *Worker) setupSSH(view OverseerView) error {
 			sshAuthorization.Allow(*m.cfg.Admin)
 		}
 
-		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.creds, sshAuthorization, view, log.S(m.ctx))
+		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.credentials, sshAuthorization, view, log.S(m.ctx))
 		if err != nil {
 			return err
 		}
@@ -1556,7 +1555,7 @@ func (m *Worker) setupServer() error {
 	nppListener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
 		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
 		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
-		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
+		npp.WithRendezvous(m.cfg.NPP.Rendezvous, xgrpc.NewTransportCredentials(m.credentials.TLSConfig)),
 		npp.WithRelay(m.cfg.NPP.Relay, m.key),
 		npp.WithLogger(log.G(m.ctx)),
 	)
@@ -1592,7 +1591,7 @@ func (m *Worker) setupStatusServer() error {
 
 func (m *Worker) createServer(logger *zap.Logger, authRouter *auth.AuthRouter) *grpc.Server {
 	return xgrpc.NewServer(logger,
-		xgrpc.Credentials(m.creds),
+		xgrpc.Credentials(m.credentials),
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.RequestLogInterceptor([]string{"PushTask", "PullTask"}),
 		xgrpc.AuthorizationInterceptor(authRouter),
