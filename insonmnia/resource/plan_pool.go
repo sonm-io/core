@@ -120,11 +120,18 @@ func (m *pool) shrinkSpotPool(plan *sonm.AskPlan) ([]string, error) {
 func (m *pool) shrinkCommitedSpotPool(plan *sonm.AskPlan) ([]string, error) {
 	ejectedPlans := []string{}
 	available := deepcopy.Copy(m.all).(*sonm.AskPlanResources)
-	commitedSum, err := m.commitedFw.Sum()
+	commitedFwSum, err := m.commitedFw.Sum()
 	if err != nil {
 		return ejectedPlans, err
 	}
-	if err := available.Sub(commitedSum); err != nil {
+	commitedSpotSum, err := m.commitedSpot.Sum()
+	if err != nil {
+		return ejectedPlans, err
+	}
+	if err := available.Sub(commitedFwSum); err != nil {
+		return ejectedPlans, err
+	}
+	if err := available.Sub(commitedSpotSum); err != nil {
 		return ejectedPlans, err
 	}
 	return m.ejectAskPlans(plan.GetResources(), available, m.commitedSpot)
