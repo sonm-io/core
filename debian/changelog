@@ -1,3 +1,16 @@
+sonm-core (0.4.16) unstable; urgency=low
+
+  * Added: collect power consumption for GPUs (#1722).
+  * Fixed: properly eject spot committed ask-plans (#1725).
+    Subtraction of committed spot ask-plans was forgotten resulting in
+    inappropriate available resources calculation. This sometimes led to a
+    situation where the same resource was sold multiple times.
+    Now everything should work properly.
+    WARNING: we recommend everyone to update workers, otherwise, they may get
+    blacklisted.
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 19 Nov 2018 18:53:26 +0300
+
 sonm-core (0.4.15) unstable; urgency=low
 
   * Added: allow to disable Worker benchmarking in dev mode (#1707).
