@@ -1,6 +1,8 @@
 package util
 
-import "time"
+import (
+	"time"
+)
 
 type ImmediateTicker struct {
 	ticker   *time.Ticker
@@ -10,27 +12,29 @@ type ImmediateTicker struct {
 
 func NewImmediateTicker(d time.Duration) *ImmediateTicker {
 	ch := make(chan time.Time, 1)
-	it := ImmediateTicker{
+	ticker := &ImmediateTicker{
 		ticker:   time.NewTicker(d),
 		C:        ch,
 		cancelCh: make(chan struct{}),
 	}
+
 	go func() {
 		ch <- time.Now()
 		for {
 			select {
-			case time := <-it.ticker.C:
+			case timePoint := <-ticker.ticker.C:
 				select {
-				case ch <- time:
+				case ch <- timePoint:
 				default:
 				}
-			case <-it.cancelCh:
+			case <-ticker.cancelCh:
 				return
 			}
 
 		}
 	}()
-	return &it
+
+	return ticker
 }
 
 func (t *ImmediateTicker) Stop() {
