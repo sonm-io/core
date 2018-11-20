@@ -45,7 +45,7 @@ func (m *nvidiaMetrics) GetMetrics() ([]*sonm.GPUMetrics, error) {
 		}
 
 		m := &sonm.GPUMetrics{
-			Id:   dev.PCI.BusID,
+			ID:   dev.PCI.BusID,
 			Name: *dev.Model,
 		}
 
@@ -98,7 +98,7 @@ func (m *radeonMetrics) GetMetrics() ([]*sonm.GPUMetrics, error) {
 		}
 
 		metrics = append(metrics, &sonm.GPUMetrics{
-			Id:          dev.PCIBusID,
+			ID:          dev.PCIBusID,
 			Name:        dev.Name,
 			Temperature: float32(status.Temperature),
 			Fan:         float32(status.Fan),

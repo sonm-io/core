@@ -208,15 +208,15 @@ message PurgeTasksRequest {
 message WorkerMetricsRequest {}
 
 message GPUMetrics {
-    // pci bus id
-    string id = 1;
-    // human-friendly device name
+    // ID represents PCI bus id of the device
+    string ID = 1;
+    // Name is human-friendly device name, "NVidia 1080Ti"
     string name = 2;
-    // core temperature, celsius
+    // Temperature of the core, celsius
     float temperature = 3;
-    // fan speed in percent from max
+    // Fan speed in percent from max
     float fan = 4;
-    // power consumption, watts
+    // Power consumption, watts
     float power = 5;
 }
 
