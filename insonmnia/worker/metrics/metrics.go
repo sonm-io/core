@@ -27,12 +27,6 @@ type Handler struct {
 	lastState *sonm.WorkerMetricsResponse
 }
 
-// TODO(sshaman1101):
-// TODO(sshaman1101):
-// TODO(sshaman1101): COLLECT THE FUCKING PREFIXES
-// TODO(sshaman1101):
-// TODO(sshaman1101):
-
 func NewHandler(ctx context.Context, GPUConfig map[string]map[string]string) (*Handler, error) {
 	handler := &Handler{
 		GPUs:   make(map[sonm.GPUVendorType]gpu.MetricsHandler),
@@ -149,7 +143,9 @@ func (m *Handler) updateCPUMetrics() (map[string]float64, error) {
 		return nil, fmt.Errorf("CPU meter returns empty set")
 	}
 
-	return map[string]float64{"cpu_utilization": loads[0]}, nil
+	return map[string]float64{
+		sonm.MetricsKeyCPUUtilization: loads[0],
+	}, nil
 }
 
 func (m *Handler) updateDiskMetrics(ctx context.Context) (map[string]float64, error) {
@@ -162,8 +158,8 @@ func (m *Handler) updateDiskMetrics(ctx context.Context) (map[string]float64, er
 	}
 
 	metrics := map[string]float64{
-		"disk_total": float64(info.AvailableBytes),
-		"disk_free":  float64(info.FreeBytes),
+		sonm.MetricsKeyDiskTotal: float64(info.AvailableBytes),
+		sonm.MetricsKeyDiskFree:  float64(info.FreeBytes),
 	}
 
 	return metrics, nil
@@ -176,8 +172,8 @@ func (m *Handler) updateRAMMetrics() (map[string]float64, error) {
 	}
 
 	metrics := map[string]float64{
-		"ram_total": float64(meme.GetTotal()),
-		"ram_free":  float64(meme.GetAvailable()),
+		sonm.MetricsKeyRAMTotal: float64(meme.GetTotal()),
+		sonm.MetricsKeyRAMFree:  float64(meme.GetAvailable()),
 	}
 
 	return metrics, nil

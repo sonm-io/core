@@ -4,6 +4,18 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	MetricsKeyDiskFree       = "disk_free"
+	MetricsKeyDiskTotal      = "disk_total"
+	MetricsKeyRAMFree        = "ram_free"
+	MetricsKeyRAMTotal       = "ram_total"
+	MetricsKeyCPUUtilization = "cpu_utilization"
+	MetricsKeyGPUPrefix      = "gpu"
+	MetricsKeyGPUTemperature = "temp"
+	MetricsKeyGPUFan         = "fan"
+	MetricsKeyGPUPower       = "power"
+)
+
 func (m *TaskTag) MarshalYAML() (interface{}, error) {
 	if m.GetData() == nil {
 		return nil, nil

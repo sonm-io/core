@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/proto"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
 	"go.uber.org/zap"
 )
@@ -43,24 +44,25 @@ func (m *nvidiaMetrics) GetMetrics() (map[string]float64, error) {
 			return nil, fmt.Errorf("failed to get device status for GPU `%s`: %v", *dev.Model, err)
 		}
 
-		prefix := fmt.Sprintf("gpu%d_", i)
+		var temp float64 = 0
+		var fan float64 = 0
+		var power float64 = 0
+
 		if status.Temperature != nil {
-			metrics[prefix+"temp"] = float64(*status.Temperature)
-		} else {
-			metrics[prefix+"temp"] = 0
+			temp = float64(*status.Temperature)
 		}
 
 		if status.FanSpeed != nil {
-			metrics[prefix+"fan"] = float64(*status.FanSpeed)
-		} else {
-			metrics[prefix+"fan"] = 0
+			fan = float64(*status.FanSpeed)
 		}
 
 		if status.Power != nil {
-			metrics[prefix+"power"] = float64(*status.Power)
-		} else {
-			metrics[prefix+"power"] = 0
+			power = float64(*status.Power)
 		}
+
+		metrics[tempKey(i)] = temp
+		metrics[fanKey(i)] = fan
+		metrics[powerKey(i)] = power
 	}
 
 	return metrics, nil
@@ -96,10 +98,9 @@ func (m *radeonMetrics) GetMetrics() (map[string]float64, error) {
 			return nil, fmt.Errorf("failed to get device status for GPU `%s`: %v", dev.Name, err)
 		}
 
-		prefix := fmt.Sprintf("gpu%d_", i)
-		metrics[prefix+"temp"] = status.Temperature
-		metrics[prefix+"fan"] = status.Fan
-		metrics[prefix+"power"] = status.Power
+		metrics[tempKey(i)] = status.Temperature
+		metrics[fanKey(i)] = status.Fan
+		metrics[powerKey(i)] = status.Power
 	}
 
 	return metrics, nil
@@ -107,4 +108,16 @@ func (m *radeonMetrics) GetMetrics() (map[string]float64, error) {
 
 func (m *radeonMetrics) Close() error {
 	return nil
+}
+
+func tempKey(i int) string {
+	return fmt.Sprintf("%s%d_%s", sonm.MetricsKeyGPUPrefix, i, sonm.MetricsKeyGPUTemperature)
+}
+
+func fanKey(i int) string {
+	return fmt.Sprintf("%s%d_%s", sonm.MetricsKeyGPUPrefix, i, sonm.MetricsKeyGPUFan)
+}
+
+func powerKey(i int) string {
+	return fmt.Sprintf("%s%d_%s", sonm.MetricsKeyGPUPrefix, i, sonm.MetricsKeyGPUPower)
 }
