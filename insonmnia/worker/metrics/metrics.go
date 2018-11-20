@@ -28,8 +28,9 @@ type Handler struct {
 
 func NewHandler(log *zap.Logger, GPUConfig map[string]map[string]string) (*Handler, error) {
 	handler := &Handler{
-		GPUs:   make(map[sonm.GPUVendorType]gpu.MetricsHandler),
-		logger: log.Named("metrix"),
+		lastState: &sonm.WorkerMetricsResponse{},
+		GPUs:      make(map[sonm.GPUVendorType]gpu.MetricsHandler),
+		logger:    log.Named("metrix"),
 	}
 
 	handler.logger.Debug("initializing metrics handler")
