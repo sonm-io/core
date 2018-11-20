@@ -27,6 +27,12 @@ type Handler struct {
 	lastState *sonm.WorkerMetricsResponse
 }
 
+// TODO(sshaman1101):
+// TODO(sshaman1101):
+// TODO(sshaman1101): COLLECT THE FUCKING PREFIXES
+// TODO(sshaman1101):
+// TODO(sshaman1101):
+
 func NewHandler(ctx context.Context, GPUConfig map[string]map[string]string) (*Handler, error) {
 	handler := &Handler{
 		GPUs:   make(map[sonm.GPUVendorType]gpu.MetricsHandler),
@@ -77,25 +83,25 @@ func (m *Handler) update(ctx context.Context) {
 	m.logger.Debug("updating hardware metrics")
 	isError := false
 
-	g, err := m.updateGPUMetrics()
+	gpuMetrics, err := m.updateGPUMetrics()
 	if err != nil {
 		m.logger.Warn("failed to update GPU metrics", zap.Error(err))
 		isError = true
 	}
 
-	c, err := m.updateCPUMetrics()
+	cpuMetrics, err := m.updateCPUMetrics()
 	if err != nil {
 		m.logger.Warn("failed to update CPU metrics", zap.Error(err))
 		isError = true
 	}
 
-	d, err := m.updateDiskMetrics(ctx)
+	diskMetrics, err := m.updateDiskMetrics(ctx)
 	if err != nil {
 		m.logger.Warn("failed to update disk metrics", zap.Error(err))
 		isError = true
 	}
 
-	r, err := m.updateRAMMetrics()
+	ramMetrics, err := m.updateRAMMetrics()
 	if err != nil {
 		m.logger.Warn("failed to update RAM metrics", zap.Error(err))
 		isError = true
@@ -104,44 +110,49 @@ func (m *Handler) update(ctx context.Context) {
 	// do not update metrics if some part is failed
 	if !isError {
 		m.mu.Lock()
-		m.lastState = &sonm.WorkerMetricsResponse{
-			GPUMetrics:  g,
-			CpuMetrics:  c,
-			DiskMetrics: d,
-			RamMetrics:  r,
-		}
-		m.mu.Unlock()
 
-		m.logger.Debug("new metrics received") // todo: remove
+		newState := &sonm.WorkerMetricsResponse{}
+		newState.
+			Append(gpuMetrics).
+			Append(cpuMetrics).
+			Append(diskMetrics).
+			Append(ramMetrics)
+		m.lastState = newState
+
+		m.mu.Unlock()
 	}
 }
 
-func (m *Handler) updateGPUMetrics() ([]*sonm.GPUMetrics, error) {
-	var result []*sonm.GPUMetrics
-
+func (m *Handler) updateGPUMetrics() (map[string]float64, error) {
+	result := make(map[string]float64)
 	for _, h := range m.GPUs {
 		metrics, err := h.GetMetrics()
 		if err != nil {
 			return nil, fmt.Errorf("failed to update GPU metrics: %v", err)
 		}
 
-		result = append(result, metrics...)
+		for k, v := range metrics {
+			result[k] = v
+		}
 	}
 
 	return result, nil
 }
 
-func (m *Handler) updateCPUMetrics() (*sonm.CPUMetrics, error) {
+func (m *Handler) updateCPUMetrics() (map[string]float64, error) {
 	loads, err := cpu.Percent(time.Second, false)
 	if err != nil {
 		return nil, err
 	}
 
-	u := float32(loads[0])
-	return &sonm.CPUMetrics{Utilization: u}, nil
+	if len(loads) == 0 {
+		return nil, fmt.Errorf("CPU meter returns empty set")
+	}
+
+	return map[string]float64{"cpu_utilization": loads[0]}, nil
 }
 
-func (m *Handler) updateDiskMetrics(ctx context.Context) (*sonm.DiskMetrics, error) {
+func (m *Handler) updateDiskMetrics(ctx context.Context) (map[string]float64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -150,28 +161,26 @@ func (m *Handler) updateDiskMetrics(ctx context.Context) (*sonm.DiskMetrics, err
 		return nil, err
 	}
 
-	dm := &sonm.DiskMetrics{
-		Total: info.AvailableBytes,
-		Free:  info.FreeBytes,
+	metrics := map[string]float64{
+		"disk_total": float64(info.AvailableBytes),
+		"disk_free":  float64(info.FreeBytes),
 	}
 
-	return dm, nil
+	return metrics, nil
 }
 
-func (m *Handler) updateRAMMetrics() (*sonm.RAMMetrics, error) {
+func (m *Handler) updateRAMMetrics() (map[string]float64, error) {
 	meme, err := ram.NewRAMDevice()
 	if err != nil {
 		return nil, err
 	}
 
-	// FIXME: should we collect all available RAM
-	// or only limited by cgroup for the worker?
-	r := &sonm.RAMMetrics{
-		Total: meme.GetTotal(),
-		Free:  meme.GetAvailable(),
+	metrics := map[string]float64{
+		"ram_total": float64(meme.GetTotal()),
+		"ram_free":  float64(meme.GetAvailable()),
 	}
 
-	return r, nil
+	return metrics, nil
 }
 
 func (m *Handler) Get() *sonm.WorkerMetricsResponse {

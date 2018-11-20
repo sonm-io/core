@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/proto"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
 	"go.uber.org/zap"
 )
@@ -33,35 +32,35 @@ func newNvidiaMetricsHandler(ctx context.Context) (MetricsHandler, error) {
 	return &nvidiaMetrics{devices: devices}, nil
 }
 
-func (m *nvidiaMetrics) GetMetrics() ([]*sonm.GPUMetrics, error) {
+func (m *nvidiaMetrics) GetMetrics() (map[string]float64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	var metrics []*sonm.GPUMetrics
-	for _, dev := range m.devices {
+	metrics := make(map[string]float64)
+	for i, dev := range m.devices {
 		status, err := dev.Status()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device status for GPU `%s`: %v", *dev.Model, err)
 		}
 
-		m := &sonm.GPUMetrics{
-			ID:   dev.PCI.BusID,
-			Name: *dev.Model,
-		}
-
+		prefix := fmt.Sprintf("gpu%d_", i)
 		if status.Temperature != nil {
-			m.Temperature = float32(*status.Temperature)
+			metrics[prefix+"temp"] = float64(*status.Temperature)
+		} else {
+			metrics[prefix+"temp"] = 0
 		}
 
 		if status.FanSpeed != nil {
-			m.Fan = float32(*status.FanSpeed)
+			metrics[prefix+"fan"] = float64(*status.FanSpeed)
+		} else {
+			metrics[prefix+"fan"] = 0
 		}
 
 		if status.Power != nil {
-			m.Power = float32(*status.Power)
+			metrics[prefix+"power"] = float64(*status.Power)
+		} else {
+			metrics[prefix+"power"] = 0
 		}
-
-		metrics = append(metrics, m)
 	}
 
 	return metrics, nil
@@ -86,24 +85,21 @@ func newRadeonMetricsHandler(ctx context.Context) (MetricsHandler, error) {
 	return &radeonMetrics{devices: devices}, nil
 }
 
-func (m *radeonMetrics) GetMetrics() ([]*sonm.GPUMetrics, error) {
+func (m *radeonMetrics) GetMetrics() (map[string]float64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	var metrics []*sonm.GPUMetrics
-	for _, dev := range m.devices {
+	metrics := make(map[string]float64)
+	for i, dev := range m.devices {
 		status, err := dev.Metrics()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device status for GPU `%s`: %v", dev.Name, err)
 		}
 
-		metrics = append(metrics, &sonm.GPUMetrics{
-			ID:          dev.PCIBusID,
-			Name:        dev.Name,
-			Temperature: float32(status.Temperature),
-			Fan:         float32(status.Fan),
-			Power:       float32(status.Power),
-		})
+		prefix := fmt.Sprintf("gpu%d_", i)
+		metrics[prefix+"temp"] = status.Temperature
+		metrics[prefix+"fan"] = status.Fan
+		metrics[prefix+"power"] = status.Power
 	}
 
 	return metrics, nil

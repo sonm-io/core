@@ -207,40 +207,6 @@ message PurgeTasksRequest {
 
 message WorkerMetricsRequest {}
 
-message GPUMetrics {
-    // ID represents PCI bus id of the device
-    string ID = 1;
-    // Name is human-friendly device name, "NVidia 1080Ti"
-    string name = 2;
-    // Temperature of the core, celsius
-    float temperature = 3;
-    // Fan speed in percent from max
-    float fan = 4;
-    // Power consumption, watts
-    float power = 5;
-}
-
-message CPUMetrics {
-    float utilization = 1;
-}
-
-message RAMMetrics {
-    uint64 total = 1;
-    uint64 free = 2;
-}
-
-message DiskMetrics {
-    uint64 total = 1;
-    uint64 free = 2;
-}
-
 message WorkerMetricsResponse{
-    float LA1 = 1;
-    float LA5 = 2;
-    float LA15 = 3;
-
-    CPUMetrics cpuMetrics = 4;
-    RAMMetrics ramMetrics = 5;
-    DiskMetrics diskMetrics = 6;
-    repeated GPUMetrics GPUMetrics = 7;
+    map<string, double> metrics = 1;
 }

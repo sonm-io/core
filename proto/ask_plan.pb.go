@@ -169,10 +169,6 @@ It has these top-level messages:
 	DebugStateReply
 	PurgeTasksRequest
 	WorkerMetricsRequest
-	GPUMetrics
-	CPUMetrics
-	RAMMetrics
-	DiskMetrics
 	WorkerMetricsResponse
 */
 package sonm
