@@ -66,54 +66,54 @@ func (m *Handler) Run(ctx context.Context) {
 				m.logger.Warn("context cancelled", zap.Error(ctx.Err()))
 				return
 			case <-tk.C:
-				m.update(ctx)
+				if err := m.update(ctx); err != nil {
+					m.logger.Warn("failed to update metrics", zap.Error(err))
+				}
 			}
 		}
 	}()
 }
 
-func (m *Handler) update(ctx context.Context) {
+func (m *Handler) update(ctx context.Context) error {
 	m.logger.Debug("updating hardware metrics")
-	isError := false
+	merr := multierror.NewMultiError()
 
 	gpuMetrics, err := m.updateGPUMetrics()
 	if err != nil {
-		m.logger.Warn("failed to update GPU metrics", zap.Error(err))
-		isError = true
+		merr = multierror.Append(merr, fmt.Errorf("failed to update GPU metrics: %v", err))
 	}
 
 	cpuMetrics, err := m.updateCPUMetrics()
 	if err != nil {
-		m.logger.Warn("failed to update CPU metrics", zap.Error(err))
-		isError = true
+		merr = multierror.Append(merr, fmt.Errorf("failed to update CPU metrics: %v", err))
 	}
 
 	diskMetrics, err := m.updateDiskMetrics(ctx)
 	if err != nil {
-		m.logger.Warn("failed to update disk metrics", zap.Error(err))
-		isError = true
+		merr = multierror.Append(merr, fmt.Errorf("failed to update disk metrics: %v", err))
 	}
 
 	ramMetrics, err := m.updateRAMMetrics()
 	if err != nil {
-		m.logger.Warn("failed to update RAM metrics", zap.Error(err))
-		isError = true
+		merr = multierror.Append(merr, fmt.Errorf("failed to update RAM metrics: %v", err))
 	}
 
-	// do not update metrics if some part is failed
-	if !isError {
-		m.mu.Lock()
-
-		newState := &sonm.WorkerMetricsResponse{}
-		newState.
-			Append(gpuMetrics).
-			Append(cpuMetrics).
-			Append(diskMetrics).
-			Append(ramMetrics)
-		m.lastState = newState
-
-		m.mu.Unlock()
+	if merr.ErrorOrNil() != nil {
+		return merr.ErrorOrNil()
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	newState := &sonm.WorkerMetricsResponse{}
+	newState.
+		Append(gpuMetrics).
+		Append(cpuMetrics).
+		Append(diskMetrics).
+		Append(ramMetrics)
+	m.lastState = newState
+
+	return nil
 }
 
 func (m *Handler) updateGPUMetrics() (map[string]float64, error) {
