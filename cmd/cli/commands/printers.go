@@ -448,7 +448,7 @@ type ExtendedDealInfo struct {
 	Bid            *sonm.Order                   `json:"bid"`
 }
 
-func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlags) {
+func printDealInfo(cmd Printer, info *ExtendedDealInfo, flags printerFlags) {
 	if isSimpleFormat() {
 		deal := info.GetDeal()
 		isClosed := deal.GetStatus() == sonm.DealStatus_DEAL_CLOSED
