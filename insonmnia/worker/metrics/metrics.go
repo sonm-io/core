@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/hardware/ram"
@@ -27,10 +26,10 @@ type Handler struct {
 	lastState *sonm.WorkerMetricsResponse
 }
 
-func NewHandler(ctx context.Context, GPUConfig map[string]map[string]string) (*Handler, error) {
+func NewHandler(log *zap.Logger, GPUConfig map[string]map[string]string) (*Handler, error) {
 	handler := &Handler{
 		GPUs:   make(map[sonm.GPUVendorType]gpu.MetricsHandler),
-		logger: ctxlog.GetLogger(ctx).Named("metrix"),
+		logger: log.Named("metrix"),
 	}
 
 	handler.logger.Debug("initializing metrics handler")
@@ -41,13 +40,13 @@ func NewHandler(ctx context.Context, GPUConfig map[string]map[string]string) (*H
 			return nil, err
 		}
 
-		h, err := gpu.NewMetricsHandler(ctx, typeID)
+		h, err := gpu.NewMetricsHandler(typeID)
 		if err != nil {
 			handler.logger.Error("failed to initialize GPU metrics plugin", zap.String("vendor", vendor), zap.Error(err))
 			return nil, err
 		}
 
-		handler.logger.Debug("successfully created GPU handler", zap.String("vendor", vendor))
+		handler.logger.Debug("successfully created GPU metrics handler", zap.String("vendor", vendor))
 		handler.GPUs[typeID] = h
 	}
 

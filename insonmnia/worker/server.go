@@ -374,7 +374,7 @@ func (m *Worker) setupPlugins() error {
 }
 
 func (m *Worker) setupMetrics() error {
-	h, err := metrics.NewHandler(m.ctx, m.cfg.Plugins.GPUs)
+	h, err := metrics.NewHandler(log.G(m.ctx), m.cfg.Plugins.GPUs)
 	if err != nil {
 		return err
 	}

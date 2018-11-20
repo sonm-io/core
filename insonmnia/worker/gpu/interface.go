@@ -45,14 +45,13 @@ type MetricsHandler interface {
 	Close() error
 }
 
-func NewMetricsHandler(ctx context.Context, gpuType sonm.GPUVendorType) (MetricsHandler, error) {
+func NewMetricsHandler(gpuType sonm.GPUVendorType) (MetricsHandler, error) {
 	switch gpuType {
 	case sonm.GPUVendorType_RADEON:
-		return newRadeonMetricsHandler(ctx)
+		return newRadeonMetricsHandler()
 	case sonm.GPUVendorType_NVIDIA:
-		return newNvidiaMetricsHandler(ctx)
+		return newNvidiaMetricsHandler()
 	default:
-		log.G(ctx).Debug("cannot detect gpu type, use nil metrics handler", zap.Int32("given_type", int32(gpuType)))
 		return nilMetricsHandler{}, nil
 	}
 }

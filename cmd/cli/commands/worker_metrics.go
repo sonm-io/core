@@ -17,12 +17,17 @@ var workerMetricsCmd = &cobra.Command{
 			return fmt.Errorf("cannot get metrics: %v", err)
 		}
 
-		data, err := yaml.Marshal(metrics)
-		if err != nil {
-			return fmt.Errorf("failed to marshal metrics into YAML: %v", err)
+		if isSimpleFormat() {
+			data, err := yaml.Marshal(metrics)
+			if err != nil {
+				return fmt.Errorf("failed to marshal metrics into YAML: %v", err)
+			}
+
+			cmd.Println(string(data))
+		} else {
+			showJSON(cmd, metrics)
 		}
 
-		cmd.Println(string(data))
 		return nil
 	},
 }

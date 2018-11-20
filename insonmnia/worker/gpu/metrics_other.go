@@ -2,12 +2,10 @@
 
 package gpu
 
-import "context"
-
-func newNvidiaMetricsHandler(ctx context.Context) (MetricsHandler, error) {
+func newNvidiaMetricsHandler() (MetricsHandler, error) {
 	return nilMetricsHandler{}, nil
 }
 
-func newRadeonMetricsHandler(ctx context.Context) (MetricsHandler, error) {
+func newRadeonMetricsHandler() (MetricsHandler, error) {
 	return nilMetricsHandler{}, nil
 }

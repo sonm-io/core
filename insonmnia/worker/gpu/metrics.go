@@ -3,14 +3,11 @@
 package gpu
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/proto"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
-	"go.uber.org/zap"
 )
 
 type nvidiaMetrics struct {
@@ -18,16 +15,14 @@ type nvidiaMetrics struct {
 	devices []nvidia.Device
 }
 
-func newNvidiaMetricsHandler(ctx context.Context) (MetricsHandler, error) {
+func newNvidiaMetricsHandler() (MetricsHandler, error) {
 	if err := nvidia.Init(); err != nil {
-		ctxlog.G(ctx).Error("failed to load NVML", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("failed to load NVML: %v", err)
 	}
 
 	devices, err := nvidia.LookupDevices()
 	if err != nil {
-		ctxlog.G(ctx).Error("failed to collect devices via NVML", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("failed to collect devices via NVML: %v", err)
 	}
 
 	return &nvidiaMetrics{devices: devices}, nil
@@ -77,11 +72,10 @@ type radeonMetrics struct {
 	devices []DRICard
 }
 
-func newRadeonMetricsHandler(ctx context.Context) (MetricsHandler, error) {
+func newRadeonMetricsHandler() (MetricsHandler, error) {
 	devices, err := CollectDRICardDevices()
 	if err != nil {
-		ctxlog.G(ctx).Error("failed to collect DRI devices", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("failed to collect DRI devices: %v", err)
 	}
 
 	return &radeonMetrics{devices: devices}, nil
