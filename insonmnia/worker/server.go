@@ -172,7 +172,7 @@ type Worker struct {
 
 	// Geolocation info.
 	country *geoip2.Country
-	// hardware metrics for various hardware types
+	// Hardware metrics for various hardware types.
 	metrics *metrics.Handler
 }
 
