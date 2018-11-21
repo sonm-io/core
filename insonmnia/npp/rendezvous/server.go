@@ -251,7 +251,7 @@ func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*so
 }
 
 func (m *Server) addServerWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, deleter) {
-	c := make(chan Peer, 1)
+	c := make(chan Peer, 2)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -275,7 +275,7 @@ func (m *Server) addServerWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, del
 }
 
 func (m *Server) newClientWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, deleter) {
-	c := make(chan Peer, 1)
+	c := make(chan Peer, 2)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
