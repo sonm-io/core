@@ -56,5 +56,14 @@ func TestMarshalUnmarshalTaskTag(t *testing.T) {
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, initial.Data, receiver.Data)
 	}
+}
 
+func TestMetricsAppend(t *testing.T) {
+	m := &WorkerMetricsResponse{}
+	x1 := map[string]float64{"x1": 123}
+	x2 := map[string]float64{"x2": 123}
+	x3 := map[string]float64{"x3": 123}
+
+	m.Append(x1, x2).Append(x3)
+	assert.Len(t, m.Metrics, 3)
 }

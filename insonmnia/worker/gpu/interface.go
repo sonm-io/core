@@ -38,6 +38,29 @@ func New(ctx context.Context, gpuType sonm.GPUVendorType, opts ...Option) (Tuner
 	}
 }
 
+// MetricsHandlers returns hardware-dependent implementation
+// of GPU metrics interface.
+type MetricsHandler interface {
+	GetMetrics() (map[string]float64, error)
+	Close() error
+}
+
+func NewMetricsHandler(gpuType sonm.GPUVendorType) (MetricsHandler, error) {
+	switch gpuType {
+	case sonm.GPUVendorType_RADEON:
+		return newRadeonMetricsHandler()
+	case sonm.GPUVendorType_NVIDIA:
+		return newNvidiaMetricsHandler()
+	default:
+		return nilMetricsHandler{}, nil
+	}
+}
+
+type nilMetricsHandler struct{}
+
+func (nilMetricsHandler) GetMetrics() (map[string]float64, error) { return map[string]float64{}, nil }
+func (nilMetricsHandler) Close() error                            { return nil }
+
 // NilTuner is just a null pattern
 type NilTuner struct{}
 

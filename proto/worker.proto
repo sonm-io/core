@@ -49,6 +49,8 @@ service WorkerManagement {
     rpc RemoveBenchmark(NumericID) returns (Empty) {}
     // Schedule full rebenchmarking on next restart
     rpc PurgeBenchmarks(Empty) returns (Empty) {}
+    // Metrics returns hardware metrics for this worker.
+    rpc Metrics(WorkerMetricsRequest) returns (WorkerMetricsResponse) {}
 }
 
 service Worker {
@@ -201,4 +203,10 @@ message DebugStateReply {
 
 message PurgeTasksRequest {
     BigInt dealID = 1;
+}
+
+message WorkerMetricsRequest {}
+
+message WorkerMetricsResponse{
+    map<string, double> metrics = 1;
 }
