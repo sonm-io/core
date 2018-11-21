@@ -85,7 +85,6 @@ require (
 	github.com/mattn/go-colorable v0.0.0-20180310133214-efa589957cd0
 	github.com/mattn/go-isatty v0.0.4
 	github.com/mattn/go-runewidth v0.0.0-20170510074858-97311d9f7767
-	github.com/mattn/go-sqlite3 v0.0.0-20180307072036-9101028e5ca8
 	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/miekg/dns v1.0.4
 	github.com/mitchellh/go-homedir v0.0.0-20180523094522-3864e76763d9
