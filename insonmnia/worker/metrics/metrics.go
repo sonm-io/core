@@ -56,7 +56,8 @@ func NewHandler(log *zap.Logger, GPUConfig map[string]map[string]string) (*Handl
 
 func (m *Handler) Run(ctx context.Context) {
 	go func() {
-		m.logger.Debug("starting metrics collection")
+		m.logger.Info("starting metrics collection")
+		defer m.logger.Info("stopping metrics collection")
 
 		tk := util.NewImmediateTicker(time.Minute)
 		defer tk.Stop()
@@ -64,7 +65,6 @@ func (m *Handler) Run(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
-				m.logger.Warn("context cancelled", zap.Error(ctx.Err()))
 				return
 			case <-tk.C:
 				if err := m.update(ctx); err != nil {
@@ -99,19 +99,15 @@ func (m *Handler) update(ctx context.Context) error {
 		merr = multierror.Append(merr, fmt.Errorf("failed to update RAM metrics: %v", err))
 	}
 
-	if merr.ErrorOrNil() != nil {
-		return merr.ErrorOrNil()
+	if err := merr.ErrorOrNil(); err != nil {
+		return err
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	newState := &sonm.WorkerMetricsResponse{}
-	newState.
-		Append(gpuMetrics).
-		Append(cpuMetrics).
-		Append(diskMetrics).
-		Append(ramMetrics)
+	newState.Append(gpuMetrics, cpuMetrics, diskMetrics, ramMetrics)
 	m.lastState = newState
 
 	return nil

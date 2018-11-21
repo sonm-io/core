@@ -38,13 +38,15 @@ func (m *TaskTag) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func (m *WorkerMetricsResponse) Append(x map[string]float64) *WorkerMetricsResponse {
+func (m *WorkerMetricsResponse) Append(x ...map[string]float64) *WorkerMetricsResponse {
 	if m.Metrics == nil {
 		m.Metrics = make(map[string]float64)
 	}
 
-	for k, v := range x {
-		m.Metrics[k] = v
+	for _, item := range x {
+		for k, v := range item {
+			m.Metrics[k] = v
+		}
 	}
 
 	return m
