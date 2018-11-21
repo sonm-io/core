@@ -15,10 +15,10 @@ import (
 )
 
 // DeployListABI is the input ABI used to generate the binding from.
-const DeployListABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_deployers\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"deployer\",\"type\":\"address\"}],\"name\":\"DeployerAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"deployer\",\"type\":\"address\"}],\"name\":\"DeployerRemoved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deployer\",\"type\":\"address\"}],\"name\":\"addDeployer\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deployer\",\"type\":\"address\"}],\"name\":\"removeDeployer\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getDeployers\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const DeployListABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_deployers\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"deployer\",\"type\":\"address\"}],\"name\":\"DeployerAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"deployer\",\"type\":\"address\"}],\"name\":\"DeployerRemoved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deployer\",\"type\":\"address\"}],\"name\":\"addDeployer\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deployer\",\"type\":\"address\"}],\"name\":\"removeDeployer\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getDeployers\",\"outputs\":[{\"name\":\"\",\"type\":\"address[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // DeployListBin is the compiled bytecode used for deploying new contracts.
-const DeployListBin = `0x608060405234801561001057600080fd5b5060405161054a38038061054a8339810160405280516000805433600160a060020a0319918216811790911617905501805161005390600190602084019061005a565b50506100e6565b8280548282559060005260206000209081019282156100af579160200282015b828111156100af5782518254600160a060020a031916600160a060020a0390911617825560209092019160019091019061007a565b506100bb9291506100bf565b5090565b6100e391905b808211156100bb578054600160a060020a03191681556001016100c5565b90565b610455806100f56000396000f30060806040526004361061006c5763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663607c12b58114610071578063880f4039146100d65780638da5cb5b146100f9578063f2fde38b1461012a578063f315df861461014b575b600080fd5b34801561007d57600080fd5b5061008661016c565b60408051602080825283518183015283519192839290830191858101910280838360005b838110156100c25781810151838201526020016100aa565b505050509050019250505060405180910390f35b3480156100e257600080fd5b506100f7600160a060020a03600435166101ce565b005b34801561010557600080fd5b5061010e610275565b60408051600160a060020a039092168252519081900360200190f35b34801561013657600080fd5b506100f7600160a060020a0360043516610284565b34801561015757600080fd5b506100f7600160a060020a0360043516610318565b606060018054806020026020016040519081016040528092919081815260200182805480156101c457602002820191906000526020600020905b8154600160a060020a031681526001909101906020018083116101a6575b5050505050905090565b600054600160a060020a031633146101e557600080fd5b6001805480820182556000919091527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6018054600160a060020a03831673ffffffffffffffffffffffffffffffffffffffff19909116811790915560408051918252517f861a21548a3ee34d896ccac3668a9d65030aaf2cb7367a2ed13608014016a0329181900360200190a150565b600054600160a060020a031681565b600054600160a060020a0316331461029b57600080fd5b600160a060020a03811615156102b057600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b60008054600160a060020a0316331461033057600080fd5b5060005b600154600019018110156103e95781600160a060020a031660018281548110151561035b57fe5b600091825260209091200154600160a060020a031614156103e15760018054600019810190811061038857fe5b60009182526020909120015460018054600160a060020a0390921691839081106103ae57fe5b9060005260206000200160006101000a815481600160a060020a030219169083600160a060020a031602179055506103e9565b600101610334565b60408051600160a060020a038416815290517ffdb22628e87f888d060acc53d048a6a8400a5024f81f9dcb0606e723f238864a9181900360200190a150505600a165627a7a72305820d9a3fd32a98b0ce0e11db6967c137309c32184ef1cedd00c211c533552c3a0820029`
+const DeployListBin = `0x608060405234801561001057600080fd5b5060405161063e38038061063e8339810160405280516000805433600160a060020a0319918216811790911617905501805161005390600190602084019061005a565b50506100e6565b8280548282559060005260206000209081019282156100af579160200282015b828111156100af5782518254600160a060020a031916600160a060020a0390911617825560209092019160019091019061007a565b506100bb9291506100bf565b5090565b6100e391905b808211156100bb578054600160a060020a03191681556001016100c5565b90565b610549806100f56000396000f3006080604052600436106100775763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663607c12b5811461007c578063715018a6146100e1578063880f4039146100f85780638da5cb5b14610119578063f2fde38b1461014a578063f315df861461016b575b600080fd5b34801561008857600080fd5b5061009161018c565b60408051602080825283518183015283519192839290830191858101910280838360005b838110156100cd5781810151838201526020016100b5565b505050509050019250505060405180910390f35b3480156100ed57600080fd5b506100f66101ef565b005b34801561010457600080fd5b506100f6600160a060020a036004351661025b565b34801561012557600080fd5b5061012e610302565b60408051600160a060020a039092168252519081900360200190f35b34801561015657600080fd5b506100f6600160a060020a0360043516610311565b34801561017757600080fd5b506100f6600160a060020a0360043516610334565b606060018054806020026020016040519081016040528092919081815260200182805480156101e457602002820191906000526020600020905b8154600160a060020a031681526001909101906020018083116101c6575b505050505090505b90565b600054600160a060020a0316331461020657600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b600054600160a060020a0316331461027257600080fd5b6001805480820182556000919091527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6018054600160a060020a03831673ffffffffffffffffffffffffffffffffffffffff19909116811790915560408051918252517f861a21548a3ee34d896ccac3668a9d65030aaf2cb7367a2ed13608014016a0329181900360200190a150565b600054600160a060020a031681565b600054600160a060020a0316331461032857600080fd5b61033181610459565b50565b60008054600160a060020a0316331461034c57600080fd5b5060005b600154600019018110156104055781600160a060020a031660018281548110151561037757fe5b600091825260209091200154600160a060020a031614156103fd576001805460001981019081106103a457fe5b60009182526020909120015460018054600160a060020a0390921691839081106103ca57fe5b9060005260206000200160006101000a815481600160a060020a030219169083600160a060020a03160217905550610405565b600101610350565b60018054600019019061041890826104d6565b5060408051600160a060020a038416815290517ffdb22628e87f888d060acc53d048a6a8400a5024f81f9dcb0606e723f238864a9181900360200190a15050565b600160a060020a038116151561046e57600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b8154818355818111156104fa576000838152602090206104fa9181019083016104ff565b505050565b6101ec91905b808211156105195760008155600101610505565b50905600a165627a7a72305820c7173b06448fa04179ebbe11acdf2d3c14cc72bdbb6587d0878c25897df3e1bb0029`
 
 // DeployDeployList deploys a new Ethereum contract, binding an instance of DeployList to it.
 func DeployDeployList(auth *bind.TransactOpts, backend bind.ContractBackend, _deployers []common.Address) (common.Address, *types.Transaction, *DeployList, error) {
@@ -269,25 +269,46 @@ func (_DeployList *DeployListTransactorSession) RemoveDeployer(_deployer common.
 	return _DeployList.Contract.RemoveDeployer(&_DeployList.TransactOpts, _deployer)
 }
 
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_DeployList *DeployListTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
-	return _DeployList.contract.Transact(opts, "transferOwnership", newOwner)
+// Solidity: function renounceOwnership() returns()
+func (_DeployList *DeployListTransactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _DeployList.contract.Transact(opts, "renounceOwnership")
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_DeployList *DeployListSession) RenounceOwnership() (*types.Transaction, error) {
+	return _DeployList.Contract.RenounceOwnership(&_DeployList.TransactOpts)
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_DeployList *DeployListTransactorSession) RenounceOwnership() (*types.Transaction, error) {
+	return _DeployList.Contract.RenounceOwnership(&_DeployList.TransactOpts)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_DeployList *DeployListSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _DeployList.Contract.TransferOwnership(&_DeployList.TransactOpts, newOwner)
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_DeployList *DeployListTransactor) TransferOwnership(opts *bind.TransactOpts, _newOwner common.Address) (*types.Transaction, error) {
+	return _DeployList.contract.Transact(opts, "transferOwnership", _newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_DeployList *DeployListTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _DeployList.Contract.TransferOwnership(&_DeployList.TransactOpts, newOwner)
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_DeployList *DeployListSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
+	return _DeployList.Contract.TransferOwnership(&_DeployList.TransactOpts, _newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_DeployList *DeployListTransactorSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
+	return _DeployList.Contract.TransferOwnership(&_DeployList.TransactOpts, _newOwner)
 }
 
 // DeployListDeployerAddedIterator is returned from FilterDeployerAdded and is used to iterate over the raw logs and unpacked data for DeployerAdded events raised by the DeployList contract.
@@ -365,7 +386,7 @@ type DeployListDeployerAdded struct {
 
 // FilterDeployerAdded is a free log retrieval operation binding the contract event 0x861a21548a3ee34d896ccac3668a9d65030aaf2cb7367a2ed13608014016a032.
 //
-// Solidity: event DeployerAdded(deployer address)
+// Solidity: e DeployerAdded(deployer address)
 func (_DeployList *DeployListFilterer) FilterDeployerAdded(opts *bind.FilterOpts) (*DeployListDeployerAddedIterator, error) {
 
 	logs, sub, err := _DeployList.contract.FilterLogs(opts, "DeployerAdded")
@@ -377,7 +398,7 @@ func (_DeployList *DeployListFilterer) FilterDeployerAdded(opts *bind.FilterOpts
 
 // WatchDeployerAdded is a free log subscription operation binding the contract event 0x861a21548a3ee34d896ccac3668a9d65030aaf2cb7367a2ed13608014016a032.
 //
-// Solidity: event DeployerAdded(deployer address)
+// Solidity: e DeployerAdded(deployer address)
 func (_DeployList *DeployListFilterer) WatchDeployerAdded(opts *bind.WatchOpts, sink chan<- *DeployListDeployerAdded) (event.Subscription, error) {
 
 	logs, sub, err := _DeployList.contract.WatchLogs(opts, "DeployerAdded")
@@ -487,7 +508,7 @@ type DeployListDeployerRemoved struct {
 
 // FilterDeployerRemoved is a free log retrieval operation binding the contract event 0xfdb22628e87f888d060acc53d048a6a8400a5024f81f9dcb0606e723f238864a.
 //
-// Solidity: event DeployerRemoved(deployer address)
+// Solidity: e DeployerRemoved(deployer address)
 func (_DeployList *DeployListFilterer) FilterDeployerRemoved(opts *bind.FilterOpts) (*DeployListDeployerRemovedIterator, error) {
 
 	logs, sub, err := _DeployList.contract.FilterLogs(opts, "DeployerRemoved")
@@ -499,7 +520,7 @@ func (_DeployList *DeployListFilterer) FilterDeployerRemoved(opts *bind.FilterOp
 
 // WatchDeployerRemoved is a free log subscription operation binding the contract event 0xfdb22628e87f888d060acc53d048a6a8400a5024f81f9dcb0606e723f238864a.
 //
-// Solidity: event DeployerRemoved(deployer address)
+// Solidity: e DeployerRemoved(deployer address)
 func (_DeployList *DeployListFilterer) WatchDeployerRemoved(opts *bind.WatchOpts, sink chan<- *DeployListDeployerRemoved) (event.Subscription, error) {
 
 	logs, sub, err := _DeployList.contract.WatchLogs(opts, "DeployerRemoved")
@@ -514,6 +535,138 @@ func (_DeployList *DeployListFilterer) WatchDeployerRemoved(opts *bind.WatchOpts
 				// New log arrived, parse the event and forward to the user
 				event := new(DeployListDeployerRemoved)
 				if err := _DeployList.contract.UnpackLog(event, "DeployerRemoved", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// DeployListOwnershipRenouncedIterator is returned from FilterOwnershipRenounced and is used to iterate over the raw logs and unpacked data for OwnershipRenounced events raised by the DeployList contract.
+type DeployListOwnershipRenouncedIterator struct {
+	Event *DeployListOwnershipRenounced // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *DeployListOwnershipRenouncedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(DeployListOwnershipRenounced)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(DeployListOwnershipRenounced)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *DeployListOwnershipRenouncedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *DeployListOwnershipRenouncedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// DeployListOwnershipRenounced represents a OwnershipRenounced event raised by the DeployList contract.
+type DeployListOwnershipRenounced struct {
+	PreviousOwner common.Address
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterOwnershipRenounced is a free log retrieval operation binding the contract event 0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820.
+//
+// Solidity: e OwnershipRenounced(previousOwner indexed address)
+func (_DeployList *DeployListFilterer) FilterOwnershipRenounced(opts *bind.FilterOpts, previousOwner []common.Address) (*DeployListOwnershipRenouncedIterator, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+
+	logs, sub, err := _DeployList.contract.FilterLogs(opts, "OwnershipRenounced", previousOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &DeployListOwnershipRenouncedIterator{contract: _DeployList.contract, event: "OwnershipRenounced", logs: logs, sub: sub}, nil
+}
+
+// WatchOwnershipRenounced is a free log subscription operation binding the contract event 0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820.
+//
+// Solidity: e OwnershipRenounced(previousOwner indexed address)
+func (_DeployList *DeployListFilterer) WatchOwnershipRenounced(opts *bind.WatchOpts, sink chan<- *DeployListOwnershipRenounced, previousOwner []common.Address) (event.Subscription, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+
+	logs, sub, err := _DeployList.contract.WatchLogs(opts, "OwnershipRenounced", previousOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(DeployListOwnershipRenounced)
+				if err := _DeployList.contract.UnpackLog(event, "OwnershipRenounced", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -610,7 +763,7 @@ type DeployListOwnershipTransferred struct {
 
 // FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
 func (_DeployList *DeployListFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*DeployListOwnershipTransferredIterator, error) {
 
 	var previousOwnerRule []interface{}
@@ -631,7 +784,7 @@ func (_DeployList *DeployListFilterer) FilterOwnershipTransferred(opts *bind.Fil
 
 // WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
 func (_DeployList *DeployListFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *DeployListOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
 
 	var previousOwnerRule []interface{}

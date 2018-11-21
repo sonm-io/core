@@ -16,10 +16,10 @@ import (
 )
 
 // OracleUSDABI is the input ABI used to generate the binding from.
-const OracleUSDABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"price\",\"type\":\"uint256\"}],\"name\":\"PriceChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_price\",\"type\":\"uint256\"}],\"name\":\"setCurrentPrice\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getCurrentPrice\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const OracleUSDABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"price\",\"type\":\"uint256\"}],\"name\":\"PriceChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_price\",\"type\":\"uint256\"}],\"name\":\"setCurrentPrice\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getCurrentPrice\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // OracleUSDBin is the compiled bytecode used for deploying new contracts.
-const OracleUSDBin = `0x60806040526001805534801561001457600080fd5b5060008054600160a060020a03199081163390811790911617905561022d8061003e6000396000f3006080604052600436106100615763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166318b2007181146100665780638da5cb5b14610080578063eb91d37e146100b1578063f2fde38b146100d8575b600080fd5b34801561007257600080fd5b5061007e6004356100f9565b005b34801561008c57600080fd5b50610095610158565b60408051600160a060020a039092168252519081900360200190f35b3480156100bd57600080fd5b506100c6610167565b60408051918252519081900360200190f35b3480156100e457600080fd5b5061007e600160a060020a036004351661016d565b600054600160a060020a0316331461011057600080fd5b6000811161011d57600080fd5b60018190556040805182815290517fa6dc15bdb68da224c66db4b3838d9a2b205138e8cff6774e57d0af91e196d6229181900360200190a150565b600054600160a060020a031681565b60015490565b600054600160a060020a0316331461018457600080fd5b600160a060020a038116151561019957600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03929092169190911790555600a165627a7a7230582037d10c1862b75a28dc5d7f2cc1e9dbaa5f510af5c652a5e2a563878873b592640029`
+const OracleUSDBin = `0x60806040526001805534801561001457600080fd5b5060008054600160a060020a0319908116339081179091161790556102c58061003e6000396000f30060806040526004361061006c5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166318b200718114610071578063715018a61461008b5780638da5cb5b146100a0578063eb91d37e146100d1578063f2fde38b146100f8575b600080fd5b34801561007d57600080fd5b50610089600435610119565b005b34801561009757600080fd5b50610089610178565b3480156100ac57600080fd5b506100b56101e4565b60408051600160a060020a039092168252519081900360200190f35b3480156100dd57600080fd5b506100e66101f3565b60408051918252519081900360200190f35b34801561010457600080fd5b50610089600160a060020a03600435166101f9565b600054600160a060020a0316331461013057600080fd5b6000811161013d57600080fd5b60018190556040805182815290517fa6dc15bdb68da224c66db4b3838d9a2b205138e8cff6774e57d0af91e196d6229181900360200190a150565b600054600160a060020a0316331461018f57600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b600054600160a060020a031681565b60015490565b600054600160a060020a0316331461021057600080fd5b6102198161021c565b50565b600160a060020a038116151561023157600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03929092169190911790555600a165627a7a72305820fb5a38518164e197193bcbbbc962ef7a246fbe633b9e49250d994c43ecb5d7040029`
 
 // DeployOracleUSD deploys a new Ethereum contract, binding an instance of OracleUSD to it.
 func DeployOracleUSD(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *OracleUSD, error) {
@@ -228,6 +228,27 @@ func (_OracleUSD *OracleUSDCallerSession) Owner() (common.Address, error) {
 	return _OracleUSD.Contract.Owner(&_OracleUSD.CallOpts)
 }
 
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_OracleUSD *OracleUSDTransactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _OracleUSD.contract.Transact(opts, "renounceOwnership")
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_OracleUSD *OracleUSDSession) RenounceOwnership() (*types.Transaction, error) {
+	return _OracleUSD.Contract.RenounceOwnership(&_OracleUSD.TransactOpts)
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_OracleUSD *OracleUSDTransactorSession) RenounceOwnership() (*types.Transaction, error) {
+	return _OracleUSD.Contract.RenounceOwnership(&_OracleUSD.TransactOpts)
+}
+
 // SetCurrentPrice is a paid mutator transaction binding the contract method 0x18b20071.
 //
 // Solidity: function setCurrentPrice(_price uint256) returns()
@@ -251,23 +272,155 @@ func (_OracleUSD *OracleUSDTransactorSession) SetCurrentPrice(_price *big.Int) (
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_OracleUSD *OracleUSDTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
-	return _OracleUSD.contract.Transact(opts, "transferOwnership", newOwner)
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_OracleUSD *OracleUSDTransactor) TransferOwnership(opts *bind.TransactOpts, _newOwner common.Address) (*types.Transaction, error) {
+	return _OracleUSD.contract.Transact(opts, "transferOwnership", _newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_OracleUSD *OracleUSDSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _OracleUSD.Contract.TransferOwnership(&_OracleUSD.TransactOpts, newOwner)
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_OracleUSD *OracleUSDSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
+	return _OracleUSD.Contract.TransferOwnership(&_OracleUSD.TransactOpts, _newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_OracleUSD *OracleUSDTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _OracleUSD.Contract.TransferOwnership(&_OracleUSD.TransactOpts, newOwner)
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_OracleUSD *OracleUSDTransactorSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
+	return _OracleUSD.Contract.TransferOwnership(&_OracleUSD.TransactOpts, _newOwner)
+}
+
+// OracleUSDOwnershipRenouncedIterator is returned from FilterOwnershipRenounced and is used to iterate over the raw logs and unpacked data for OwnershipRenounced events raised by the OracleUSD contract.
+type OracleUSDOwnershipRenouncedIterator struct {
+	Event *OracleUSDOwnershipRenounced // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *OracleUSDOwnershipRenouncedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(OracleUSDOwnershipRenounced)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(OracleUSDOwnershipRenounced)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *OracleUSDOwnershipRenouncedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *OracleUSDOwnershipRenouncedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// OracleUSDOwnershipRenounced represents a OwnershipRenounced event raised by the OracleUSD contract.
+type OracleUSDOwnershipRenounced struct {
+	PreviousOwner common.Address
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterOwnershipRenounced is a free log retrieval operation binding the contract event 0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820.
+//
+// Solidity: e OwnershipRenounced(previousOwner indexed address)
+func (_OracleUSD *OracleUSDFilterer) FilterOwnershipRenounced(opts *bind.FilterOpts, previousOwner []common.Address) (*OracleUSDOwnershipRenouncedIterator, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+
+	logs, sub, err := _OracleUSD.contract.FilterLogs(opts, "OwnershipRenounced", previousOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &OracleUSDOwnershipRenouncedIterator{contract: _OracleUSD.contract, event: "OwnershipRenounced", logs: logs, sub: sub}, nil
+}
+
+// WatchOwnershipRenounced is a free log subscription operation binding the contract event 0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820.
+//
+// Solidity: e OwnershipRenounced(previousOwner indexed address)
+func (_OracleUSD *OracleUSDFilterer) WatchOwnershipRenounced(opts *bind.WatchOpts, sink chan<- *OracleUSDOwnershipRenounced, previousOwner []common.Address) (event.Subscription, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+
+	logs, sub, err := _OracleUSD.contract.WatchLogs(opts, "OwnershipRenounced", previousOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(OracleUSDOwnershipRenounced)
+				if err := _OracleUSD.contract.UnpackLog(event, "OwnershipRenounced", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
 }
 
 // OracleUSDOwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the OracleUSD contract.
@@ -346,7 +499,7 @@ type OracleUSDOwnershipTransferred struct {
 
 // FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
 func (_OracleUSD *OracleUSDFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*OracleUSDOwnershipTransferredIterator, error) {
 
 	var previousOwnerRule []interface{}
@@ -367,7 +520,7 @@ func (_OracleUSD *OracleUSDFilterer) FilterOwnershipTransferred(opts *bind.Filte
 
 // WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
 func (_OracleUSD *OracleUSDFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *OracleUSDOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
 
 	var previousOwnerRule []interface{}
@@ -486,7 +639,7 @@ type OracleUSDPriceChanged struct {
 
 // FilterPriceChanged is a free log retrieval operation binding the contract event 0xa6dc15bdb68da224c66db4b3838d9a2b205138e8cff6774e57d0af91e196d622.
 //
-// Solidity: event PriceChanged(price uint256)
+// Solidity: e PriceChanged(price uint256)
 func (_OracleUSD *OracleUSDFilterer) FilterPriceChanged(opts *bind.FilterOpts) (*OracleUSDPriceChangedIterator, error) {
 
 	logs, sub, err := _OracleUSD.contract.FilterLogs(opts, "PriceChanged")
@@ -498,7 +651,7 @@ func (_OracleUSD *OracleUSDFilterer) FilterPriceChanged(opts *bind.FilterOpts) (
 
 // WatchPriceChanged is a free log subscription operation binding the contract event 0xa6dc15bdb68da224c66db4b3838d9a2b205138e8cff6774e57d0af91e196d622.
 //
-// Solidity: event PriceChanged(price uint256)
+// Solidity: e PriceChanged(price uint256)
 func (_OracleUSD *OracleUSDFilterer) WatchPriceChanged(opts *bind.WatchOpts, sink chan<- *OracleUSDPriceChanged) (event.Subscription, error) {
 
 	logs, sub, err := _OracleUSD.contract.WatchLogs(opts, "PriceChanged")

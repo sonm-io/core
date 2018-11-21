@@ -15,10 +15,10 @@ import (
 )
 
 // AddressHashMapABI is the input ABI used to generate the binding from.
-const AddressHashMapABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_key\",\"type\":\"bytes32\"},{\"name\":\"_value\",\"type\":\"address\"}],\"name\":\"write\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_key\",\"type\":\"bytes32\"}],\"name\":\"read\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const AddressHashMapABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_key\",\"type\":\"bytes32\"},{\"name\":\"_value\",\"type\":\"address\"}],\"name\":\"write\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_key\",\"type\":\"bytes32\"}],\"name\":\"read\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // AddressHashMapBin is the compiled bytecode used for deploying new contracts.
-const AddressHashMapBin = `0x608060405234801561001057600080fd5b5060008054600160a060020a0319908116339081179091161790556102328061003a6000396000f3006080604052600436106100615763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166361da14398114610066578063853eadce1461009a5780638da5cb5b146100c0578063f2fde38b146100d5575b600080fd5b34801561007257600080fd5b5061007e6004356100f6565b60408051600160a060020a039092168252519081900360200190f35b3480156100a657600080fd5b506100be600435600160a060020a0360243516610111565b005b3480156100cc57600080fd5b5061007e610163565b3480156100e157600080fd5b506100be600160a060020a0360043516610172565b600090815260016020526040902054600160a060020a031690565b600054600160a060020a0316331461012857600080fd5b600091825260016020526040909120805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03909216919091179055565b600054600160a060020a031681565b600054600160a060020a0316331461018957600080fd5b600160a060020a038116151561019e57600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03929092169190911790555600a165627a7a72305820fe07c062f1a544d9593b25caaee4c6036f7fb568dd5e322e4e8bc8994e47f5340029`
+const AddressHashMapBin = `0x608060405234801561001057600080fd5b5060008054600160a060020a0319908116339081179091161790556102ca8061003a6000396000f30060806040526004361061006c5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166361da14398114610071578063715018a6146100a5578063853eadce146100bc5780638da5cb5b146100e0578063f2fde38b146100f5575b600080fd5b34801561007d57600080fd5b50610089600435610116565b60408051600160a060020a039092168252519081900360200190f35b3480156100b157600080fd5b506100ba610131565b005b3480156100c857600080fd5b506100ba600435600160a060020a036024351661019d565b3480156100ec57600080fd5b506100896101ef565b34801561010157600080fd5b506100ba600160a060020a03600435166101fe565b600090815260016020526040902054600160a060020a031690565b600054600160a060020a0316331461014857600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b600054600160a060020a031633146101b457600080fd5b600091825260016020526040909120805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03909216919091179055565b600054600160a060020a031681565b600054600160a060020a0316331461021557600080fd5b61021e81610221565b50565b600160a060020a038116151561023657600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03929092169190911790555600a165627a7a72305820a8a77f8a09bb23bc4ed941e91ae8c2a8df64827ad0c26005d0146f66ee09107a0029`
 
 // DeployAddressHashMap deploys a new Ethereum contract, binding an instance of AddressHashMap to it.
 func DeployAddressHashMap(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *AddressHashMap, error) {
@@ -227,25 +227,46 @@ func (_AddressHashMap *AddressHashMapCallerSession) Read(_key [32]byte) (common.
 	return _AddressHashMap.Contract.Read(&_AddressHashMap.CallOpts, _key)
 }
 
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_AddressHashMap *AddressHashMapTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
-	return _AddressHashMap.contract.Transact(opts, "transferOwnership", newOwner)
+// Solidity: function renounceOwnership() returns()
+func (_AddressHashMap *AddressHashMapTransactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _AddressHashMap.contract.Transact(opts, "renounceOwnership")
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_AddressHashMap *AddressHashMapSession) RenounceOwnership() (*types.Transaction, error) {
+	return _AddressHashMap.Contract.RenounceOwnership(&_AddressHashMap.TransactOpts)
+}
+
+// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+//
+// Solidity: function renounceOwnership() returns()
+func (_AddressHashMap *AddressHashMapTransactorSession) RenounceOwnership() (*types.Transaction, error) {
+	return _AddressHashMap.Contract.RenounceOwnership(&_AddressHashMap.TransactOpts)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_AddressHashMap *AddressHashMapSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _AddressHashMap.Contract.TransferOwnership(&_AddressHashMap.TransactOpts, newOwner)
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_AddressHashMap *AddressHashMapTransactor) TransferOwnership(opts *bind.TransactOpts, _newOwner common.Address) (*types.Transaction, error) {
+	return _AddressHashMap.contract.Transact(opts, "transferOwnership", _newOwner)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
 //
-// Solidity: function transferOwnership(newOwner address) returns()
-func (_AddressHashMap *AddressHashMapTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _AddressHashMap.Contract.TransferOwnership(&_AddressHashMap.TransactOpts, newOwner)
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_AddressHashMap *AddressHashMapSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
+	return _AddressHashMap.Contract.TransferOwnership(&_AddressHashMap.TransactOpts, _newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(_newOwner address) returns()
+func (_AddressHashMap *AddressHashMapTransactorSession) TransferOwnership(_newOwner common.Address) (*types.Transaction, error) {
+	return _AddressHashMap.Contract.TransferOwnership(&_AddressHashMap.TransactOpts, _newOwner)
 }
 
 // Write is a paid mutator transaction binding the contract method 0x853eadce.
@@ -267,6 +288,138 @@ func (_AddressHashMap *AddressHashMapSession) Write(_key [32]byte, _value common
 // Solidity: function write(_key bytes32, _value address) returns()
 func (_AddressHashMap *AddressHashMapTransactorSession) Write(_key [32]byte, _value common.Address) (*types.Transaction, error) {
 	return _AddressHashMap.Contract.Write(&_AddressHashMap.TransactOpts, _key, _value)
+}
+
+// AddressHashMapOwnershipRenouncedIterator is returned from FilterOwnershipRenounced and is used to iterate over the raw logs and unpacked data for OwnershipRenounced events raised by the AddressHashMap contract.
+type AddressHashMapOwnershipRenouncedIterator struct {
+	Event *AddressHashMapOwnershipRenounced // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *AddressHashMapOwnershipRenouncedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(AddressHashMapOwnershipRenounced)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(AddressHashMapOwnershipRenounced)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *AddressHashMapOwnershipRenouncedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *AddressHashMapOwnershipRenouncedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// AddressHashMapOwnershipRenounced represents a OwnershipRenounced event raised by the AddressHashMap contract.
+type AddressHashMapOwnershipRenounced struct {
+	PreviousOwner common.Address
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterOwnershipRenounced is a free log retrieval operation binding the contract event 0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820.
+//
+// Solidity: e OwnershipRenounced(previousOwner indexed address)
+func (_AddressHashMap *AddressHashMapFilterer) FilterOwnershipRenounced(opts *bind.FilterOpts, previousOwner []common.Address) (*AddressHashMapOwnershipRenouncedIterator, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+
+	logs, sub, err := _AddressHashMap.contract.FilterLogs(opts, "OwnershipRenounced", previousOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &AddressHashMapOwnershipRenouncedIterator{contract: _AddressHashMap.contract, event: "OwnershipRenounced", logs: logs, sub: sub}, nil
+}
+
+// WatchOwnershipRenounced is a free log subscription operation binding the contract event 0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820.
+//
+// Solidity: e OwnershipRenounced(previousOwner indexed address)
+func (_AddressHashMap *AddressHashMapFilterer) WatchOwnershipRenounced(opts *bind.WatchOpts, sink chan<- *AddressHashMapOwnershipRenounced, previousOwner []common.Address) (event.Subscription, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+
+	logs, sub, err := _AddressHashMap.contract.WatchLogs(opts, "OwnershipRenounced", previousOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(AddressHashMapOwnershipRenounced)
+				if err := _AddressHashMap.contract.UnpackLog(event, "OwnershipRenounced", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
 }
 
 // AddressHashMapOwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the AddressHashMap contract.
@@ -345,7 +498,7 @@ type AddressHashMapOwnershipTransferred struct {
 
 // FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
 func (_AddressHashMap *AddressHashMapFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*AddressHashMapOwnershipTransferredIterator, error) {
 
 	var previousOwnerRule []interface{}
@@ -366,7 +519,7 @@ func (_AddressHashMap *AddressHashMapFilterer) FilterOwnershipTransferred(opts *
 
 // WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
 //
-// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+// Solidity: e OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
 func (_AddressHashMap *AddressHashMapFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *AddressHashMapOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
 
 	var previousOwnerRule []interface{}
