@@ -39,7 +39,7 @@ contract Deals is Administratable {
         uint lastBillTS;
     }
 
-    mapping(uint => Deal) public deals;
+    mapping(uint => Deal) deals;
 
     mapping(address => uint[]) dealsID;
 
