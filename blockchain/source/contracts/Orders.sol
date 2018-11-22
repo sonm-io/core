@@ -38,6 +38,7 @@ contract Orders is Administratable {
         bytes32 tag;
         uint64[] benchmarks;
         uint frozenSum;
+        uint requiredRating;
     }
 
     struct OrderParams {
@@ -105,8 +106,9 @@ contract Orders is Administratable {
     function SetOrderNetflags(uint orderID, bool[] _netflags) public onlyOwner {
         orders[orderID].info.netflags = _netflags;
     }
-    function GetOrdersAmount() public view returns (uint) {
-        return ordersAmount;
+
+    function SetOrderRequiredRating(uint orderID, uint _requiredRating) public onlyOwner {
+        orders[orderID].info.requiredRating = _requiredRating;
     }
 
     function GetOrderInfo(uint orderID) public view
@@ -121,7 +123,8 @@ contract Orders is Administratable {
         address blacklist,
         bytes32 tag,
         uint64[] benchmarks,
-        uint frozenSum
+        uint frozenSum,
+        uint requiredRating
     ){
         OrderInfo memory info = orders[orderID].info;
         return (
@@ -135,7 +138,8 @@ contract Orders is Administratable {
         info.blacklist,
         info.tag,
         info.benchmarks,
-        info.frozenSum
+        info.frozenSum,
+        info.requiredRating
         );
     }
     function GetOrderType(uint orderID) public view returns (OrderType) {
@@ -181,6 +185,13 @@ contract Orders is Administratable {
         return orders[orderID].info.frozenSum;
     }
 
+    function GetOrderRequiredRating(uint orderID) public view returns (uint) {
+        return orders[orderID].info.requiredRating;
+    }
+
+    function GetOrdersAmount() public view returns (uint) {
+        return ordersAmount;
+    }
 
     function GetOrderParams(uint orderID) public view
     returns (
