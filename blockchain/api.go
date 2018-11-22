@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
-	sonm "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
@@ -25,7 +25,7 @@ import (
 const (
 	txRetryTimes     = 20
 	txRetryDelayTime = 100 * time.Millisecond
-	//TODO: make configurable
+	// TODO: make configurable
 	blockGenPeriod = 4 * time.Second
 )
 
@@ -54,6 +54,7 @@ type ContractRegistry interface {
 	GatekeeperSidechainAddress() common.Address
 	TestnetFaucetAddress() common.Address
 	OracleMultiSig() common.Address
+	AutoPayout() common.Address
 }
 
 type ProfileRegistryAPI interface {
@@ -422,6 +423,7 @@ type BasicContractRegistry struct {
 	gatekeeperSidechainAddress   common.Address
 	testnetFaucetAddress         common.Address
 	oracleMultiSigAddress        common.Address
+	autoPayoutAddress            common.Address
 
 	registryContract *marketAPI.AddressHashMap
 }
@@ -459,6 +461,7 @@ func (m *BasicContractRegistry) setup(ctx context.Context) error {
 		{gatekeeperSidechainAddressKey, &m.gatekeeperSidechainAddress},
 		{testnetFaucetAddressKey, &m.testnetFaucetAddress},
 		{oracleMultiSigAddressKey, &m.oracleMultiSigAddress},
+		{autoPayoutAddressKey, &m.autoPayoutAddress},
 	}
 
 	for _, param := range addresses {
@@ -508,6 +511,10 @@ func (m *BasicContractRegistry) TestnetFaucetAddress() common.Address {
 
 func (m *BasicContractRegistry) OracleMultiSig() common.Address {
 	return m.oracleMultiSigAddress
+}
+
+func (m *BasicContractRegistry) AutoPayout() common.Address {
+	return m.autoPayoutAddress
 }
 
 type BasicMarketAPI struct {
