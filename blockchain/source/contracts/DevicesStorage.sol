@@ -12,17 +12,17 @@ contract DevicesStorage is Ownable {
 
     mapping (address => Record) devicesMap;
 
-    uint ttl = 1 days;
+    uint public ttl = 1 days;
 
     // EVENTS
     event DevicesHasSet(address indexed owner);
     event DevicesUpdated(address indexed owner);
+    event DevicesTimestampUpdated(address indexed owner);
 
     // CONTSTRUCTOR
     constructor() public {
         owner = msg.sender;
     }
-
 
     // SETTERS
     function SetDevices(bytes _deviceList) public {
@@ -40,6 +40,7 @@ contract DevicesStorage is Ownable {
         bytes32 recordHash = keccak256(abi.encodePacked(devicesMap[msg.sender].devices));
         if (recordHash == _hash && recordHash != keccak256("")) {
             devicesMap[msg.sender].timestamp = block.timestamp;
+            DevicesTimestampUpdated(msg.sender);
             return true;
         }
         revert();
