@@ -196,3 +196,9 @@ func (m *GasPrice) UnmarshalText(text []byte) error {
 
 	return nil
 }
+
+type AutoPayoutSetting struct {
+	Master common.Address
+	LowLimit *big.Int
+	Target common.Address
+}

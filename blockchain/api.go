@@ -186,6 +186,12 @@ type MultiSigAPI interface {
 	GetTransaction(ctx context.Context, transactionID *big.Int) (*MultiSigTransactionData, error)
 }
 
+type AutoPayoutAPI interface {
+	SetAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, limit *big.Int, address common.Address) error
+	DoAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error
+	GetPayoutSettings(ctx context.Context, address common.Address) (*AutoPayoutSetting, error)
+}
+
 type BasicAPI struct {
 	options          *options
 	contractRegistry ContractRegistry
@@ -2026,5 +2032,72 @@ func (api *BasicMultiSigAPI) GetTransaction(ctx context.Context, transactionID *
 		Value:    tx.Value,
 		Data:     tx.Data,
 		Executed: tx.Executed,
+	}, nil
+}
+
+type BasicAutoPayoutAPI struct {
+	client   CustomEthereumClient
+	contract *marketAPI.AutoPayout
+	opts     *chainOpts
+	address  common.Address
+}
+
+func NewAutoPayoutAPI(address common.Address, opts *chainOpts) (AutoPayoutAPI, error) {
+	client, err := opts.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	contract, err := marketAPI.NewAutoPayout(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicAutoPayoutAPI{
+		address:  address,
+		client:   client,
+		contract: contract,
+		opts:     opts,
+	}, nil
+}
+
+func (api *BasicAutoPayoutAPI) SetAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, limit *big.Int, target common.Address) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.SetAutoPayout(opts, limit, target)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, AutoPayoutChangedTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicAutoPayoutAPI) DoAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.DoAutoPayout(opts, master)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, AutoPayoutTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context, address common.Address) (*AutoPayoutSetting, error) {
+	result, err := api.contract.AllowedPayouts(getCallOptions(ctx), address)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AutoPayoutSetting{
+		Master:   address,
+		Target:   result.Target,
+		LowLimit: result.LowLimit,
 	}, nil
 }

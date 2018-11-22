@@ -2,6 +2,12 @@ package blockchain
 
 import "github.com/ethereum/go-ethereum/common"
 
+// Common topics
+
+var (
+	SuicideTopic = common.HexToHash("0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde")
+)
+
 // Market topics
 var (
 	DealOpenedTopic               = common.HexToHash("0xb9ffc65567b7238dd641372277b8c93ed03df73945932dd84fd3cbb33f3eddbf")
@@ -21,7 +27,6 @@ var (
 var (
 	PayinTopic   = common.HexToHash("0x14312725abbc46ad798bc078b2663e1fcbace97be0247cd177176f3b4df2538e")
 	PayoutTopic  = common.HexToHash("0x731af16374848c2c73a6154fd410cb421138e7db45c5a904e5a475c756faa8d9")
-	SuicideTopic = common.HexToHash("0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde")
 )
 
 // Blacklist topics
@@ -65,4 +70,10 @@ var (
 	OwnerAdditionTopic     = common.HexToHash("0xf39e6e1eb0edcf53c221607b54b00cd28f3196fed0a24994dc308b8f611b682d")
 	OwnerRemovalTopic      = common.HexToHash("0x8001553a916ef2f495d26a907cc54d96ed840d7bda71e73194bf5a9df7a76b90")
 	RequirementChangeTopic = common.HexToHash("0xa3f1ee9126a074d9326c682f561767f710e927faa811f7a99829d49dc421797a")
+)
+
+// AutoPayouts topics
+var (
+	AutoPayoutChangedTopic = common.HexToHash("0x1ee471395ea2cfa5c7eec94aabde2b3c330825cb942ef8d0fd1eeb7a0d3d2752")
+	AutoPayoutTopic = common.HexToHash("0x5a9b1e90057b7163b237d41fbf5ba76b7eaf01f482fe75255aa290ced89e91b2")
 )
