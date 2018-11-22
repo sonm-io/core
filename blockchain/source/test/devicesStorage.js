@@ -1,5 +1,6 @@
 import assertRevert from './helpers/assertRevert';
-import increaseTime from './helpers/increaseTime';
+import increaseTime from './helpers/increaseTime'; // eslint-disable-next-line no-unused-vars
+import { eventInTransaction, allEventsInTransaction } from './helpers/expectEvent';
 
 let DevicesStorage = artifacts.require('./DevicesStorage.sol');
 
@@ -16,14 +17,16 @@ contract('DevicesStora1ge', (accounts) => {
 
     describe('SetDevices', () => {
         it('should set devices', async () => {
-            await devicesStorage.SetDevices(devices, { from: worker });
+            let tx = await devicesStorage.SetDevices(devices, { from: worker });
+            await eventInTransaction(tx, 'DevicesHasSet');
         });
 
         it('should update devices by hash', async () => {
             await increaseTime(86400);
-            await devicesStorage.UpdateDevicesByHash(hash, { from: worker });
+            let tx = await devicesStorage.UpdateDevicesByHash(hash, { from: worker });
             increaseTime(86000);
             let returnedDevices = await devicesStorage.GetDevices(worker);
+            await eventInTransaction(tx, 'DevicesTimestampUpdated');
             assert.equal(returnedDevices, devices);
         });
 
@@ -41,6 +44,11 @@ contract('DevicesStora1ge', (accounts) => {
             await increaseTime(10000000);
             let returnedDevices = await devicesStorage.GetDevices(worker);
             assert.equal(returnedDevices, '0x');
+        });
+
+        it('should emit DevicesUpdated event', async () => {
+            let tx = await devicesStorage.SetDevices(devices, { from: worker });
+            await eventInTransaction(tx, 'DevicesUpdated');
         });
     });
 });
