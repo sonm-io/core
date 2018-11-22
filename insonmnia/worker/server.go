@@ -329,6 +329,8 @@ func (m *Worker) setupKey() error {
 		}
 	}
 
+	log.S(m.ctx).Infof("worker has the following ETH address: %s", m.ethAddr().Hex())
+
 	if err := m.exportKey(); err != nil {
 		return err
 	}
