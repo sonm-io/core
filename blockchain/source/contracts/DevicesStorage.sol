@@ -32,18 +32,18 @@ contract DevicesStorage is Ownable {
             emit DevicesHasSet(msg.sender);
         }
 
-        devicesMap[msg.sender] = Record(_deviceList, block.timestamp);
+        devicesMap[msg.sender].devices = _deviceList;
+        devicesMap[msg.sender].timestamp = block.timestamp;
     }
 
     function UpdateDevicesByHash(bytes32 _hash) public returns(bool) {
-        bytes32 recordHash = keccak256(devicesMap[msg.sender].devices);
+        bytes32 recordHash = keccak256(abi.encodePacked(devicesMap[msg.sender].devices));
         if (recordHash == _hash && recordHash != keccak256("")) {
             devicesMap[msg.sender].timestamp = block.timestamp;
             return true;
         }
         revert();
     }
-
 
     function SetTTL(uint _new) public onlyOwner {
         ttl = _new;
@@ -56,6 +56,4 @@ contract DevicesStorage is Ownable {
         }
         return "";
     }
-
-
 }
