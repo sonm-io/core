@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 	"strings"
 	"unicode"
@@ -198,7 +199,28 @@ func (m *GasPrice) UnmarshalText(text []byte) error {
 }
 
 type AutoPayoutSetting struct {
-	Master common.Address
+	Master   common.Address
 	LowLimit *big.Int
-	Target common.Address
+	Target   common.Address
+}
+
+func (s *AutoPayoutSetting) ParseFromLog(log types.Log) error {
+	master, err := extractAddress(log.Topics, 1)
+	if err != nil {
+		return err
+	}
+	target, err := extractAddress(log.Topics, 2)
+	if err != nil {
+		return err
+	}
+	limit, err := extractBig(log.Topics, 3)
+	if err != nil {
+		return err
+	}
+
+	s.Master = master
+	s.Target = target
+	s.LowLimit = limit
+
+	return nil
 }

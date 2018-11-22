@@ -13,5 +13,5 @@ const (
 	gatekeeperSidechainAddressKey   = "gatekeeperSidechainAddress"
 	testnetFaucetAddressKey         = "testnetFaucetAddress"
 	oracleMultiSigAddressKey        = "oracleMultiSigAddress"
-	autoPayoutAddressKey        = "autoPayoutAddress"
+	autoPayoutAddressKey            = "autoPayoutAddress"
 )

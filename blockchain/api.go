@@ -41,6 +41,7 @@ type API interface {
 	SidechainGate() SimpleGatekeeperAPI
 	OracleMultiSig() MultiSigAPI
 	ContractRegistry() ContractRegistry
+	AutoPayout() AutoPayoutAPI
 }
 
 type ContractRegistry interface {
@@ -75,6 +76,7 @@ type EventsAPI interface {
 	GetLastBlock(ctx context.Context) (uint64, error)
 	GetMarketFilter(fromBlock *big.Int) *EventFilter
 	GetMultiSigFilter(addresses []common.Address, fromBlock *big.Int) *EventFilter
+	GetAutoPayoutFilter(fromBlock *big.Int) *EventFilter
 }
 
 type MarketAPI interface {
@@ -189,7 +191,8 @@ type MultiSigAPI interface {
 type AutoPayoutAPI interface {
 	SetAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, limit *big.Int, address common.Address) error
 	DoAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error
-	GetPayoutSettings(ctx context.Context, address common.Address) (*AutoPayoutSetting, error)
+	GetPayoutSetting(ctx context.Context, address common.Address) (*AutoPayoutSetting, error)
+	GetPayoutSettings(ctx context.Context) ([]*AutoPayoutSetting, error)
 }
 
 type BasicAPI struct {
@@ -205,6 +208,7 @@ type BasicAPI struct {
 	masterchainGate  SimpleGatekeeperAPI
 	sidechainGate    SimpleGatekeeperAPI
 	oracleMultiSig   MultiSigAPI
+	autopayout       AutoPayoutAPI
 }
 
 func NewAPI(ctx context.Context, opts ...Option) (API, error) {
@@ -227,6 +231,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 		api.setupMasterchainGate,
 		api.setupSidechainGate,
 		api.setupOracleMultiSig,
+		api.setupAutoPayout,
 	}
 
 	for _, setupFunc := range setup {
@@ -347,6 +352,16 @@ func (api *BasicAPI) setupSidechainGate(ctx context.Context) error {
 	return nil
 }
 
+func (api *BasicAPI) setupAutoPayout(ctx context.Context) error {
+	autoPayoutAddr := api.contractRegistry.AutoPayout()
+	autoPayout, err := NewAutoPayoutAPI(autoPayoutAddr, api.options.sidechain)
+	if err != nil {
+		return fmt.Errorf("failed to setup masterchain token: %s", err)
+	}
+	api.autopayout = autoPayout
+	return nil
+}
+
 func (api *BasicAPI) Market() MarketAPI {
 	if api.options.niceMarket {
 		return &niceMarketAPI{
@@ -396,6 +411,10 @@ func (api *BasicAPI) SidechainGate() SimpleGatekeeperAPI {
 
 func (api *BasicAPI) ContractRegistry() ContractRegistry {
 	return api.contractRegistry
+}
+
+func (api *BasicAPI) AutoPayout() AutoPayoutAPI {
+	return api.autopayout
 }
 
 func NewRegistry(ctx context.Context, address common.Address, opts *chainOpts) (*BasicContractRegistry, error) {
@@ -1358,6 +1377,28 @@ func (api *BasicEventsAPI) GetMultiSigFilter(addresses []common.Address, fromBlo
 	}
 }
 
+func (api *BasicEventsAPI) GetAutoPayoutFilter(fromBlock *big.Int) *EventFilter {
+	var (
+		topics     [][]common.Hash
+		eventTopic = []common.Hash{
+			AutoPayoutChangedTopic,
+			TransferTopic,
+		}
+	)
+	topics = append(topics, eventTopic)
+
+	addresses := []common.Address{
+		api.parent.ContractRegistry().SidechainSNMAddress(),
+		api.parent.ContractRegistry().AutoPayout(),
+	}
+
+	return &EventFilter{
+		fromBlock: fromBlock,
+		topics:    topics,
+		addresses: addresses,
+	}
+}
+
 func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 	block, err := api.client.GetLastBlock(ctx)
 	if err != nil {
@@ -2089,7 +2130,7 @@ func (api *BasicAutoPayoutAPI) DoAutoPayout(ctx context.Context, key *ecdsa.Priv
 	return nil
 }
 
-func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context, address common.Address) (*AutoPayoutSetting, error) {
+func (api *BasicAutoPayoutAPI) GetPayoutSetting(ctx context.Context, address common.Address) (*AutoPayoutSetting, error) {
 	result, err := api.contract.AllowedPayouts(getCallOptions(ctx), address)
 	if err != nil {
 		return nil, err
@@ -2100,4 +2141,33 @@ func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context, address co
 		Target:   result.Target,
 		LowLimit: result.LowLimit,
 	}, nil
+}
+
+func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context) ([]*AutoPayoutSetting, error) {
+	var (
+		settings   []*AutoPayoutSetting
+		topics     [][]common.Hash
+		eventTopic = []common.Hash{
+			AutoPayoutChangedTopic,
+		}
+	)
+	topics = append(topics, eventTopic)
+
+	logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
+		Addresses: []common.Address{api.address},
+		Topics:    topics,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, l := range logs {
+		set := &AutoPayoutSetting{}
+		err := set.ParseFromLog(l)
+		if err != nil {
+			return nil, err
+		}
+		settings = append(settings, set)
+	}
+	return settings, nil
 }

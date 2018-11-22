@@ -25,8 +25,8 @@ var (
 
 // Gatekeeper topics
 var (
-	PayinTopic   = common.HexToHash("0x14312725abbc46ad798bc078b2663e1fcbace97be0247cd177176f3b4df2538e")
-	PayoutTopic  = common.HexToHash("0x731af16374848c2c73a6154fd410cb421138e7db45c5a904e5a475c756faa8d9")
+	PayinTopic  = common.HexToHash("0x14312725abbc46ad798bc078b2663e1fcbace97be0247cd177176f3b4df2538e")
+	PayoutTopic = common.HexToHash("0x731af16374848c2c73a6154fd410cb421138e7db45c5a904e5a475c756faa8d9")
 )
 
 // Blacklist topics
@@ -75,5 +75,5 @@ var (
 // AutoPayouts topics
 var (
 	AutoPayoutChangedTopic = common.HexToHash("0x1ee471395ea2cfa5c7eec94aabde2b3c330825cb942ef8d0fd1eeb7a0d3d2752")
-	AutoPayoutTopic = common.HexToHash("0x5a9b1e90057b7163b237d41fbf5ba76b7eaf01f482fe75255aa290ced89e91b2")
+	AutoPayoutTopic        = common.HexToHash("0x5a9b1e90057b7163b237d41fbf5ba76b7eaf01f482fe75255aa290ced89e91b2")
 )
