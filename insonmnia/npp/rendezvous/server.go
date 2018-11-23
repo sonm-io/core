@@ -34,6 +34,7 @@ package rendezvous
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"sync"
@@ -112,10 +113,12 @@ func randomPeerCandidate(candidates map[PeerID]peerCandidate) *peerCandidate {
 // This server is responsible for tracking servers and clients to make them
 // meet each other.
 type Server struct {
-	cfg      ServerConfig
-	log      *zap.Logger
-	server   *grpc.Server
-	resolver *xnet.ExternalPublicIPResolver
+	cfg         *ServerConfig
+	log         *zap.Logger
+	server      *grpc.Server
+	resolver    *xnet.ExternalPublicIPResolver
+	credentials *xgrpc.TransportCredentials
+	enableQUIC  bool
 
 	mu sync.Mutex
 	rv map[nppc.ResourceID]*meeting
@@ -128,7 +131,7 @@ type Server struct {
 // WithCredentials option.
 // Also it is possible to activate logging system by passing a logger using
 // WithLogger function as an option.
-func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
+func NewServer(cfg *ServerConfig, options ...Option) (*Server, error) {
 	opts := newOptions()
 	for _, option := range options {
 		option(opts)
@@ -136,21 +139,24 @@ func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 
 	server := &Server{
 		cfg: cfg,
-		log: opts.log,
+		log: opts.Log,
 		server: xgrpc.NewServer(
-			opts.log,
-			xgrpc.Credentials(opts.credentials),
+			opts.Log,
+			xgrpc.Credentials(opts.Credentials),
 			xgrpc.DefaultTraceInterceptor(),
 			xgrpc.RequestLogInterceptor([]string{}),
 			xgrpc.VerifyInterceptor(),
 		),
-		resolver: xnet.NewExternalPublicIPResolver(""),
-		rv:       map[nppc.ResourceID]*meeting{},
+		resolver:    xnet.NewExternalPublicIPResolver(""),
+		credentials: opts.Credentials,
+		enableQUIC:  opts.EnableQUIC,
+
+		rv: map[nppc.ResourceID]*meeting{},
 	}
 
 	server.log.Debug("configured authentication settings",
 		zap.String("addr", crypto.PubkeyToAddress(cfg.PrivateKey.PublicKey).Hex()),
-		zap.Any("credentials", opts.credentials.Info()),
+		zap.Any("credentials", opts.Credentials.Info()),
 	)
 
 	sonm.RegisterRendezvousServer(server.server, server)
@@ -402,25 +408,63 @@ func (m *Server) Info(ctx context.Context, request *sonm.Empty) (*sonm.Rendezvou
 func (m *Server) Run(ctx context.Context) error {
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
-		listener, err := net.Listen(m.cfg.Addr.Network(), m.cfg.Addr.String())
-		if err != nil {
-			return err
-		}
-
-		m.log.Info("rendezvous is ready to serve", zap.Stringer("endpoint", listener.Addr()))
-		return m.server.Serve(listener)
+		return m.serveGRPCOverTCP(ctx)
 	})
-
-	if m.cfg.Debug != nil {
-		wg.Go(func() error {
-			return debug.ServePProf(ctx, *m.cfg.Debug, m.log)
-		})
-	}
+	wg.Go(func() error {
+		return m.serveGRPCOverQUIC(ctx)
+	})
+	wg.Go(func() error {
+		return m.serveDebug(ctx)
+	})
 
 	<-ctx.Done()
 	m.Stop()
 
 	return wg.Wait()
+}
+
+func (m *Server) serveGRPCOverTCP(ctx context.Context) error {
+	log := m.log.Sugar()
+
+	listener, err := net.Listen(m.cfg.Addr.Network(), m.cfg.Addr.String())
+	if err != nil {
+		return err
+	}
+
+	log.Infof("exposing Rendezvous TCP server on %s", listener.Addr().String())
+	defer log.Infof("stopped Rendezvous TCP server on %s", listener.Addr().String())
+
+	return m.server.Serve(listener)
+}
+
+func (m *Server) serveGRPCOverQUIC(ctx context.Context) error {
+	if !m.enableQUIC {
+		return nil
+	}
+
+	if m.credentials.TLSConfig == nil {
+		return fmt.Errorf("QUIC is enabled, but no transport credentials was provided")
+	}
+
+	log := m.log.Sugar()
+
+	listener, err := xnet.ListenQUIC("udp", m.cfg.Addr.String(), m.credentials.TLSConfig, xnet.DefaultQUICConfig())
+	if err != nil {
+		return err
+	}
+
+	log.Infof("exposing Rendezvous QUIC server on %s", listener.Addr().String())
+	defer log.Infof("stopped Rendezvous QUIC server on %s", listener.Addr().String())
+
+	return m.server.Serve(listener)
+}
+
+func (m *Server) serveDebug(ctx context.Context) error {
+	if m.cfg.Debug != nil {
+		return debug.ServePProf(ctx, *m.cfg.Debug, m.log)
+	}
+
+	return nil
 }
 
 // Stop stops the server.

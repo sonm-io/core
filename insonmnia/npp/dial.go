@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -25,8 +26,9 @@ import (
 type Dialer struct {
 	log *zap.Logger
 
-	puncherNew  func(ctx context.Context) (NATPuncher, error)
-	relayDialer *relay.Dialer
+	puncherNew     puncherFactory
+	puncherNewQUIC puncherFactory
+	relayDialer    *relay.Dialer
 
 	mu      sync.Mutex
 	metrics map[string]*dialMetrics
@@ -43,10 +45,11 @@ func NewDialer(options ...Option) (*Dialer, error) {
 	}
 
 	return &Dialer{
-		log:         opts.log,
-		puncherNew:  opts.puncherNew,
-		relayDialer: opts.relayDialer,
-		metrics:     map[string]*dialMetrics{},
+		log:            opts.log,
+		puncherNew:     opts.puncherNew,
+		puncherNewQUIC: opts.puncherNewQUIC,
+		relayDialer:    opts.relayDialer,
+		metrics:        map[string]*dialMetrics{},
 	}, nil
 }
 
@@ -86,6 +89,9 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 	case sourceNPPConnection:
 		metric.UsingNATHistogram.Observe(conn.Duration.Seconds())
 		log.Debug("successfully connected using NPP")
+	case sourceNPPQUICConnection:
+		metric.UsingQNATHistogram.Observe(conn.Duration.Seconds())
+		log.Debug("successfully connected using QUIC NPP")
 	case sourceRelayedConnection:
 		metric.UsingRelayHistogram.Observe(conn.Duration.Seconds())
 		log.Debug("successfully connected using Relay")
@@ -108,6 +114,13 @@ func (m *Dialer) dialContextExt(ctx context.Context, addr auth.Addr, metric *dia
 	ethAddr, err := addr.ETH()
 	if err != nil {
 		return nil, err
+	}
+
+	// Currently we hide QUIC support under the feature gate.
+	if os.Getenv("SONM_ENABLE_QUIC") == "true" {
+		if conn := m.dialQUICNPP(ctx, ethAddr); conn != nil {
+			return conn, nil
+		}
 	}
 
 	if conn := m.dialNPP(ctx, ethAddr); conn != nil {
@@ -138,6 +151,51 @@ func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) *nppConn {
 	}
 
 	return newDirectNPPConn(conn, time.Since(now))
+}
+
+func (m *Dialer) dialQUICNPP(ctx context.Context, addr common.Address) *nppConn {
+	if m.puncherNewQUIC == nil {
+		return nil
+	}
+
+	now := time.Now()
+
+	timeout := 5 * time.Second
+	log := m.log.With(zap.Stringer("remoteAddr", addr))
+	log.Debug("connecting using QUIC NPP", zap.Duration("timeout", timeout))
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	nppChannel := make(chan connTuple)
+
+	go func() {
+		defer close(nppChannel)
+
+		puncher, err := m.puncherNewQUIC(ctx)
+		if err != nil {
+			nppChannel <- newConnTuple(nil, err)
+			return
+		}
+		defer puncher.Close()
+
+		nppChannel <- newConnTuple(puncher.Dial(addr))
+	}()
+
+	select {
+	case conn := <-nppChannel:
+		err := conn.Error()
+		if err == nil {
+			return newPunchedQUICNPPConn(conn.conn, time.Since(now))
+		}
+
+		log.Warn("failed to connect using QUIC NPP", zap.Error(err))
+	case <-ctx.Done():
+		go drainConnChannel(nppChannel)
+		log.Warn("failed to connect using QUIC NPP", zap.Error(ctx.Err()))
+	}
+
+	return nil
 }
 
 func (m *Dialer) dialNPP(ctx context.Context, addr common.Address) *nppConn {
@@ -230,6 +288,7 @@ func (m *Dialer) Metrics() (map[string][]*NamedMetric, error) {
 			metric.NumFailed,
 			metric.UsingTCPDirectHistogram,
 			metric.UsingNATHistogram,
+			metric.UsingQNATHistogram,
 			metric.UsingRelayHistogram,
 			metric.SummaryHistogram,
 			metric.LastTimeActive,
@@ -290,6 +349,14 @@ func newPunchedNPPConn(conn net.Conn, duration time.Duration) *nppConn {
 	return &nppConn{
 		Conn:     conn,
 		Source:   sourceNPPConnection,
+		Duration: duration,
+	}
+}
+
+func newPunchedQUICNPPConn(conn net.Conn, duration time.Duration) *nppConn {
+	return &nppConn{
+		Conn:     conn,
+		Source:   sourceNPPQUICConnection,
 		Duration: duration,
 	}
 }

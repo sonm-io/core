@@ -17,15 +17,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/ethereum/go-ethereum/common"
+	sshd "github.com/gliderlabs/ssh"
 	"github.com/kr/pty"
 	"github.com/sonm-io/core/insonmnia/npp"
 	xssh "github.com/sonm-io/core/insonmnia/ssh"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
-	"google.golang.org/grpc/credentials"
-
-	sshd "github.com/gliderlabs/ssh"
 )
 
 const (
@@ -366,12 +365,12 @@ func (m *connHandler) processLogin(session sshd.Session) (sshStatus, error) {
 
 type sshServer struct {
 	cfg         SSHConfig
-	credentials credentials.TransportCredentials
+	credentials *xgrpc.TransportCredentials
 	server      *sshd.Server
 	log         *zap.SugaredLogger
 }
 
-func NewSSHServer(cfg SSHConfig, signer ssh.Signer, credentials credentials.TransportCredentials, sshAuthorization *SSHAuthorization, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
+func NewSSHServer(cfg SSHConfig, signer ssh.Signer, credentials *xgrpc.TransportCredentials, sshAuthorization *SSHAuthorization, overseer OverseerView, log *zap.SugaredLogger) (*sshServer, error) {
 	for _, addr := range cfg.Blacklist {
 		sshAuthorization.Deny(addr)
 	}

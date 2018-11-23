@@ -16,7 +16,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/credentials"
 )
 
 type workerClientCreator func(ctx context.Context, addr *auth.Addr) (*workerClient, io.Closer, error)
@@ -81,7 +80,7 @@ func (re *remoteOptions) isWorkerAvailable(ctx context.Context, addr common.Addr
 	return err == nil
 }
 
-func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, credentials credentials.TransportCredentials, log *zap.SugaredLogger) (*remoteOptions, error) {
+func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, credentials *xgrpc.TransportCredentials, log *zap.SugaredLogger) (*remoteOptions, error) {
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),
 		npp.WithRelay(cfg.NPP.Relay, key),

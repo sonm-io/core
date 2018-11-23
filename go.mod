@@ -15,12 +15,14 @@ require (
 	github.com/armon/go-metrics v0.0.0-20180221182744-783273d70314
 	github.com/asaskevich/govalidator v0.0.0-20180319081651-7d2e70ef918f
 	github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a
+	github.com/bifurcation/mint v0.0.0-20181105071958-a14404e9a861 // indirect
 	github.com/boltdb/bolt v1.3.1
 	github.com/btcsuite/btcd v0.0.0-20171023093315-c7588cbf7690
 	github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae
 	github.com/ccding/go-stun v0.0.0-20170323223013-04a4eed61c57
 	github.com/cdipaolo/goml v0.0.0-20161030204843-e2d8def04c9a
 	github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2
+	github.com/cheekybits/genny v1.0.0 // indirect
 	github.com/cnf/structhash v0.0.0-20170702194520-7710f1f78fb9
 	github.com/containerd/cgroups v0.0.0-20170714210333-6d5c608c203d
 	github.com/coreos/go-systemd v0.0.0-20170609144627-24036eb3df68
@@ -81,6 +83,9 @@ require (
 	github.com/lib/pq v0.0.0-20180327071824-d34b9ff171c2
 	github.com/libp2p/go-reuseport v0.1.10
 	github.com/libp2p/go-sockaddr v0.0.0-20180128062301-09ae606455f8
+	github.com/lucas-clemente/aes12 v0.0.0-20171027163421-cd47fb39b79f // indirect
+	github.com/lucas-clemente/quic-go v0.10.0
+	github.com/lucas-clemente/quic-go-certificates v0.0.0-20160823095156-d2f86524cced // indirect
 	github.com/magiconair/properties v0.0.0-20180217134545-2c9e95027885
 	github.com/mattn/go-colorable v0.0.0-20180310133214-efa589957cd0
 	github.com/mattn/go-isatty v0.0.4

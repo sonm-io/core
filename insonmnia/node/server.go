@@ -2,12 +2,14 @@ package node
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strings"
 	"sync"
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/lucas-clemente/quic-go"
 	"github.com/sonm-io/core/util/defergroup"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -19,29 +21,60 @@ import (
 
 type LocalEndpoints struct {
 	GRPC []net.Addr
+	QRPC []net.Addr
 	REST []net.Addr
 }
 
 type serverNetwork struct {
 	mu            sync.Mutex
 	ListenersGRPC []net.Listener
+	ListenersQRPC []net.PacketConn
 	ListenersREST []net.Listener
+}
+
+func newServerNetwork(listenersGRPC []net.Listener, listenersQRPC []net.PacketConn, listenersREST []net.Listener) *serverNetwork {
+	m := &serverNetwork{
+		ListenersGRPC: listenersGRPC,
+		ListenersQRPC: listenersQRPC,
+		ListenersREST: listenersREST,
+	}
+
+	return m
+}
+
+func (m *serverNetwork) LocalEndpoints() LocalEndpoints {
+	return LocalEndpoints{
+		GRPC: toLocalAddrs(m.ListenersGRPC),
+		QRPC: m.localQRPCAddrs(),
+		REST: toLocalAddrs(m.ListenersREST),
+	}
+}
+
+func (m *serverNetwork) localQRPCAddrs() []net.Addr {
+	var addrs []net.Addr
+	for id := range m.ListenersQRPC {
+		addrs = append(addrs, m.ListenersQRPC[id].LocalAddr())
+	}
+
+	return addrs
 }
 
 func (m *serverNetwork) Pop() *serverNetwork {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.ListenersGRPC == nil && m.ListenersREST == nil {
+	if m.ListenersGRPC == nil && m.ListenersQRPC == nil && m.ListenersREST == nil {
 		return nil
 	}
 
 	network := &serverNetwork{
 		ListenersGRPC: m.ListenersGRPC,
+		ListenersQRPC: m.ListenersQRPC,
 		ListenersREST: m.ListenersREST,
 	}
 
 	m.ListenersGRPC = nil
+	m.ListenersQRPC = nil
 	m.ListenersREST = nil
 
 	return network
@@ -64,7 +97,7 @@ type SSHServer interface {
 // Its responsibility is to manage network part, i.e. creating TCP servers and
 // exposing API provided outside.
 type Server struct {
-	network   serverNetwork
+	network   *serverNetwork
 	endpoints LocalEndpoints
 
 	// Node API.
@@ -74,6 +107,8 @@ type Server struct {
 	serverGRPC *grpc.Server
 	serverREST *rest.Server
 	serverSSH  SSHServer
+
+	tlsConfig *tls.Config
 
 	log *zap.SugaredLogger
 }
@@ -101,24 +136,28 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 	}
 	dg.Defer(func() { closeListeners(listenersGRPC) })
 
+	listenersQRPC, err := xnet.ListenPacketLoopback("udp", cfg.BindPort)
+	if err != nil {
+		return nil, err
+	}
+	dg.Defer(func() { closePacketConns(listenersQRPC) })
+
 	listenersREST, err := xnet.ListenLoopback("tcp", cfg.HttpBindPort)
 	if err != nil {
 		return nil, err
 	}
 	dg.Defer(func() { closeListeners(listenersREST) })
 
+	serverNetwork := newServerNetwork(listenersGRPC, listenersQRPC, listenersREST)
 	m := &Server{
-		log: opts.log.Sugar(),
-		network: serverNetwork{
-			ListenersGRPC: listenersGRPC,
-			ListenersREST: listenersREST,
-		},
-		endpoints: LocalEndpoints{
-			GRPC: toLocalAddrs(listenersGRPC),
-			REST: toLocalAddrs(listenersREST),
-		},
+		network:   serverNetwork,
+		endpoints: serverNetwork.LocalEndpoints(),
 		services:  services,
 		serverSSH: opts.sshProxy,
+
+		tlsConfig: opts.TLSConfig,
+
+		log: opts.log.Sugar(),
 	}
 
 	if opts.allowGRPC {
@@ -186,6 +225,9 @@ func (m *Server) Serve(ctx context.Context) error {
 		return m.serveGRPC(ctx, network.ListenersGRPC...)
 	})
 	wg.Go(func() error {
+		return m.serveQUIC(ctx, network.ListenersQRPC...)
+	})
+	wg.Go(func() error {
 		return m.serveHTTP(ctx, network.ListenersREST...)
 	})
 	wg.Go(func() error {
@@ -223,6 +265,31 @@ func (m *Server) serveGRPC(ctx context.Context, listeners ...net.Listener) error
 	return wg.Wait()
 }
 
+func (m *Server) serveQUIC(ctx context.Context, conns ...net.PacketConn) error {
+	if m.tlsConfig == nil {
+		return nil
+	}
+
+	wg := errgroup.Group{}
+
+	for id := range conns {
+		listener, err := quic.Listen(conns[id], m.tlsConfig, xnet.DefaultQUICConfig())
+		if err != nil {
+			return err
+		}
+
+		wg.Go(func() error {
+			quicListener := &xnet.QUICListener{Listener: listener}
+			m.log.Infof("exposing QUIC gRPC server on %s", quicListener.Addr().String())
+			defer m.log.Infof("stopped QUIC gRPC server on %s", quicListener.Addr().String())
+
+			return m.serverGRPC.Serve(quicListener)
+		})
+	}
+
+	return wg.Wait()
+}
+
 func (m *Server) serveHTTP(ctx context.Context, listeners ...net.Listener) error {
 	if m.serverREST == nil {
 		return nil
@@ -249,7 +316,6 @@ func (m *Server) close() {
 	}
 }
 
-// TODO: Compose those three functions into a separate struct.
 func toLocalAddrs(listeners []net.Listener) []net.Addr {
 	var addrs []net.Addr
 	for id := range listeners {
@@ -271,5 +337,11 @@ func formatListeners(listeners []net.Listener) string {
 func closeListeners(listeners []net.Listener) {
 	for id := range listeners {
 		listeners[id].Close()
+	}
+}
+
+func closePacketConns(connections []net.PacketConn) {
+	for id := range connections {
+		connections[id].Close()
 	}
 }

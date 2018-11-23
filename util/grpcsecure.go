@@ -66,8 +66,8 @@ func verifyCertificate(authInfo credentials.AuthInfo) (credentials.AuthInfo, err
 	}
 }
 
-// NewTLS wraps TLS TransportCredentials from grpc to add custom logic
-func NewTLS(c *tls.Config) credentials.TransportCredentials {
-	tc := credentials.NewTLS(c)
-	return tlsVerifier{TransportCredentials: tc}
+// NewTLS wraps TLS TransportCredentials from gRPC to add custom verification
+// logic.
+func NewTLS(cfg *tls.Config) credentials.TransportCredentials {
+	return tlsVerifier{TransportCredentials: credentials.NewTLS(cfg)}
 }

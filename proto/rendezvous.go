@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	DefaultNPPProtocol = "tcp"
+	DefaultNPPProtocol = "tcp" // Equals to "tcp+grpc".
 )
 
 func (m *PublishRequest) Validate() error {

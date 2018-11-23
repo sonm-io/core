@@ -3,10 +3,12 @@ package node
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/tls"
 	"fmt"
 
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/debug"
+	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials"
 )
@@ -31,12 +33,12 @@ func New(ctx context.Context, cfg *Config, options ...Option) (*Node, error) {
 		return nil, fmt.Errorf("failed to load Ethereum keys: %v", err)
 	}
 
-	transportCredentials, err := newTLS(ctx, key)
+	transportCredentials, tlsConfig, err := newTLSWithConfig(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create certificate: %v", err)
 	}
 
-	remoteOptions, err := newRemoteOptions(ctx, cfg, key, transportCredentials, opts.log.Sugar())
+	remoteOptions, err := newRemoteOptions(ctx, cfg, key, xgrpc.NewTransportCredentials(tlsConfig), opts.log.Sugar())
 	if err != nil {
 		return nil, err
 	}
@@ -57,13 +59,14 @@ func New(ctx context.Context, cfg *Config, options ...Option) (*Node, error) {
 		log.Warn("--- INSECURE SERVER MODE ACTIVATED, YOUR CONNECTIONS WILL **NOT** BE ENCRYPTED ---")
 	} else {
 		serverOptions = append(serverOptions,
+			WithQUIC(tlsConfig),
 			WithGRPCSecure(transportCredentials, key),
 			WithRESTSecure(key),
 		)
 	}
 
 	if cfg.SSH != nil {
-		serverOptions = append(serverOptions, WithSSH(*cfg.SSH, key, transportCredentials, remoteOptions.eth.Market(), log.Sugar()))
+		serverOptions = append(serverOptions, WithSSH(*cfg.SSH, key, xgrpc.NewTransportCredentials(tlsConfig), remoteOptions.eth.Market(), log.Sugar()))
 	}
 
 	server, err := newServer(cfg.Node, services, serverOptions...)
@@ -103,4 +106,9 @@ func (m *Node) Serve(ctx context.Context) error {
 func newTLS(ctx context.Context, privateKey *ecdsa.PrivateKey) (credentials.TransportCredentials, error) {
 	_, tlsConfig, err := util.NewHitlessCertRotator(ctx, privateKey)
 	return util.NewTLS(tlsConfig), err
+}
+
+func newTLSWithConfig(ctx context.Context, privateKey *ecdsa.PrivateKey) (credentials.TransportCredentials, *tls.Config, error) {
+	_, tlsConfig, err := util.NewHitlessCertRotator(ctx, privateKey)
+	return util.NewTLS(tlsConfig), tlsConfig, err
 }

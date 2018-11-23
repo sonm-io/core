@@ -23,19 +23,19 @@ service Rendezvous {
     rpc Info(Empty) returns (RendezvousState) {}
 }
 
-// ConnectRequest describres a connection request to a remote target, possibly
+// ConnectRequest describes a connection request to a remote target, possibly
 // located under the NAT.
 message ConnectRequest {
     // ID describes an unique ID of a target. Mainly it's an ETH address.
     bytes ID = 1;
-    // Protocol describes network protocol the peer wants to resolve.
+    // Protocol describes the application protocol the peer wants to resolve.
     string protocol = 2;
     // PrivateAddrs describes source private addresses.
     repeated Addr privateAddrs = 3;
 }
 
 message PublishRequest {
-    // Protocol describes network protocol the peer wants to publish.
+    // Protocol describes the application protocol the peer wants to publish.
     string protocol = 1;
     // PrivateAddrs describes source private addresses.
     repeated Addr privateAddrs = 2;

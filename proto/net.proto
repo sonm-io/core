@@ -3,6 +3,8 @@ syntax = "proto3";
 package sonm;
 
 message Addr {
+    // Protocol describes the underlying transport protocol, for example "tcp"
+    // or "udp".
     string protocol = 1;
     SocketAddr addr = 2;
 }

@@ -31,6 +31,10 @@ func (m *Addr) IntoTCP() (net.Addr, error) {
 	return m.Addr.IntoTCP()
 }
 
+func (m *Addr) IntoUDP() (*net.UDPAddr, error) {
+	return m.Addr.IntoUDP()
+}
+
 // IsPrivate returns true if this address can't be reached from the Internet directly.
 func (m *Addr) IsPrivate() bool {
 	return m.Addr.IsPrivate()
@@ -57,9 +61,9 @@ func (m *SocketAddr) IsPrivate() bool {
 }
 
 func (m *SocketAddr) IntoTCP() (net.Addr, error) {
-	return m.intoNet("tcp")
+	return net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", m.Addr, m.Port))
 }
 
-func (m *SocketAddr) intoNet(protocol string) (net.Addr, error) {
-	return net.ResolveTCPAddr(protocol, fmt.Sprintf("%s:%d", m.Addr, m.Port))
+func (m *SocketAddr) IntoUDP() (*net.UDPAddr, error) {
+	return net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", m.Addr, m.Port))
 }

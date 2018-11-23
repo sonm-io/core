@@ -7,6 +7,7 @@ const (
 	sourceDirectConnection
 	sourceNPPConnection
 	sourceRelayedConnection
+	sourceNPPQUICConnection
 )
 
 func (m connSource) String() string {
@@ -17,6 +18,8 @@ func (m connSource) String() string {
 		return "NPP"
 	case sourceRelayedConnection:
 		return "relay"
+	case sourceNPPQUICConnection:
+		return "NPP/QUIC"
 	default:
 		return "unknown source"
 	}

@@ -4,6 +4,8 @@ import (
 	"context"
 )
 
+type Option func(*options)
+
 type options struct {
 	ctx     context.Context
 	version string
@@ -15,8 +17,6 @@ func newOptions() *options {
 		version: "unspecified",
 	}
 }
-
-type Option func(*options)
 
 func WithContext(ctx context.Context) Option {
 	return func(o *options) {
