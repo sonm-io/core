@@ -35,6 +35,12 @@ const (
 
 type ServerOption func(options *options)
 
+func GRPCServerOptions(opts ...grpc.ServerOption) ServerOption {
+	return func(o *options) {
+		o.options = append(o.options, opts...)
+	}
+}
+
 // Credentials activates credentials for server connections.
 func Credentials(creds credentials.TransportCredentials) ServerOption {
 	return func(o *options) {

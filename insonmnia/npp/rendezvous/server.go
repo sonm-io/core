@@ -38,6 +38,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -52,6 +53,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
@@ -142,6 +144,14 @@ func NewServer(cfg *ServerConfig, options ...Option) (*Server, error) {
 		log: opts.Log,
 		server: xgrpc.NewServer(
 			opts.Log,
+			xgrpc.GRPCServerOptions(
+				grpc.KeepaliveParams(keepalive.ServerParameters{
+					Time: 30 * time.Second,
+				}),
+				grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+					MinTime: 30 * time.Second,
+				}),
+			),
 			xgrpc.Credentials(opts.Credentials),
 			xgrpc.DefaultTraceInterceptor(),
 			xgrpc.RequestLogInterceptor([]string{}),
