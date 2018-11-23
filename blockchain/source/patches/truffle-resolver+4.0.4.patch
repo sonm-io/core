@@ -1,0 +1,15 @@
+patch-package
+--- a/node_modules/truffle-resolver/fs.js
++++ b/node_modules/truffle-resolver/fs.js
+@@ -87,9 +87,10 @@ FS.prototype.resolve = function(import_path, imported_from, callback) {
+ };
+ 
+ // Here we're resolving from local files to local files, all absolute.
++// Fixup by antmat: use relative paths - do not resolve to full paths to maintain smart-contrac bytecode unchanged.
+ FS.prototype.resolve_dependency_path = function(import_path, dependency_path) {
+   var dirname = path.dirname(import_path);
+-  return path.resolve(path.join(dirname, dependency_path));
++  return path.join(dirname, dependency_path);
+ };
+ 
+ 
