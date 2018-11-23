@@ -55,6 +55,7 @@ type Config struct {
 	Master            common.Address      `yaml:"master" required:"true"`
 	Development       DevConfig           `yaml:"development"`
 	Admin             *common.Address     `yaml:"admin"`
+	MetricsCollector  *common.Address     `yaml:"metrics_collector"`
 	Debug             *debug.Config       `yaml:"debug"`
 }
 
