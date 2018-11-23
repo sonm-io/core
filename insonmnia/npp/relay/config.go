@@ -87,5 +87,6 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 //
 // Used as a basic building block for high-level configurations.
 type Config struct {
-	Endpoints []string
+	Endpoints   []string
+	Concurrency uint8 `yaml:"concurrency" default:"2"`
 }
