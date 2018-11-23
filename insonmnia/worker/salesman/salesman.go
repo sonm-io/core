@@ -372,12 +372,14 @@ func (m *Salesman) restoreState(ctx context.Context) error {
 	for _, plan := range m.askPlans {
 		// We reset deal id here in order to restart order processing and reassign deal properly to ask plan.
 		// We could do it here synchronously, but this would slower startup.
-		plan.DealID = nil
 		if err := m.resources.Consume(plan); err != nil {
 			m.log.Warnf("dropping ask plan %s due to resource changes", plan.ID)
 			//Ignore error here, as resources that were not consumed can not be released.
-			m.RemoveAskPlan(ctx, plan.ID)
+			if err := m.RemoveAskPlan(ctx, plan.ID); err != nil {
+				m.log.Warnf("failed to drop ask plan %s: %s", plan.ID, err)
+			}
 		} else {
+			plan.DealID = nil
 			m.log.Debugf("consumed resource for ask plan %s", plan.GetID())
 			if err := m.createCGroup(plan); err != nil {
 				m.log.Warnf("can not create cgroup for ask plan %s: %s", plan.ID, err)
