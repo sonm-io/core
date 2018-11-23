@@ -9,13 +9,34 @@ import (
 
 const separator = "@"
 
-// An Addr represents a parsed unified address.
+// Addr represents a parsed unified address. It just encapsulates an ability
+// to contain either ETH common address, network address or both of them
+// separated by "@".
+//
+// No assumption is given for the real meaning of the addresses it contains.
+// It's the user responsibility to verify that the given network address is
+// owned by the specified ETH address if both of them provided.
+//
+// We use the following common address scheme:
+// - When only ETH address specified - "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD".
+//   Usually this is intended to be used for real address resolution using
+//   Rendezvous server.
+// - When only network address specified - "localhost:8080", "127.0.0.1:10000", etc.
+//   This can be used if you really know that the target is located in a
+//   well-known place in the network.
+// - When both ETH and network addresses specified - "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@localhost:8080".
+//   This can be represented as a combination of first two cases. The difference
+//   is in how you treat its real meaning. For example, the network address may
+//   be used as a hint for NPP dialer.
+//   It's the user's responsibility to verify that the given network address
+//   is really matches the ETH address provided, usually, using TLS certificates.
 type Addr struct {
 	eth     *common.Address
 	netAddr string
 }
 
-func NewAddr(addr string) (*Addr, error) {
+// ParseAddr parses the specified string into an unified address.
+func ParseAddr(addr string) (*Addr, error) {
 	parts := strings.SplitN(addr, separator, -1)
 
 	switch len(parts) {
@@ -90,7 +111,7 @@ func (m *Addr) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	value, err := NewAddr(addr)
+	value, err := ParseAddr(addr)
 	if err != nil {
 		return fmt.Errorf("cannot convert `%s` into an `auth.Addr` address: %s", addr, err)
 	}

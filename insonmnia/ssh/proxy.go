@@ -343,7 +343,7 @@ func (m *connHandler) resolve(ctx context.Context, dealID *big.Int) (*auth.Addr,
 		return nil, fmt.Errorf("failed to resolve `%s` deal into ETH address: deal is closed", dealID.String())
 	}
 
-	return auth.NewAddr(deal.GetSupplierID().Unwrap().Hex())
+	return auth.ParseAddr(deal.GetSupplierID().Unwrap().Hex())
 }
 
 type userIdentity struct {

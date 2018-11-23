@@ -59,7 +59,7 @@ func NewConfig(p ...string) (*Config, error) {
 
 func (cc *Config) Validate() error {
 	if len(cc.WorkerAddr) > 0 {
-		if _, err := auth.NewAddr(cc.WorkerAddr); err != nil {
+		if _, err := auth.ParseAddr(cc.WorkerAddr); err != nil {
 			return fmt.Errorf("failed to parse worker address: %s", err)
 		}
 	}

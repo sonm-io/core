@@ -16,7 +16,7 @@ import (
 func newClientConn(ctx context.Context) (*grpc.ClientConn, error) {
 	var addr string
 
-	fullEndpoint, err := auth.NewAddr(nodeAddress())
+	fullEndpoint, err := auth.ParseAddr(nodeAddress())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse node address: %v", err)
 	}
