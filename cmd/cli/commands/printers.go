@@ -493,7 +493,8 @@ func printDealInfo(cmd Printer, info *ExtendedDealInfo, flags printerFlags) {
 
 		cmd.Printf("Total payout: %s SNM\r\n", deal.GetTotalPayout().ToPriceString())
 		cmd.Printf("Consumer ID:  %s\r\n", deal.GetConsumerID().Unwrap().Hex())
-		cmd.Printf("Supplier ID:  %s\r\n", deal.GetSupplierID().Unwrap().Hex())
+		cmd.Printf("Worker ID:    %s\r\n", deal.GetSupplierID().Unwrap().Hex())
+		cmd.Printf("Master ID:    %s\r\n", deal.GetMasterID().Unwrap().Hex())
 
 		cmd.Printf("Start at:     %s\r\n", start.Format(time.RFC3339))
 		if isClosed {
