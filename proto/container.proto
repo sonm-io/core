@@ -48,6 +48,10 @@ message Container {
     // ContainerRestartPolicy describes the restart policies of the container.
     ContainerRestartPolicy restartPolicy = 8;
     // Expose controls how container ports are exposed.
+    // Format is public_ip:public_port:private_port/protocol
+    // protocol can be "tcp", "udp", "sctp"
+    // if protocol is ommited "tcp" is implied
+    // if public_ip is ommited than port is being exposed on all available ips
     repeated string expose = 10;
     // Push the committed image to remote repository (works only if CommitOnStop is set to `true`).
     bool pushOnStop = 11;

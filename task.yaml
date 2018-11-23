@@ -51,6 +51,12 @@ container:
   networks:
   - type: tinc
     subnet: "10.20.30.0/24"
+  # expose container ports if public ip is provided in deal. Format is public_ip:public_port:private_port/protocol
+  # protocol can be "tcp", "udp", "sctp"
+  # if protocol is ommited "tcp" is implied
+  # if public_ip is ommited than port is being exposed on all available ips
+  expose:
+  - 8080:80
 
 # Custom registry settings.
 # Optional.
