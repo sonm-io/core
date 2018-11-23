@@ -67,7 +67,7 @@ func newClient(ctx context.Context, addr string, credentials credentials.Transpo
 }
 
 func NewQUICClient(ctx context.Context, addr string, tlsConfig *tls.Config, credentials credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	authEndpoint, err := auth.NewAddr(addr)
+	authEndpoint, err := auth.ParseAddr(addr)
 	if err != nil {
 		return nil, err
 	}
