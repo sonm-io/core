@@ -3,6 +3,7 @@ package npp
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/libp2p/go-reuseport"
 	"github.com/lucas-clemente/quic-go"
@@ -10,7 +11,9 @@ import (
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/util/xgrpc"
 	"github.com/sonm-io/core/util/xnet"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 )
 
 // RendezvousClient is a tiny wrapper over the generated gRPC client allowing
@@ -26,26 +29,28 @@ type rendezvousClient struct {
 }
 
 func newRendezvousClient(ctx context.Context, addr auth.Addr, credentials credentials.TransportCredentials) (*rendezvousClient, error) {
-	// Setting TCP keepalive is required, because NAT's conntrack can purge out
-	// idle connections for its internal garbage collection reasons at the most
-	// inopportune moment.
-	dialer := reuseport.Dialer{
-		D: net.Dialer{
-			KeepAlive: tcpKeepAliveInterval,
-		},
-	}
-
 	netAddr, err := addr.Addr()
 	if err != nil {
 		return nil, err
 	}
 
+	dialer := reuseport.Dialer{}
 	conn, err := dialer.Dial(protocol, netAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := rendezvous.NewRendezvousClient(ctx, addr.String(), credentials, xgrpc.WithConn(conn))
+	options := []grpc.DialOption{
+		xgrpc.WithConn(conn),
+		// Setting HTTP/2 keepalive is required, because NAT's conntrack can purge out
+		// idle connections for its internal garbage collection reasons at the most
+		// inopportune moment.
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: 30 * time.Second,
+		}),
+	}
+
+	client, err := rendezvous.NewRendezvousClient(ctx, addr.String(), credentials, options...)
 	if err != nil {
 		return nil, err
 	}

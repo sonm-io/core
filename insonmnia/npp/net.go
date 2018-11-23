@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"net"
 	"syscall"
-	"time"
 
 	"github.com/libp2p/go-reuseport"
 	"github.com/sonm-io/core/util/netutil"
 )
 
-const protocol = "tcp"
-const tcpKeepAliveInterval = 15 * time.Second
+const (
+	protocol = "tcp"
+)
 
 type Port uint16
 
