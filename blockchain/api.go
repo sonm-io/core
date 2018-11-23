@@ -192,7 +192,7 @@ type AutoPayoutAPI interface {
 	SetAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, limit *big.Int, address common.Address) error
 	DoAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error
 	GetPayoutSetting(ctx context.Context, address common.Address) (*AutoPayoutSetting, error)
-	GetPayoutSettings(ctx context.Context) ([]*AutoPayoutSetting, error)
+	GetPayoutSettings(ctx context.Context, fromBlock, toBlock *big.Int) ([]*AutoPayoutSetting, error)
 }
 
 type BasicAPI struct {
@@ -2143,7 +2143,7 @@ func (api *BasicAutoPayoutAPI) GetPayoutSetting(ctx context.Context, address com
 	}, nil
 }
 
-func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context) ([]*AutoPayoutSetting, error) {
+func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context, fromBlock, toBlock *big.Int) ([]*AutoPayoutSetting, error) {
 	var (
 		settings   []*AutoPayoutSetting
 		topics     [][]common.Hash
@@ -2156,6 +2156,8 @@ func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context) ([]*AutoPa
 	logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{api.address},
 		Topics:    topics,
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
 	})
 	if err != nil {
 		return nil, err

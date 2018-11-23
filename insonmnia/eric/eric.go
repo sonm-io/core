@@ -3,11 +3,11 @@ package eric
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"math/big"
 	"sync"
 )
 
@@ -17,9 +17,9 @@ type Eric struct {
 	bch    blockchain.API
 	cfg    *Config
 
-	payoutSettings map[string]struct {
+	payoutSettings map[string]*struct {
 		mu sync.Mutex
-		blockchain.AutoPayoutSetting
+		*blockchain.AutoPayoutSetting
 	}
 }
 
@@ -30,10 +30,18 @@ func NewEric() (*Eric, error) {
 func (e *Eric) Start(ctx context.Context) error {
 	// load configs
 
-	events, err := e.bch.Events().GetEvents(ctx, e.bch.Events().GetAutoPayoutFilter(
-		[]common.Address{e.bch.ContractRegistry().AutoPayout()}, big.NewInt(0)))
+	lastBlock, err := e.bch.Events().GetLastBlock(ctx)
 	if err != nil {
 		return err
+	}
+
+	settings, err := e.bch.AutoPayout().GetPayoutSettings(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range settings {
+
 	}
 
 	// listen routine
@@ -42,25 +50,9 @@ func (e *Eric) Start(ctx context.Context) error {
 
 	errGroup := errgroup.Group{}
 	errGroup.Go(func() error {
-		err := o.watchPriceRoutine(ctx)
+		err := e.eventsRoutine(ctx)
 		if err != nil {
-			o.logger.Error("price watching routine failed", zap.Error(err))
-			cancel()
-		}
-		return err
-	})
-	errGroup.Go(func() error {
-		err := o.submitPriceRoutine(ctx)
-		if err != nil {
-			o.logger.Error("price submission routine failed", zap.Error(err))
-			cancel()
-		}
-		return err
-	})
-	errGroup.Go(func() error {
-		err := o.listenEventsRoutine(ctx)
-		if err != nil {
-			o.logger.Error("event listening routine failed", zap.Error(err))
+			e.logger.Error("price watching routine failed", zap.Error(err))
 			cancel()
 		}
 		return err
@@ -68,14 +60,23 @@ func (e *Eric) Start(ctx context.Context) error {
 	return errGroup.Wait()
 }
 
-func (e *Eric) SetConfigs() {
+func (e *Eric) eventsRoutine(ctx context.Context) error {
 
+}
+
+func (e *Eric) SetConfigs(s *blockchain.AutoPayoutSetting) {
+	e.payoutSettings[s.Master.String()].AutoPayoutSetting = s
 }
 
 func (e *Eric) doPayout(ctx context.Context, master common.Address) error {
 	balance, err := e.bch.SidechainToken().BalanceOf(ctx, master)
 	if err != nil {
 		return err
+	}
+
+	// TODO
+	if balance.SNM.Cmp(e.payoutSettings[master.String()].LowLimit) < 0{
+		return fmt.Errorf("balance lower than low limit")
 	}
 
 	return e.bch.AutoPayout().DoAutoPayout(ctx, e.key, master)
