@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewAddr(t *testing.T) {
-	addr, err := NewAddr("8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090")
+	addr, err := ParseAddr("8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090")
 	require.NotNil(t, addr)
 	require.NoError(t, err)
 
@@ -24,7 +24,7 @@ func TestNewAddr(t *testing.T) {
 }
 
 func TestNewAddrOnlyNet(t *testing.T) {
-	addr, err := NewAddr("127.0.0.1:9090")
+	addr, err := ParseAddr("127.0.0.1:9090")
 	require.NotNil(t, addr)
 	require.NoError(t, err)
 
@@ -35,7 +35,7 @@ func TestNewAddrOnlyNet(t *testing.T) {
 }
 
 func TestNewAddrOnlyETH(t *testing.T) {
-	addr, err := NewAddr("8125721C2413d99a33E351e1F6Bb4e56b6b633FD")
+	addr, err := ParseAddr("8125721C2413d99a33E351e1F6Bb4e56b6b633FD")
 	require.NotNil(t, addr)
 	require.NoError(t, err)
 
@@ -46,11 +46,25 @@ func TestNewAddrOnlyETH(t *testing.T) {
 }
 
 func TestNewAddrErr(t *testing.T) {
-	endpoint, err := NewAddr("@127.0.0.1:9090")
+	endpoint, err := ParseAddr("@127.0.0.1:9090")
 	require.Nil(t, endpoint)
 	require.Error(t, err)
 
-	endpoint, err = NewAddr("WhatTheHell@127.0.0.1:9090")
+	endpoint, err = ParseAddr("WhatTheHell@127.0.0.1:9090")
 	require.Nil(t, endpoint)
 	require.Error(t, err)
+}
+
+func TestAddrMarshalText(t *testing.T) {
+	addr, err := ParseAddr("8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090")
+	require.NotNil(t, addr)
+	require.NoError(t, err)
+
+	data, err := addr.MarshalText()
+
+	require.NoError(t, err)
+	require.NotNil(t, data)
+
+	// Note that "0x" prefix added.
+	assert.Equal(t, []byte("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"), data)
 }

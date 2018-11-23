@@ -40,7 +40,7 @@ func (m *interceptedAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) 
 	if len(ctxAddrs) != 1 {
 		return nil, fmt.Errorf("worker address key in metadata has %d headers (exactly one required)", len(ctxAddrs))
 	}
-	return auth.NewAddr(ctxAddrs[0])
+	return auth.ParseAddr(ctxAddrs[0])
 }
 
 func (m *interceptedAPI) getWorkerManagementClient(ctx context.Context) (sonm.WorkerManagementClient, io.Closer, error) {

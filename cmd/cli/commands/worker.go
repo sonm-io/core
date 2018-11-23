@@ -104,7 +104,7 @@ var workerSwitchCmd = &cobra.Command{
 	Short: "Switch current worker to specified addr",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		addr, err := auth.NewAddr(args[0])
+		addr, err := auth.ParseAddr(args[0])
 		if err != nil {
 			return fmt.Errorf("invalid address specified: %v", err)
 		}
@@ -192,7 +192,7 @@ var workerCurrentCmd = &cobra.Command{
 				result.Address = crypto.PubkeyToAddress(key.PublicKey).Hex()
 				return result
 			}
-			addr, err := auth.NewAddr(cfg.WorkerAddr)
+			addr, err := auth.ParseAddr(cfg.WorkerAddr)
 			if err != nil {
 				result.Error = err
 				result.Description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)

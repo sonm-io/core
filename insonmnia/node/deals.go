@@ -180,7 +180,7 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *sonm.QuickBuyRequest) (*so
 		return nil, err
 	}
 
-	supplierAddr, err := auth.NewAddr(deal.GetSupplierID().Unwrap().Hex())
+	supplierAddr, err := auth.ParseAddr(deal.GetSupplierID().Unwrap().Hex())
 	if err != nil {
 		d.log.Debugw("cannot create auth.Addr from supplier addr", zap.Error(err))
 		return &sonm.DealInfoReply{Deal: deal}, nil
