@@ -5,15 +5,17 @@ import (
 )
 
 const (
-	MetricsKeyDiskFree       = "disk_free"
-	MetricsKeyDiskTotal      = "disk_total"
-	MetricsKeyRAMFree        = "ram_free"
-	MetricsKeyRAMTotal       = "ram_total"
-	MetricsKeyCPUUtilization = "cpu_utilization"
-	MetricsKeyGPUPrefix      = "gpu"
-	MetricsKeyGPUTemperature = "temp"
-	MetricsKeyGPUFan         = "fan"
-	MetricsKeyGPUPower       = "power"
+	MetricsKeyDiskFree        = "disk_free"
+	MetricsKeyDiskFreePercent = "disk_free_percent"
+	MetricsKeyDiskTotal       = "disk_total"
+	MetricsKeyRAMFree         = "ram_free"
+	MetricsKeyRAMFreePercent  = "ram_free_percent"
+	MetricsKeyRAMTotal        = "ram_total"
+	MetricsKeyCPUUtilization  = "cpu_utilization"
+	MetricsKeyGPUPrefix       = "gpu"
+	MetricsKeyGPUTemperature  = "temp"
+	MetricsKeyGPUFan          = "fan"
+	MetricsKeyGPUPower        = "power"
 )
 
 func (m *TaskTag) MarshalYAML() (interface{}, error) {
