@@ -15,6 +15,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	maxRelayConcurrency = 4
+)
+
 // Option is a function that configures the listener or dialer.
 type Option func(o *options) error
 
@@ -29,6 +33,7 @@ type options struct {
 	nppMaxBackoffInterval time.Duration
 	relayListener         *relay.Listener
 	relayDialer           *relay.Dialer
+	RelayConcurrency      uint8
 	Protocol              string
 }
 
@@ -38,6 +43,7 @@ func newOptions() *options {
 		nppBacklog:            128,
 		nppMinBackoffInterval: 500 * time.Millisecond,
 		nppMaxBackoffInterval: 8000 * time.Millisecond,
+		RelayConcurrency:      2,
 		Protocol:              sonm.DefaultNPPProtocol,
 	}
 }
@@ -129,6 +135,10 @@ func newQUICPuncherFactory(cfg rendezvous.Config, credentials *xgrpc.TransportCr
 // currently ignored and can be "nil".
 func WithRelay(cfg relay.Config, credentials *ecdsa.PrivateKey) Option {
 	return func(o *options) error {
+		if cfg.Concurrency > maxRelayConcurrency {
+			return fmt.Errorf("relay concurrency %d overflows its maximum value %d", cfg.Concurrency, maxRelayConcurrency)
+		}
+
 		dialer := &relay.Dialer{
 			Addrs: cfg.Endpoints,
 			Log:   o.log,
@@ -141,6 +151,7 @@ func WithRelay(cfg relay.Config, credentials *ecdsa.PrivateKey) Option {
 
 		o.relayDialer = dialer
 		o.relayListener = listener
+		o.RelayConcurrency = cfg.Concurrency
 		return nil
 	}
 }

@@ -264,6 +264,17 @@ func NewListener(addrs []string, key *ecdsa.PrivateKey, log *zap.Logger) (*Liste
 	return m, nil
 }
 
+// Accept accepts a new TCP connection that is relayed through the Relay server
+// specified in the configuration.
+//
+// This is done by establishing a TCP connection to a Relay server and waiting
+// until a remote peer decides to communicate with us.
+//
+// This method can be called multiple times, even concurrently to announce the
+// server multiple times, which is useful for reducing the time window between
+// the next announce after the remote peer appearing. However, this increases
+// resource usage, such as fd, on both this server and the Relay.
+// Use wisely.
 func (m *Listener) Accept() (net.Conn, error) {
 	m.Log.Debug("connecting to remote Relay server")
 
