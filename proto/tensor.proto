@@ -12,6 +12,7 @@ service Tensor {
 message JupyterNodeRequest {
     BigInt dealID = 1;
     EthAddress supplierID = 2;
+    string repository = 3;
 }
 
 message JupyterNodeResponse {

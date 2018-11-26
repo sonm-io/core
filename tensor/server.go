@@ -7,20 +7,26 @@ import (
 	"net"
 	"sync"
 
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
-
-	"github.com/sonm-io/core/blockchain"
-	"golang.org/x/sync/errgroup"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+)
+
+const (
+	JupyterImage = "sonm.io/jupyter:latest"
 )
 
 type Server struct {
@@ -139,6 +145,34 @@ func (m *Server) Stop() error {
 	return nil
 }
 
-func (m *Server) GetJupyterNode(ctx context.Context, in *sonm.JupyterNodeRequest) (*sonm.JupyterNodeResponse, error) {
+func (m *Server) GetJupyterNode(ctx context.Context, req *sonm.JupyterNodeRequest) (*sonm.JupyterNodeResponse, error) {
+	wc, err := m.getWorkerClient(req.SupplierID.Unwrap())
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to getWorkerClient")
+	}
+
+	repl, err := wc.StartTask(m.ctx, &sonm.StartTaskRequest{
+		DealID: req.DealID,
+		Spec: &sonm.TaskSpec{
+			Container: &sonm.Container{
+				Image:        JupyterImage,
+				CommitOnStop: true,
+				Env:          map[string]string{"repo": req.Repository},
+			},
+		},
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to StartTask")
+	}
+
 	return &sonm.JupyterNodeResponse{}, nil
+}
+
+func (m *Server) getWorkerClient(addr common.Address) (sonm.WorkerClient, error) {
+	cc, err := xgrpc.NewClient(m.ctx, addr.String(), m.creds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gRPC client: %v", err)
+	}
+
+	return sonm.NewWorkerClient(cc), nil
 }
