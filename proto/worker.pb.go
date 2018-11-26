@@ -3,19 +3,24 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type TaskStatusReply_Status int32
 
@@ -36,6 +41,7 @@ var TaskStatusReply_Status_name = map[int32]string{
 	4: "FINISHED",
 	5: "BROKEN",
 }
+
 var TaskStatusReply_Status_value = map[string]int32{
 	"UNKNOWN":  0,
 	"SPOOLING": 1,
@@ -48,16 +54,42 @@ var TaskStatusReply_Status_value = map[string]int32{
 func (x TaskStatusReply_Status) String() string {
 	return proto.EnumName(TaskStatusReply_Status_name, int32(x))
 }
-func (TaskStatusReply_Status) EnumDescriptor() ([]byte, []int) { return fileDescriptor16, []int{11, 0} }
 
-type TaskTag struct {
-	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+func (TaskStatusReply_Status) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{11, 0}
 }
 
-func (m *TaskTag) Reset()                    { *m = TaskTag{} }
-func (m *TaskTag) String() string            { return proto.CompactTextString(m) }
-func (*TaskTag) ProtoMessage()               {}
-func (*TaskTag) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{0} }
+type TaskTag struct {
+	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TaskTag) Reset()         { *m = TaskTag{} }
+func (m *TaskTag) String() string { return proto.CompactTextString(m) }
+func (*TaskTag) ProtoMessage()    {}
+func (*TaskTag) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{0}
+}
+
+func (m *TaskTag) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskTag.Unmarshal(m, b)
+}
+func (m *TaskTag) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskTag.Marshal(b, m, deterministic)
+}
+func (m *TaskTag) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskTag.Merge(m, src)
+}
+func (m *TaskTag) XXX_Size() int {
+	return xxx_messageInfo_TaskTag.Size(m)
+}
+func (m *TaskTag) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskTag.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TaskTag proto.InternalMessageInfo
 
 func (m *TaskTag) GetData() []byte {
 	if m != nil {
@@ -68,16 +100,39 @@ func (m *TaskTag) GetData() []byte {
 
 type TaskSpec struct {
 	// Container describes container settings.
-	Container *Container        `protobuf:"bytes,1,opt,name=container" json:"container,omitempty"`
-	Registry  *Registry         `protobuf:"bytes,2,opt,name=registry" json:"registry,omitempty"`
-	Resources *AskPlanResources `protobuf:"bytes,3,opt,name=resources" json:"resources,omitempty"`
-	Tag       *TaskTag          `protobuf:"bytes,4,opt,name=tag" json:"tag,omitempty"`
+	Container            *Container        `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
+	Registry             *Registry         `protobuf:"bytes,2,opt,name=registry,proto3" json:"registry,omitempty"`
+	Resources            *AskPlanResources `protobuf:"bytes,3,opt,name=resources,proto3" json:"resources,omitempty"`
+	Tag                  *TaskTag          `protobuf:"bytes,4,opt,name=tag,proto3" json:"tag,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *TaskSpec) Reset()                    { *m = TaskSpec{} }
-func (m *TaskSpec) String() string            { return proto.CompactTextString(m) }
-func (*TaskSpec) ProtoMessage()               {}
-func (*TaskSpec) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{1} }
+func (m *TaskSpec) Reset()         { *m = TaskSpec{} }
+func (m *TaskSpec) String() string { return proto.CompactTextString(m) }
+func (*TaskSpec) ProtoMessage()    {}
+func (*TaskSpec) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{1}
+}
+
+func (m *TaskSpec) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskSpec.Unmarshal(m, b)
+}
+func (m *TaskSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskSpec.Marshal(b, m, deterministic)
+}
+func (m *TaskSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskSpec.Merge(m, src)
+}
+func (m *TaskSpec) XXX_Size() int {
+	return xxx_messageInfo_TaskSpec.Size(m)
+}
+func (m *TaskSpec) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskSpec.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TaskSpec proto.InternalMessageInfo
 
 func (m *TaskSpec) GetContainer() *Container {
 	if m != nil {
@@ -110,14 +165,37 @@ func (m *TaskSpec) GetTag() *TaskTag {
 type StartTaskRequest struct {
 	// Deal points to the deal associated with workers where the task should be
 	// started.
-	DealID *BigInt   `protobuf:"bytes,1,opt,name=dealID" json:"dealID,omitempty"`
-	Spec   *TaskSpec `protobuf:"bytes,2,opt,name=spec" json:"spec,omitempty"`
+	DealID               *BigInt   `protobuf:"bytes,1,opt,name=dealID,proto3" json:"dealID,omitempty"`
+	Spec                 *TaskSpec `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
+	XXX_unrecognized     []byte    `json:"-"`
+	XXX_sizecache        int32     `json:"-"`
 }
 
-func (m *StartTaskRequest) Reset()                    { *m = StartTaskRequest{} }
-func (m *StartTaskRequest) String() string            { return proto.CompactTextString(m) }
-func (*StartTaskRequest) ProtoMessage()               {}
-func (*StartTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{2} }
+func (m *StartTaskRequest) Reset()         { *m = StartTaskRequest{} }
+func (m *StartTaskRequest) String() string { return proto.CompactTextString(m) }
+func (*StartTaskRequest) ProtoMessage()    {}
+func (*StartTaskRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{2}
+}
+
+func (m *StartTaskRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartTaskRequest.Unmarshal(m, b)
+}
+func (m *StartTaskRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartTaskRequest.Marshal(b, m, deterministic)
+}
+func (m *StartTaskRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartTaskRequest.Merge(m, src)
+}
+func (m *StartTaskRequest) XXX_Size() int {
+	return xxx_messageInfo_StartTaskRequest.Size(m)
+}
+func (m *StartTaskRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartTaskRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartTaskRequest proto.InternalMessageInfo
 
 func (m *StartTaskRequest) GetDealID() *BigInt {
 	if m != nil {
@@ -134,14 +212,37 @@ func (m *StartTaskRequest) GetSpec() *TaskSpec {
 }
 
 type WorkerJoinNetworkRequest struct {
-	TaskID    string `protobuf:"bytes,1,opt,name=taskID" json:"taskID,omitempty"`
-	NetworkID string `protobuf:"bytes,2,opt,name=networkID" json:"networkID,omitempty"`
+	TaskID               string   `protobuf:"bytes,1,opt,name=taskID,proto3" json:"taskID,omitempty"`
+	NetworkID            string   `protobuf:"bytes,2,opt,name=networkID,proto3" json:"networkID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WorkerJoinNetworkRequest) Reset()                    { *m = WorkerJoinNetworkRequest{} }
-func (m *WorkerJoinNetworkRequest) String() string            { return proto.CompactTextString(m) }
-func (*WorkerJoinNetworkRequest) ProtoMessage()               {}
-func (*WorkerJoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{3} }
+func (m *WorkerJoinNetworkRequest) Reset()         { *m = WorkerJoinNetworkRequest{} }
+func (m *WorkerJoinNetworkRequest) String() string { return proto.CompactTextString(m) }
+func (*WorkerJoinNetworkRequest) ProtoMessage()    {}
+func (*WorkerJoinNetworkRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{3}
+}
+
+func (m *WorkerJoinNetworkRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WorkerJoinNetworkRequest.Unmarshal(m, b)
+}
+func (m *WorkerJoinNetworkRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WorkerJoinNetworkRequest.Marshal(b, m, deterministic)
+}
+func (m *WorkerJoinNetworkRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerJoinNetworkRequest.Merge(m, src)
+}
+func (m *WorkerJoinNetworkRequest) XXX_Size() int {
+	return xxx_messageInfo_WorkerJoinNetworkRequest.Size(m)
+}
+func (m *WorkerJoinNetworkRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WorkerJoinNetworkRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WorkerJoinNetworkRequest proto.InternalMessageInfo
 
 func (m *WorkerJoinNetworkRequest) GetTaskID() string {
 	if m != nil {
@@ -158,15 +259,38 @@ func (m *WorkerJoinNetworkRequest) GetNetworkID() string {
 }
 
 type StartTaskReply struct {
-	Id         string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	PortMap    map[string]*Endpoints `protobuf:"bytes,2,rep,name=portMap" json:"portMap,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	NetworkIDs []string              `protobuf:"bytes,3,rep,name=networkIDs" json:"networkIDs,omitempty"`
+	Id                   string                `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	PortMap              map[string]*Endpoints `protobuf:"bytes,2,rep,name=portMap,proto3" json:"portMap,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	NetworkIDs           []string              `protobuf:"bytes,3,rep,name=networkIDs,proto3" json:"networkIDs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *StartTaskReply) Reset()                    { *m = StartTaskReply{} }
-func (m *StartTaskReply) String() string            { return proto.CompactTextString(m) }
-func (*StartTaskReply) ProtoMessage()               {}
-func (*StartTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{4} }
+func (m *StartTaskReply) Reset()         { *m = StartTaskReply{} }
+func (m *StartTaskReply) String() string { return proto.CompactTextString(m) }
+func (*StartTaskReply) ProtoMessage()    {}
+func (*StartTaskReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{4}
+}
+
+func (m *StartTaskReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartTaskReply.Unmarshal(m, b)
+}
+func (m *StartTaskReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartTaskReply.Marshal(b, m, deterministic)
+}
+func (m *StartTaskReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartTaskReply.Merge(m, src)
+}
+func (m *StartTaskReply) XXX_Size() int {
+	return xxx_messageInfo_StartTaskReply.Size(m)
+}
+func (m *StartTaskReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartTaskReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartTaskReply proto.InternalMessageInfo
 
 func (m *StartTaskReply) GetId() string {
 	if m != nil {
@@ -190,24 +314,47 @@ func (m *StartTaskReply) GetNetworkIDs() []string {
 }
 
 type StatusReply struct {
-	Uptime              uint64      `protobuf:"varint,1,opt,name=uptime" json:"uptime,omitempty"`
-	Version             string      `protobuf:"bytes,2,opt,name=version" json:"version,omitempty"`
-	Platform            string      `protobuf:"bytes,3,opt,name=platform" json:"platform,omitempty"`
-	EthAddr             string      `protobuf:"bytes,4,opt,name=ethAddr" json:"ethAddr,omitempty"`
-	TaskCount           uint32      `protobuf:"varint,5,opt,name=taskCount" json:"taskCount,omitempty"`
-	DWHStatus           string      `protobuf:"bytes,6,opt,name=DWHStatus" json:"DWHStatus,omitempty"`
-	RendezvousStatus    string      `protobuf:"bytes,7,opt,name=rendezvousStatus" json:"rendezvousStatus,omitempty"`
-	Master              *EthAddress `protobuf:"bytes,8,opt,name=master" json:"master,omitempty"`
-	Admin               *EthAddress `protobuf:"bytes,9,opt,name=admin" json:"admin,omitempty"`
-	IsMasterConfirmed   bool        `protobuf:"varint,10,opt,name=isMasterConfirmed" json:"isMasterConfirmed,omitempty"`
-	IsBenchmarkFinished bool        `protobuf:"varint,11,opt,name=isBenchmarkFinished" json:"isBenchmarkFinished,omitempty"`
-	Geo                 *GeoIP      `protobuf:"bytes,12,opt,name=geo" json:"geo,omitempty"`
+	Uptime               uint64      `protobuf:"varint,1,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	Version              string      `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Platform             string      `protobuf:"bytes,3,opt,name=platform,proto3" json:"platform,omitempty"`
+	EthAddr              string      `protobuf:"bytes,4,opt,name=ethAddr,proto3" json:"ethAddr,omitempty"`
+	TaskCount            uint32      `protobuf:"varint,5,opt,name=taskCount,proto3" json:"taskCount,omitempty"`
+	DWHStatus            string      `protobuf:"bytes,6,opt,name=DWHStatus,proto3" json:"DWHStatus,omitempty"`
+	RendezvousStatus     string      `protobuf:"bytes,7,opt,name=rendezvousStatus,proto3" json:"rendezvousStatus,omitempty"`
+	Master               *EthAddress `protobuf:"bytes,8,opt,name=master,proto3" json:"master,omitempty"`
+	Admin                *EthAddress `protobuf:"bytes,9,opt,name=admin,proto3" json:"admin,omitempty"`
+	IsMasterConfirmed    bool        `protobuf:"varint,10,opt,name=isMasterConfirmed,proto3" json:"isMasterConfirmed,omitempty"`
+	IsBenchmarkFinished  bool        `protobuf:"varint,11,opt,name=isBenchmarkFinished,proto3" json:"isBenchmarkFinished,omitempty"`
+	Geo                  *GeoIP      `protobuf:"bytes,12,opt,name=geo,proto3" json:"geo,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *StatusReply) Reset()                    { *m = StatusReply{} }
-func (m *StatusReply) String() string            { return proto.CompactTextString(m) }
-func (*StatusReply) ProtoMessage()               {}
-func (*StatusReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{5} }
+func (m *StatusReply) Reset()         { *m = StatusReply{} }
+func (m *StatusReply) String() string { return proto.CompactTextString(m) }
+func (*StatusReply) ProtoMessage()    {}
+func (*StatusReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{5}
+}
+
+func (m *StatusReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StatusReply.Unmarshal(m, b)
+}
+func (m *StatusReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StatusReply.Marshal(b, m, deterministic)
+}
+func (m *StatusReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StatusReply.Merge(m, src)
+}
+func (m *StatusReply) XXX_Size() int {
+	return xxx_messageInfo_StatusReply.Size(m)
+}
+func (m *StatusReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_StatusReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StatusReply proto.InternalMessageInfo
 
 func (m *StatusReply) GetUptime() uint64 {
 	if m != nil {
@@ -294,13 +441,36 @@ func (m *StatusReply) GetGeo() *GeoIP {
 }
 
 type AskPlansReply struct {
-	AskPlans map[string]*AskPlan `protobuf:"bytes,1,rep,name=askPlans" json:"askPlans,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	AskPlans             map[string]*AskPlan `protobuf:"bytes,1,rep,name=askPlans,proto3" json:"askPlans,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
 }
 
-func (m *AskPlansReply) Reset()                    { *m = AskPlansReply{} }
-func (m *AskPlansReply) String() string            { return proto.CompactTextString(m) }
-func (*AskPlansReply) ProtoMessage()               {}
-func (*AskPlansReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{6} }
+func (m *AskPlansReply) Reset()         { *m = AskPlansReply{} }
+func (m *AskPlansReply) String() string { return proto.CompactTextString(m) }
+func (*AskPlansReply) ProtoMessage()    {}
+func (*AskPlansReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{6}
+}
+
+func (m *AskPlansReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AskPlansReply.Unmarshal(m, b)
+}
+func (m *AskPlansReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AskPlansReply.Marshal(b, m, deterministic)
+}
+func (m *AskPlansReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AskPlansReply.Merge(m, src)
+}
+func (m *AskPlansReply) XXX_Size() int {
+	return xxx_messageInfo_AskPlansReply.Size(m)
+}
+func (m *AskPlansReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_AskPlansReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AskPlansReply proto.InternalMessageInfo
 
 func (m *AskPlansReply) GetAskPlans() map[string]*AskPlan {
 	if m != nil {
@@ -310,13 +480,36 @@ func (m *AskPlansReply) GetAskPlans() map[string]*AskPlan {
 }
 
 type TaskListReply struct {
-	Info map[string]*TaskStatusReply `protobuf:"bytes,1,rep,name=info" json:"info,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Info                 map[string]*TaskStatusReply `protobuf:"bytes,1,rep,name=info,proto3" json:"info,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}                    `json:"-"`
+	XXX_unrecognized     []byte                      `json:"-"`
+	XXX_sizecache        int32                       `json:"-"`
 }
 
-func (m *TaskListReply) Reset()                    { *m = TaskListReply{} }
-func (m *TaskListReply) String() string            { return proto.CompactTextString(m) }
-func (*TaskListReply) ProtoMessage()               {}
-func (*TaskListReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{7} }
+func (m *TaskListReply) Reset()         { *m = TaskListReply{} }
+func (m *TaskListReply) String() string { return proto.CompactTextString(m) }
+func (*TaskListReply) ProtoMessage()    {}
+func (*TaskListReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{7}
+}
+
+func (m *TaskListReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskListReply.Unmarshal(m, b)
+}
+func (m *TaskListReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskListReply.Marshal(b, m, deterministic)
+}
+func (m *TaskListReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskListReply.Merge(m, src)
+}
+func (m *TaskListReply) XXX_Size() int {
+	return xxx_messageInfo_TaskListReply.Size(m)
+}
+func (m *TaskListReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskListReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TaskListReply proto.InternalMessageInfo
 
 func (m *TaskListReply) GetInfo() map[string]*TaskStatusReply {
 	if m != nil {
@@ -326,17 +519,40 @@ func (m *TaskListReply) GetInfo() map[string]*TaskStatusReply {
 }
 
 type DevicesReply struct {
-	CPU     *CPU     `protobuf:"bytes,1,opt,name=CPU" json:"CPU,omitempty"`
-	GPUs    []*GPU   `protobuf:"bytes,2,rep,name=GPUs" json:"GPUs,omitempty"`
-	RAM     *RAM     `protobuf:"bytes,3,opt,name=RAM" json:"RAM,omitempty"`
-	Network *Network `protobuf:"bytes,4,opt,name=network" json:"network,omitempty"`
-	Storage *Storage `protobuf:"bytes,5,opt,name=storage" json:"storage,omitempty"`
+	CPU                  *CPU     `protobuf:"bytes,1,opt,name=CPU,proto3" json:"CPU,omitempty"`
+	GPUs                 []*GPU   `protobuf:"bytes,2,rep,name=GPUs,proto3" json:"GPUs,omitempty"`
+	RAM                  *RAM     `protobuf:"bytes,3,opt,name=RAM,proto3" json:"RAM,omitempty"`
+	Network              *Network `protobuf:"bytes,4,opt,name=network,proto3" json:"network,omitempty"`
+	Storage              *Storage `protobuf:"bytes,5,opt,name=storage,proto3" json:"storage,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DevicesReply) Reset()                    { *m = DevicesReply{} }
-func (m *DevicesReply) String() string            { return proto.CompactTextString(m) }
-func (*DevicesReply) ProtoMessage()               {}
-func (*DevicesReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{8} }
+func (m *DevicesReply) Reset()         { *m = DevicesReply{} }
+func (m *DevicesReply) String() string { return proto.CompactTextString(m) }
+func (*DevicesReply) ProtoMessage()    {}
+func (*DevicesReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{8}
+}
+
+func (m *DevicesReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DevicesReply.Unmarshal(m, b)
+}
+func (m *DevicesReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DevicesReply.Marshal(b, m, deterministic)
+}
+func (m *DevicesReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DevicesReply.Merge(m, src)
+}
+func (m *DevicesReply) XXX_Size() int {
+	return xxx_messageInfo_DevicesReply.Size(m)
+}
+func (m *DevicesReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_DevicesReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DevicesReply proto.InternalMessageInfo
 
 func (m *DevicesReply) GetCPU() *CPU {
 	if m != nil {
@@ -374,14 +590,37 @@ func (m *DevicesReply) GetStorage() *Storage {
 }
 
 type PullTaskRequest struct {
-	DealId string `protobuf:"bytes,1,opt,name=dealId" json:"dealId,omitempty"`
-	TaskId string `protobuf:"bytes,2,opt,name=taskId" json:"taskId,omitempty"`
+	DealId               string   `protobuf:"bytes,1,opt,name=dealId,proto3" json:"dealId,omitempty"`
+	TaskId               string   `protobuf:"bytes,2,opt,name=taskId,proto3" json:"taskId,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PullTaskRequest) Reset()                    { *m = PullTaskRequest{} }
-func (m *PullTaskRequest) String() string            { return proto.CompactTextString(m) }
-func (*PullTaskRequest) ProtoMessage()               {}
-func (*PullTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{9} }
+func (m *PullTaskRequest) Reset()         { *m = PullTaskRequest{} }
+func (m *PullTaskRequest) String() string { return proto.CompactTextString(m) }
+func (*PullTaskRequest) ProtoMessage()    {}
+func (*PullTaskRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{9}
+}
+
+func (m *PullTaskRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PullTaskRequest.Unmarshal(m, b)
+}
+func (m *PullTaskRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PullTaskRequest.Marshal(b, m, deterministic)
+}
+func (m *PullTaskRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PullTaskRequest.Merge(m, src)
+}
+func (m *PullTaskRequest) XXX_Size() int {
+	return xxx_messageInfo_PullTaskRequest.Size(m)
+}
+func (m *PullTaskRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PullTaskRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PullTaskRequest proto.InternalMessageInfo
 
 func (m *PullTaskRequest) GetDealId() string {
 	if m != nil {
@@ -398,21 +637,44 @@ func (m *PullTaskRequest) GetTaskId() string {
 }
 
 type DealInfoReply struct {
-	Deal *Deal `protobuf:"bytes,1,opt,name=deal" json:"deal,omitempty"`
+	Deal *Deal `protobuf:"bytes,1,opt,name=deal,proto3" json:"deal,omitempty"`
 	// List of currently running tasks.
-	Running map[string]*TaskStatusReply `protobuf:"bytes,2,rep,name=running" json:"running,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Running map[string]*TaskStatusReply `protobuf:"bytes,2,rep,name=running,proto3" json:"running,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// List of completed tasks.
-	Completed map[string]*TaskStatusReply `protobuf:"bytes,3,rep,name=completed" json:"completed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Completed map[string]*TaskStatusReply `protobuf:"bytes,3,rep,name=completed,proto3" json:"completed,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Resources is a real resources (cores, ram bytes, GPU devices, etc)
 	// allocated on a worker for this deal.
-	Resources *AskPlanResources `protobuf:"bytes,4,opt,name=resources" json:"resources,omitempty"`
-	PublicIPs []string          `protobuf:"bytes,5,rep,name=publicIPs" json:"publicIPs,omitempty"`
+	Resources            *AskPlanResources `protobuf:"bytes,4,opt,name=resources,proto3" json:"resources,omitempty"`
+	PublicIPs            []string          `protobuf:"bytes,5,rep,name=publicIPs,proto3" json:"publicIPs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *DealInfoReply) Reset()                    { *m = DealInfoReply{} }
-func (m *DealInfoReply) String() string            { return proto.CompactTextString(m) }
-func (*DealInfoReply) ProtoMessage()               {}
-func (*DealInfoReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{10} }
+func (m *DealInfoReply) Reset()         { *m = DealInfoReply{} }
+func (m *DealInfoReply) String() string { return proto.CompactTextString(m) }
+func (*DealInfoReply) ProtoMessage()    {}
+func (*DealInfoReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{10}
+}
+
+func (m *DealInfoReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DealInfoReply.Unmarshal(m, b)
+}
+func (m *DealInfoReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DealInfoReply.Marshal(b, m, deterministic)
+}
+func (m *DealInfoReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DealInfoReply.Merge(m, src)
+}
+func (m *DealInfoReply) XXX_Size() int {
+	return xxx_messageInfo_DealInfoReply.Size(m)
+}
+func (m *DealInfoReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_DealInfoReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DealInfoReply proto.InternalMessageInfo
 
 func (m *DealInfoReply) GetDeal() *Deal {
 	if m != nil {
@@ -450,20 +712,43 @@ func (m *DealInfoReply) GetPublicIPs() []string {
 }
 
 type TaskStatusReply struct {
-	Status    TaskStatusReply_Status `protobuf:"varint,1,opt,name=status,enum=sonm.TaskStatusReply_Status" json:"status,omitempty"`
-	ImageName string                 `protobuf:"bytes,2,opt,name=imageName" json:"imageName,omitempty"`
-	PortMap   map[string]*Endpoints  `protobuf:"bytes,3,rep,name=portMap" json:"portMap,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Uptime    uint64                 `protobuf:"varint,4,opt,name=uptime" json:"uptime,omitempty"`
-	Usage     *ResourceUsage         `protobuf:"bytes,5,opt,name=usage" json:"usage,omitempty"`
-	// TODO: looks like we need to use TaskSpec here
-	AllocatedResources *AskPlanResources `protobuf:"bytes,6,opt,name=allocatedResources" json:"allocatedResources,omitempty"`
-	Tag                *TaskTag          `protobuf:"bytes,7,opt,name=tag" json:"tag,omitempty"`
+	Status    TaskStatusReply_Status `protobuf:"varint,1,opt,name=status,proto3,enum=sonm.TaskStatusReply_Status" json:"status,omitempty"`
+	ImageName string                 `protobuf:"bytes,2,opt,name=imageName,proto3" json:"imageName,omitempty"`
+	PortMap   map[string]*Endpoints  `protobuf:"bytes,3,rep,name=portMap,proto3" json:"portMap,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Uptime    uint64                 `protobuf:"varint,4,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	Usage     *ResourceUsage         `protobuf:"bytes,5,opt,name=usage,proto3" json:"usage,omitempty"`
+	//TODO: looks like we need to use TaskSpec here
+	AllocatedResources   *AskPlanResources `protobuf:"bytes,6,opt,name=allocatedResources,proto3" json:"allocatedResources,omitempty"`
+	Tag                  *TaskTag          `protobuf:"bytes,7,opt,name=tag,proto3" json:"tag,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *TaskStatusReply) Reset()                    { *m = TaskStatusReply{} }
-func (m *TaskStatusReply) String() string            { return proto.CompactTextString(m) }
-func (*TaskStatusReply) ProtoMessage()               {}
-func (*TaskStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{11} }
+func (m *TaskStatusReply) Reset()         { *m = TaskStatusReply{} }
+func (m *TaskStatusReply) String() string { return proto.CompactTextString(m) }
+func (*TaskStatusReply) ProtoMessage()    {}
+func (*TaskStatusReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{11}
+}
+
+func (m *TaskStatusReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskStatusReply.Unmarshal(m, b)
+}
+func (m *TaskStatusReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskStatusReply.Marshal(b, m, deterministic)
+}
+func (m *TaskStatusReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskStatusReply.Merge(m, src)
+}
+func (m *TaskStatusReply) XXX_Size() int {
+	return xxx_messageInfo_TaskStatusReply.Size(m)
+}
+func (m *TaskStatusReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskStatusReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TaskStatusReply proto.InternalMessageInfo
 
 func (m *TaskStatusReply) GetStatus() TaskStatusReply_Status {
 	if m != nil {
@@ -515,14 +800,37 @@ func (m *TaskStatusReply) GetTag() *TaskTag {
 }
 
 type TaskPool struct {
-	All  *AskPlanResources            `protobuf:"bytes,1,opt,name=all" json:"all,omitempty"`
-	Used map[string]*AskPlanResources `protobuf:"bytes,2,rep,name=used" json:"used,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	All                  *AskPlanResources            `protobuf:"bytes,1,opt,name=all,proto3" json:"all,omitempty"`
+	Used                 map[string]*AskPlanResources `protobuf:"bytes,2,rep,name=used,proto3" json:"used,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}                     `json:"-"`
+	XXX_unrecognized     []byte                       `json:"-"`
+	XXX_sizecache        int32                        `json:"-"`
 }
 
-func (m *TaskPool) Reset()                    { *m = TaskPool{} }
-func (m *TaskPool) String() string            { return proto.CompactTextString(m) }
-func (*TaskPool) ProtoMessage()               {}
-func (*TaskPool) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{12} }
+func (m *TaskPool) Reset()         { *m = TaskPool{} }
+func (m *TaskPool) String() string { return proto.CompactTextString(m) }
+func (*TaskPool) ProtoMessage()    {}
+func (*TaskPool) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{12}
+}
+
+func (m *TaskPool) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskPool.Unmarshal(m, b)
+}
+func (m *TaskPool) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskPool.Marshal(b, m, deterministic)
+}
+func (m *TaskPool) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskPool.Merge(m, src)
+}
+func (m *TaskPool) XXX_Size() int {
+	return xxx_messageInfo_TaskPool.Size(m)
+}
+func (m *TaskPool) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskPool.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TaskPool proto.InternalMessageInfo
 
 func (m *TaskPool) GetAll() *AskPlanResources {
 	if m != nil {
@@ -539,18 +847,41 @@ func (m *TaskPool) GetUsed() map[string]*AskPlanResources {
 }
 
 type AskPlanPool struct {
-	All          *AskPlanResources   `protobuf:"bytes,1,opt,name=all" json:"all,omitempty"`
-	UsedSpot     map[string]*AskPlan `protobuf:"bytes,2,rep,name=usedSpot" json:"usedSpot,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	UsedFw       map[string]*AskPlan `protobuf:"bytes,3,rep,name=usedFw" json:"usedFw,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	CommitedSpot map[string]*AskPlan `protobuf:"bytes,4,rep,name=commitedSpot" json:"commitedSpot,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	CommitedFw   map[string]*AskPlan `protobuf:"bytes,5,rep,name=commitedFw" json:"commitedFw,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	EjectedPlans map[string]*AskPlan `protobuf:"bytes,6,rep,name=ejectedPlans" json:"ejectedPlans,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	All                  *AskPlanResources   `protobuf:"bytes,1,opt,name=all,proto3" json:"all,omitempty"`
+	UsedSpot             map[string]*AskPlan `protobuf:"bytes,2,rep,name=usedSpot,proto3" json:"usedSpot,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	UsedFw               map[string]*AskPlan `protobuf:"bytes,3,rep,name=usedFw,proto3" json:"usedFw,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	CommitedSpot         map[string]*AskPlan `protobuf:"bytes,4,rep,name=commitedSpot,proto3" json:"commitedSpot,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	CommitedFw           map[string]*AskPlan `protobuf:"bytes,5,rep,name=commitedFw,proto3" json:"commitedFw,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	EjectedPlans         map[string]*AskPlan `protobuf:"bytes,6,rep,name=ejectedPlans,proto3" json:"ejectedPlans,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
 }
 
-func (m *AskPlanPool) Reset()                    { *m = AskPlanPool{} }
-func (m *AskPlanPool) String() string            { return proto.CompactTextString(m) }
-func (*AskPlanPool) ProtoMessage()               {}
-func (*AskPlanPool) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{13} }
+func (m *AskPlanPool) Reset()         { *m = AskPlanPool{} }
+func (m *AskPlanPool) String() string { return proto.CompactTextString(m) }
+func (*AskPlanPool) ProtoMessage()    {}
+func (*AskPlanPool) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{13}
+}
+
+func (m *AskPlanPool) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AskPlanPool.Unmarshal(m, b)
+}
+func (m *AskPlanPool) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AskPlanPool.Marshal(b, m, deterministic)
+}
+func (m *AskPlanPool) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AskPlanPool.Merge(m, src)
+}
+func (m *AskPlanPool) XXX_Size() int {
+	return xxx_messageInfo_AskPlanPool.Size(m)
+}
+func (m *AskPlanPool) XXX_DiscardUnknown() {
+	xxx_messageInfo_AskPlanPool.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AskPlanPool proto.InternalMessageInfo
 
 func (m *AskPlanPool) GetAll() *AskPlanResources {
 	if m != nil {
@@ -595,15 +926,38 @@ func (m *AskPlanPool) GetEjectedPlans() map[string]*AskPlan {
 }
 
 type SchedulerData struct {
-	TaskToAskPlan map[string]string    `protobuf:"bytes,1,rep,name=taskToAskPlan" json:"taskToAskPlan,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	AskPlanPools  map[string]*TaskPool `protobuf:"bytes,3,rep,name=askPlanPools" json:"askPlanPools,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	PlanPool      *AskPlanPool         `protobuf:"bytes,4,opt,name=planPool" json:"planPool,omitempty"`
+	TaskToAskPlan        map[string]string    `protobuf:"bytes,1,rep,name=taskToAskPlan,proto3" json:"taskToAskPlan,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	AskPlanPools         map[string]*TaskPool `protobuf:"bytes,3,rep,name=askPlanPools,proto3" json:"askPlanPools,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	PlanPool             *AskPlanPool         `protobuf:"bytes,4,opt,name=planPool,proto3" json:"planPool,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *SchedulerData) Reset()                    { *m = SchedulerData{} }
-func (m *SchedulerData) String() string            { return proto.CompactTextString(m) }
-func (*SchedulerData) ProtoMessage()               {}
-func (*SchedulerData) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{14} }
+func (m *SchedulerData) Reset()         { *m = SchedulerData{} }
+func (m *SchedulerData) String() string { return proto.CompactTextString(m) }
+func (*SchedulerData) ProtoMessage()    {}
+func (*SchedulerData) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{14}
+}
+
+func (m *SchedulerData) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SchedulerData.Unmarshal(m, b)
+}
+func (m *SchedulerData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SchedulerData.Marshal(b, m, deterministic)
+}
+func (m *SchedulerData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SchedulerData.Merge(m, src)
+}
+func (m *SchedulerData) XXX_Size() int {
+	return xxx_messageInfo_SchedulerData.Size(m)
+}
+func (m *SchedulerData) XXX_DiscardUnknown() {
+	xxx_messageInfo_SchedulerData.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SchedulerData proto.InternalMessageInfo
 
 func (m *SchedulerData) GetTaskToAskPlan() map[string]string {
 	if m != nil {
@@ -627,15 +981,38 @@ func (m *SchedulerData) GetPlanPool() *AskPlanPool {
 }
 
 type SalesmanData struct {
-	AskPlanCGroups map[string]string `protobuf:"bytes,2,rep,name=askPlanCGroups" json:"askPlanCGroups,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Deals          map[string]*Deal  `protobuf:"bytes,3,rep,name=deals" json:"deals,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Orders         map[string]*Order `protobuf:"bytes,4,rep,name=orders" json:"orders,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	AskPlanCGroups       map[string]string `protobuf:"bytes,2,rep,name=askPlanCGroups,proto3" json:"askPlanCGroups,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Deals                map[string]*Deal  `protobuf:"bytes,3,rep,name=deals,proto3" json:"deals,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Orders               map[string]*Order `protobuf:"bytes,4,rep,name=orders,proto3" json:"orders,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *SalesmanData) Reset()                    { *m = SalesmanData{} }
-func (m *SalesmanData) String() string            { return proto.CompactTextString(m) }
-func (*SalesmanData) ProtoMessage()               {}
-func (*SalesmanData) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{15} }
+func (m *SalesmanData) Reset()         { *m = SalesmanData{} }
+func (m *SalesmanData) String() string { return proto.CompactTextString(m) }
+func (*SalesmanData) ProtoMessage()    {}
+func (*SalesmanData) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{15}
+}
+
+func (m *SalesmanData) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SalesmanData.Unmarshal(m, b)
+}
+func (m *SalesmanData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SalesmanData.Marshal(b, m, deterministic)
+}
+func (m *SalesmanData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SalesmanData.Merge(m, src)
+}
+func (m *SalesmanData) XXX_Size() int {
+	return xxx_messageInfo_SalesmanData.Size(m)
+}
+func (m *SalesmanData) XXX_DiscardUnknown() {
+	xxx_messageInfo_SalesmanData.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SalesmanData proto.InternalMessageInfo
 
 func (m *SalesmanData) GetAskPlanCGroups() map[string]string {
 	if m != nil {
@@ -659,14 +1036,37 @@ func (m *SalesmanData) GetOrders() map[string]*Order {
 }
 
 type DebugStateReply struct {
-	SchedulerData *SchedulerData `protobuf:"bytes,1,opt,name=schedulerData" json:"schedulerData,omitempty"`
-	SalesmanData  *SalesmanData  `protobuf:"bytes,2,opt,name=salesmanData" json:"salesmanData,omitempty"`
+	SchedulerData        *SchedulerData `protobuf:"bytes,1,opt,name=schedulerData,proto3" json:"schedulerData,omitempty"`
+	SalesmanData         *SalesmanData  `protobuf:"bytes,2,opt,name=salesmanData,proto3" json:"salesmanData,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
-func (m *DebugStateReply) Reset()                    { *m = DebugStateReply{} }
-func (m *DebugStateReply) String() string            { return proto.CompactTextString(m) }
-func (*DebugStateReply) ProtoMessage()               {}
-func (*DebugStateReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{16} }
+func (m *DebugStateReply) Reset()         { *m = DebugStateReply{} }
+func (m *DebugStateReply) String() string { return proto.CompactTextString(m) }
+func (*DebugStateReply) ProtoMessage()    {}
+func (*DebugStateReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{16}
+}
+
+func (m *DebugStateReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DebugStateReply.Unmarshal(m, b)
+}
+func (m *DebugStateReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DebugStateReply.Marshal(b, m, deterministic)
+}
+func (m *DebugStateReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DebugStateReply.Merge(m, src)
+}
+func (m *DebugStateReply) XXX_Size() int {
+	return xxx_messageInfo_DebugStateReply.Size(m)
+}
+func (m *DebugStateReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_DebugStateReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DebugStateReply proto.InternalMessageInfo
 
 func (m *DebugStateReply) GetSchedulerData() *SchedulerData {
 	if m != nil {
@@ -683,13 +1083,36 @@ func (m *DebugStateReply) GetSalesmanData() *SalesmanData {
 }
 
 type PurgeTasksRequest struct {
-	DealID *BigInt `protobuf:"bytes,1,opt,name=dealID" json:"dealID,omitempty"`
+	DealID               *BigInt  `protobuf:"bytes,1,opt,name=dealID,proto3" json:"dealID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PurgeTasksRequest) Reset()                    { *m = PurgeTasksRequest{} }
-func (m *PurgeTasksRequest) String() string            { return proto.CompactTextString(m) }
-func (*PurgeTasksRequest) ProtoMessage()               {}
-func (*PurgeTasksRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{17} }
+func (m *PurgeTasksRequest) Reset()         { *m = PurgeTasksRequest{} }
+func (m *PurgeTasksRequest) String() string { return proto.CompactTextString(m) }
+func (*PurgeTasksRequest) ProtoMessage()    {}
+func (*PurgeTasksRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{17}
+}
+
+func (m *PurgeTasksRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PurgeTasksRequest.Unmarshal(m, b)
+}
+func (m *PurgeTasksRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PurgeTasksRequest.Marshal(b, m, deterministic)
+}
+func (m *PurgeTasksRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PurgeTasksRequest.Merge(m, src)
+}
+func (m *PurgeTasksRequest) XXX_Size() int {
+	return xxx_messageInfo_PurgeTasksRequest.Size(m)
+}
+func (m *PurgeTasksRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PurgeTasksRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PurgeTasksRequest proto.InternalMessageInfo
 
 func (m *PurgeTasksRequest) GetDealID() *BigInt {
 	if m != nil {
@@ -699,21 +1122,67 @@ func (m *PurgeTasksRequest) GetDealID() *BigInt {
 }
 
 type WorkerMetricsRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WorkerMetricsRequest) Reset()                    { *m = WorkerMetricsRequest{} }
-func (m *WorkerMetricsRequest) String() string            { return proto.CompactTextString(m) }
-func (*WorkerMetricsRequest) ProtoMessage()               {}
-func (*WorkerMetricsRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{18} }
+func (m *WorkerMetricsRequest) Reset()         { *m = WorkerMetricsRequest{} }
+func (m *WorkerMetricsRequest) String() string { return proto.CompactTextString(m) }
+func (*WorkerMetricsRequest) ProtoMessage()    {}
+func (*WorkerMetricsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{18}
+}
+
+func (m *WorkerMetricsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WorkerMetricsRequest.Unmarshal(m, b)
+}
+func (m *WorkerMetricsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WorkerMetricsRequest.Marshal(b, m, deterministic)
+}
+func (m *WorkerMetricsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerMetricsRequest.Merge(m, src)
+}
+func (m *WorkerMetricsRequest) XXX_Size() int {
+	return xxx_messageInfo_WorkerMetricsRequest.Size(m)
+}
+func (m *WorkerMetricsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WorkerMetricsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WorkerMetricsRequest proto.InternalMessageInfo
 
 type WorkerMetricsResponse struct {
-	Metrics map[string]float64 `protobuf:"bytes,1,rep,name=metrics" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	Metrics              map[string]float64 `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"fixed64,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
-func (m *WorkerMetricsResponse) Reset()                    { *m = WorkerMetricsResponse{} }
-func (m *WorkerMetricsResponse) String() string            { return proto.CompactTextString(m) }
-func (*WorkerMetricsResponse) ProtoMessage()               {}
-func (*WorkerMetricsResponse) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{19} }
+func (m *WorkerMetricsResponse) Reset()         { *m = WorkerMetricsResponse{} }
+func (m *WorkerMetricsResponse) String() string { return proto.CompactTextString(m) }
+func (*WorkerMetricsResponse) ProtoMessage()    {}
+func (*WorkerMetricsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e4ff6184b07e587a, []int{19}
+}
+
+func (m *WorkerMetricsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WorkerMetricsResponse.Unmarshal(m, b)
+}
+func (m *WorkerMetricsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WorkerMetricsResponse.Marshal(b, m, deterministic)
+}
+func (m *WorkerMetricsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerMetricsResponse.Merge(m, src)
+}
+func (m *WorkerMetricsResponse) XXX_Size() int {
+	return xxx_messageInfo_WorkerMetricsResponse.Size(m)
+}
+func (m *WorkerMetricsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WorkerMetricsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WorkerMetricsResponse proto.InternalMessageInfo
 
 func (m *WorkerMetricsResponse) GetMetrics() map[string]float64 {
 	if m != nil {
@@ -723,27 +1192,181 @@ func (m *WorkerMetricsResponse) GetMetrics() map[string]float64 {
 }
 
 func init() {
+	proto.RegisterEnum("sonm.TaskStatusReply_Status", TaskStatusReply_Status_name, TaskStatusReply_Status_value)
 	proto.RegisterType((*TaskTag)(nil), "sonm.TaskTag")
 	proto.RegisterType((*TaskSpec)(nil), "sonm.TaskSpec")
 	proto.RegisterType((*StartTaskRequest)(nil), "sonm.StartTaskRequest")
 	proto.RegisterType((*WorkerJoinNetworkRequest)(nil), "sonm.WorkerJoinNetworkRequest")
 	proto.RegisterType((*StartTaskReply)(nil), "sonm.StartTaskReply")
+	proto.RegisterMapType((map[string]*Endpoints)(nil), "sonm.StartTaskReply.PortMapEntry")
 	proto.RegisterType((*StatusReply)(nil), "sonm.StatusReply")
 	proto.RegisterType((*AskPlansReply)(nil), "sonm.AskPlansReply")
+	proto.RegisterMapType((map[string]*AskPlan)(nil), "sonm.AskPlansReply.AskPlansEntry")
 	proto.RegisterType((*TaskListReply)(nil), "sonm.TaskListReply")
+	proto.RegisterMapType((map[string]*TaskStatusReply)(nil), "sonm.TaskListReply.InfoEntry")
 	proto.RegisterType((*DevicesReply)(nil), "sonm.DevicesReply")
 	proto.RegisterType((*PullTaskRequest)(nil), "sonm.PullTaskRequest")
 	proto.RegisterType((*DealInfoReply)(nil), "sonm.DealInfoReply")
+	proto.RegisterMapType((map[string]*TaskStatusReply)(nil), "sonm.DealInfoReply.CompletedEntry")
+	proto.RegisterMapType((map[string]*TaskStatusReply)(nil), "sonm.DealInfoReply.RunningEntry")
 	proto.RegisterType((*TaskStatusReply)(nil), "sonm.TaskStatusReply")
+	proto.RegisterMapType((map[string]*Endpoints)(nil), "sonm.TaskStatusReply.PortMapEntry")
 	proto.RegisterType((*TaskPool)(nil), "sonm.TaskPool")
+	proto.RegisterMapType((map[string]*AskPlanResources)(nil), "sonm.TaskPool.UsedEntry")
 	proto.RegisterType((*AskPlanPool)(nil), "sonm.AskPlanPool")
+	proto.RegisterMapType((map[string]*AskPlan)(nil), "sonm.AskPlanPool.CommitedFwEntry")
+	proto.RegisterMapType((map[string]*AskPlan)(nil), "sonm.AskPlanPool.CommitedSpotEntry")
+	proto.RegisterMapType((map[string]*AskPlan)(nil), "sonm.AskPlanPool.EjectedPlansEntry")
+	proto.RegisterMapType((map[string]*AskPlan)(nil), "sonm.AskPlanPool.UsedFwEntry")
+	proto.RegisterMapType((map[string]*AskPlan)(nil), "sonm.AskPlanPool.UsedSpotEntry")
 	proto.RegisterType((*SchedulerData)(nil), "sonm.SchedulerData")
+	proto.RegisterMapType((map[string]*TaskPool)(nil), "sonm.SchedulerData.AskPlanPoolsEntry")
+	proto.RegisterMapType((map[string]string)(nil), "sonm.SchedulerData.TaskToAskPlanEntry")
 	proto.RegisterType((*SalesmanData)(nil), "sonm.SalesmanData")
+	proto.RegisterMapType((map[string]string)(nil), "sonm.SalesmanData.AskPlanCGroupsEntry")
+	proto.RegisterMapType((map[string]*Deal)(nil), "sonm.SalesmanData.DealsEntry")
+	proto.RegisterMapType((map[string]*Order)(nil), "sonm.SalesmanData.OrdersEntry")
 	proto.RegisterType((*DebugStateReply)(nil), "sonm.DebugStateReply")
 	proto.RegisterType((*PurgeTasksRequest)(nil), "sonm.PurgeTasksRequest")
 	proto.RegisterType((*WorkerMetricsRequest)(nil), "sonm.WorkerMetricsRequest")
 	proto.RegisterType((*WorkerMetricsResponse)(nil), "sonm.WorkerMetricsResponse")
-	proto.RegisterEnum("sonm.TaskStatusReply_Status", TaskStatusReply_Status_name, TaskStatusReply_Status_value)
+	proto.RegisterMapType((map[string]float64)(nil), "sonm.WorkerMetricsResponse.MetricsEntry")
+}
+
+func init() { proto.RegisterFile("worker.proto", fileDescriptor_e4ff6184b07e587a) }
+
+var fileDescriptor_e4ff6184b07e587a = []byte{
+	// 2071 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x58, 0xcd, 0x72, 0x1b, 0xb9,
+	0xf1, 0x27, 0x45, 0x8a, 0x1f, 0x4d, 0x52, 0xa2, 0x20, 0x5b, 0x7f, 0xd6, 0xac, 0xed, 0xd5, 0x8e,
+	0x77, 0xf7, 0xcf, 0x78, 0x6d, 0xc6, 0xab, 0xfd, 0xa8, 0xac, 0x9d, 0x4d, 0xad, 0x24, 0x4a, 0x32,
+	0x6d, 0x8b, 0x62, 0x86, 0x56, 0x39, 0x87, 0x54, 0xa5, 0x60, 0x12, 0xa2, 0x26, 0x22, 0x67, 0x26,
+	0x03, 0x50, 0x8e, 0x72, 0x4d, 0x9e, 0x20, 0x97, 0x54, 0xa5, 0xf2, 0x02, 0xb9, 0xe4, 0x92, 0x53,
+	0xaa, 0xf2, 0x04, 0x79, 0x98, 0x54, 0x4e, 0x39, 0xa7, 0x00, 0x34, 0xe6, 0x83, 0x1c, 0x6d, 0xe2,
+	0x92, 0x6f, 0x83, 0xee, 0xdf, 0xaf, 0xd1, 0xd3, 0x68, 0x74, 0x03, 0x80, 0xfa, 0x5b, 0x3f, 0xbc,
+	0x60, 0x61, 0x27, 0x08, 0x7d, 0xe1, 0x93, 0x22, 0xf7, 0xbd, 0x99, 0xb5, 0x46, 0xf9, 0xc5, 0x2f,
+	0x82, 0x29, 0xf5, 0xb4, 0xd4, 0xaa, 0xbf, 0x71, 0x27, 0xae, 0x27, 0x70, 0x44, 0x46, 0x34, 0xa0,
+	0x6f, 0xdc, 0xa9, 0x2b, 0x5c, 0xc6, 0x51, 0xb6, 0x3e, 0xf2, 0x3d, 0x41, 0x5d, 0xcf, 0x18, 0xb2,
+	0x6a, 0x13, 0xe6, 0xbb, 0x81, 0xd1, 0xba, 0x9e, 0xb4, 0xeb, 0xb9, 0x14, 0x05, 0x1b, 0x33, 0x1a,
+	0x5e, 0x30, 0x11, 0x4c, 0xe9, 0x88, 0xa1, 0xa8, 0xea, 0x31, 0x33, 0xc1, 0xba, 0x70, 0x67, 0x8c,
+	0x0b, 0x3a, 0x43, 0xbe, 0x7d, 0x17, 0xca, 0xaf, 0x28, 0xbf, 0x78, 0x45, 0x27, 0x84, 0x40, 0x71,
+	0x4c, 0x05, 0x6d, 0xe5, 0xb7, 0xf3, 0xed, 0xba, 0xa3, 0xbe, 0xed, 0xbf, 0xe7, 0xa1, 0x22, 0xf5,
+	0xc3, 0x80, 0x8d, 0xc8, 0x23, 0xa8, 0x46, 0xbe, 0x28, 0x54, 0x6d, 0x67, 0xbd, 0x23, 0x67, 0xef,
+	0xec, 0x1b, 0xb1, 0x13, 0x23, 0xc8, 0x03, 0xa8, 0x84, 0x6c, 0xe2, 0x72, 0x11, 0x5e, 0xb5, 0x56,
+	0x14, 0x7a, 0x4d, 0xa3, 0x1d, 0x94, 0x3a, 0x91, 0x9e, 0x7c, 0x09, 0xd5, 0x90, 0x71, 0x7f, 0x1e,
+	0x8e, 0x18, 0x6f, 0x15, 0x14, 0x78, 0x4b, 0x83, 0x77, 0xf9, 0xc5, 0x60, 0x4a, 0x3d, 0xc7, 0x68,
+	0x9d, 0x18, 0x48, 0x3e, 0x84, 0x82, 0xa0, 0x93, 0x56, 0x51, 0xe1, 0x1b, 0x1a, 0x8f, 0x7f, 0xe3,
+	0x48, 0x8d, 0xfd, 0x73, 0x68, 0x0e, 0x05, 0x0d, 0x85, 0x14, 0x3a, 0xec, 0x57, 0x73, 0xc6, 0x05,
+	0xf9, 0x18, 0x4a, 0x63, 0x46, 0xa7, 0xbd, 0x2e, 0xfe, 0x42, 0x5d, 0xf3, 0xf6, 0xdc, 0x49, 0xcf,
+	0x13, 0x0e, 0xea, 0x88, 0x0d, 0x45, 0x1e, 0xb0, 0x51, 0xda, 0x71, 0x13, 0x09, 0x47, 0xe9, 0xec,
+	0x01, 0xb4, 0x5e, 0xab, 0x15, 0x7e, 0xee, 0xbb, 0x5e, 0x9f, 0x09, 0xb9, 0xdc, 0x66, 0x96, 0x2d,
+	0x28, 0x09, 0xca, 0x2f, 0x70, 0x96, 0xaa, 0x83, 0x23, 0x72, 0x07, 0xe4, 0x6a, 0x48, 0x64, 0xaf,
+	0xab, 0x8c, 0x57, 0x9d, 0x58, 0x60, 0xff, 0x23, 0x0f, 0x6b, 0x09, 0x87, 0x83, 0xe9, 0x15, 0x59,
+	0x83, 0x15, 0x77, 0x8c, 0x46, 0x56, 0xdc, 0x31, 0x79, 0x0a, 0xe5, 0xc0, 0x0f, 0xc5, 0x31, 0x0d,
+	0x5a, 0x2b, 0xdb, 0x85, 0x76, 0x6d, 0xe7, 0x23, 0xed, 0x5b, 0x9a, 0xd6, 0x19, 0x68, 0xcc, 0x81,
+	0x27, 0xe3, 0x6c, 0x18, 0xe4, 0x1e, 0x40, 0x34, 0x99, 0x8c, 0x73, 0xa1, 0x5d, 0x75, 0x12, 0x12,
+	0xeb, 0x05, 0xd4, 0x93, 0x44, 0xd2, 0x84, 0xc2, 0x05, 0xbb, 0xc2, 0xd9, 0xe5, 0x27, 0xf9, 0x04,
+	0x56, 0x2f, 0xe9, 0x74, 0xce, 0x30, 0x30, 0xb8, 0xfe, 0x07, 0xde, 0x38, 0xf0, 0x5d, 0x4f, 0x70,
+	0x47, 0x6b, 0x9f, 0xac, 0xfc, 0x28, 0x6f, 0xff, 0xa5, 0x00, 0xb5, 0xa1, 0xa0, 0x62, 0xce, 0xf5,
+	0x9f, 0x6c, 0x41, 0x69, 0x1e, 0xc8, 0xfc, 0x53, 0xf6, 0x8a, 0x0e, 0x8e, 0x48, 0x0b, 0xca, 0x97,
+	0x2c, 0xe4, 0xae, 0xef, 0x61, 0x40, 0xcc, 0x90, 0x58, 0x50, 0x09, 0xa6, 0x54, 0x9c, 0xf9, 0xe1,
+	0x4c, 0x25, 0x45, 0xd5, 0x89, 0xc6, 0x92, 0xc5, 0xc4, 0xf9, 0xee, 0x78, 0x1c, 0xaa, 0xf5, 0xaf,
+	0x3a, 0x66, 0x28, 0x43, 0x2c, 0x83, 0xbd, 0xef, 0xcf, 0x3d, 0xd1, 0x5a, 0xdd, 0xce, 0xb7, 0x1b,
+	0x4e, 0x2c, 0x90, 0xda, 0xee, 0xeb, 0x67, 0xda, 0xaf, 0x56, 0x49, 0x2f, 0x40, 0x24, 0x20, 0x0f,
+	0xa0, 0x19, 0x32, 0x6f, 0xcc, 0x7e, 0x73, 0xe9, 0xcf, 0x39, 0x82, 0xca, 0x0a, 0xb4, 0x24, 0x27,
+	0x6d, 0x28, 0xcd, 0x28, 0x17, 0x2c, 0x6c, 0x55, 0x54, 0x2c, 0x9a, 0x18, 0x0b, 0xed, 0x06, 0xe3,
+	0xdc, 0x41, 0x3d, 0xf9, 0x14, 0x56, 0xe9, 0x78, 0xe6, 0x7a, 0xad, 0xea, 0x35, 0x40, 0xad, 0x26,
+	0x0f, 0x61, 0xc3, 0xe5, 0xc7, 0x8a, 0xb3, 0xef, 0x7b, 0x67, 0x6e, 0x38, 0x63, 0xe3, 0x16, 0x6c,
+	0xe7, 0xdb, 0x15, 0x67, 0x59, 0x41, 0x1e, 0xc3, 0xa6, 0xcb, 0xf7, 0x98, 0x37, 0x3a, 0x97, 0x5b,
+	0xfe, 0xd0, 0xf5, 0x5c, 0x7e, 0xce, 0xc6, 0xad, 0x9a, 0xc2, 0x67, 0xa9, 0xc8, 0x5d, 0x28, 0x4c,
+	0x98, 0xdf, 0xaa, 0x2b, 0x2f, 0x6a, 0xda, 0x8b, 0x23, 0xe6, 0xf7, 0x06, 0x8e, 0x94, 0xdb, 0x7f,
+	0xcc, 0x43, 0x03, 0xb7, 0x1b, 0x2e, 0xd9, 0xb7, 0x50, 0xa1, 0x28, 0x68, 0xe5, 0x93, 0xd9, 0x96,
+	0x82, 0x45, 0x23, 0x9d, 0x6d, 0x11, 0xc5, 0x7a, 0x1e, 0xdb, 0xbb, 0x2e, 0x9f, 0xee, 0xa7, 0xf3,
+	0xa9, 0x91, 0xde, 0xf4, 0x89, 0x6c, 0xfa, 0x7d, 0x1e, 0x1a, 0x32, 0xbd, 0x5f, 0xba, 0x5c, 0x68,
+	0xe7, 0x3e, 0x87, 0xa2, 0xeb, 0x9d, 0xf9, 0xe8, 0xd8, 0xdd, 0x78, 0x8b, 0x46, 0x90, 0x4e, 0xcf,
+	0x3b, 0xf3, 0xb5, 0x53, 0x0a, 0x6a, 0xf5, 0xa1, 0x1a, 0x89, 0x32, 0x9c, 0xf9, 0x2c, 0xed, 0xcc,
+	0xed, 0xc4, 0xae, 0x8f, 0xf3, 0x38, 0xe9, 0xd4, 0xdf, 0xf2, 0x50, 0xef, 0xb2, 0x4b, 0x57, 0xd6,
+	0x25, 0xe5, 0xd3, 0x07, 0x50, 0xd8, 0x1f, 0x9c, 0x62, 0x65, 0xa9, 0x62, 0x71, 0x1c, 0x9c, 0x3a,
+	0x52, 0x4a, 0xee, 0x42, 0xf1, 0x68, 0x70, 0xca, 0x71, 0xdf, 0xa2, 0xf6, 0x68, 0x70, 0xea, 0x28,
+	0xb1, 0xe4, 0x3a, 0xbb, 0xc7, 0x58, 0xfd, 0x50, 0xeb, 0xec, 0x1e, 0x3b, 0x52, 0x4a, 0xfe, 0x1f,
+	0xca, 0xb8, 0x4f, 0xd3, 0xe5, 0xce, 0x94, 0x1d, 0xa3, 0x95, 0x40, 0x2e, 0xfc, 0x90, 0x4e, 0x98,
+	0xca, 0xfd, 0x08, 0x38, 0xd4, 0x42, 0xc7, 0x68, 0xed, 0x5d, 0x58, 0x1f, 0xcc, 0xa7, 0xd3, 0x64,
+	0x69, 0xdc, 0xc2, 0xd2, 0x68, 0xea, 0x0d, 0x8e, 0xa2, 0x62, 0x36, 0xc6, 0x0d, 0x8a, 0x23, 0xfb,
+	0xcf, 0x05, 0x68, 0x74, 0x25, 0xc4, 0x3b, 0xf3, 0xf5, 0xff, 0xdf, 0x83, 0xa2, 0xe4, 0x60, 0x00,
+	0x40, 0x4f, 0x2d, 0x21, 0x8e, 0x92, 0x93, 0x27, 0x50, 0x0e, 0xe7, 0x9e, 0xe7, 0x7a, 0x13, 0x8c,
+	0xc2, 0x76, 0x0c, 0x89, 0xac, 0x74, 0x1c, 0x0d, 0xc1, 0xe2, 0x85, 0x04, 0xf2, 0x9d, 0x6c, 0x3f,
+	0xb3, 0x60, 0xca, 0x04, 0x1b, 0xab, 0xda, 0x55, 0xdb, 0xb1, 0xb3, 0xd8, 0xfb, 0x06, 0xa4, 0xf9,
+	0x31, 0x29, 0xdd, 0x65, 0x8a, 0xff, 0x6b, 0x97, 0xb9, 0x03, 0xd5, 0x60, 0xfe, 0x66, 0xea, 0x8e,
+	0x7a, 0x03, 0xde, 0x5a, 0x55, 0x35, 0x33, 0x16, 0x58, 0x3f, 0x85, 0x7a, 0xd2, 0xdd, 0xf7, 0x90,
+	0x55, 0xd6, 0x10, 0xd6, 0xd2, 0xff, 0xf0, 0x3e, 0x52, 0xf5, 0xdf, 0x05, 0x58, 0x5f, 0x50, 0x93,
+	0x2f, 0xa1, 0xc4, 0x75, 0x8d, 0x93, 0x96, 0xd7, 0x76, 0xee, 0x64, 0x5a, 0xe9, 0xe0, 0x37, 0x62,
+	0x65, 0x3c, 0xdc, 0x19, 0x9d, 0xb0, 0x3e, 0x9d, 0x31, 0xd3, 0xc2, 0x22, 0x01, 0xf9, 0x71, 0xdc,
+	0x9f, 0x52, 0x6b, 0xb4, 0x68, 0x34, 0xbb, 0x41, 0xc5, 0x3d, 0xa2, 0x98, 0xea, 0x11, 0x3f, 0x80,
+	0xd5, 0x39, 0x8f, 0x73, 0x7a, 0xd3, 0x1c, 0x24, 0xf4, 0x1a, 0x9d, 0x4a, 0x95, 0xa3, 0x11, 0xe4,
+	0x10, 0x08, 0x9d, 0x4e, 0xfd, 0x11, 0x15, 0x6c, 0x1c, 0xad, 0xa7, 0xaa, 0xf4, 0xd7, 0xaf, 0x76,
+	0x06, 0xc3, 0x1c, 0x2e, 0xca, 0xd7, 0x1d, 0x2e, 0xde, 0x6f, 0xb3, 0xfc, 0x19, 0x94, 0xb0, 0xad,
+	0xd4, 0xa0, 0x7c, 0xda, 0x7f, 0xd1, 0x3f, 0x79, 0xdd, 0x6f, 0xe6, 0x48, 0x1d, 0x2a, 0xc3, 0xc1,
+	0xc9, 0xc9, 0xcb, 0x5e, 0xff, 0xa8, 0x99, 0xd7, 0xa3, 0xdd, 0xd7, 0x7d, 0x39, 0x5a, 0x91, 0x40,
+	0xe7, 0xb4, 0xaf, 0x06, 0x05, 0xa9, 0x3a, 0xec, 0xf5, 0x7b, 0xc3, 0x67, 0x07, 0xdd, 0x66, 0x91,
+	0x00, 0x94, 0xf6, 0x9c, 0x93, 0x17, 0x07, 0xfd, 0xe6, 0xaa, 0xfd, 0x57, 0x3c, 0xc2, 0x0d, 0x7c,
+	0x7f, 0x4a, 0xda, 0x50, 0xa0, 0x53, 0xb3, 0x3d, 0xaf, 0x8b, 0x86, 0x84, 0x90, 0x87, 0x50, 0x9c,
+	0x73, 0x36, 0xc6, 0x6d, 0xda, 0x8a, 0xff, 0x5f, 0xda, 0xe9, 0x9c, 0x72, 0xb3, 0xbd, 0x14, 0xca,
+	0x3a, 0x81, 0x6a, 0x24, 0xca, 0x08, 0xc4, 0xc3, 0x74, 0x20, 0xae, 0x9b, 0x38, 0x11, 0x8f, 0xdf,
+	0x95, 0xa0, 0x86, 0xfa, 0x77, 0x74, 0xfc, 0x29, 0x54, 0xa4, 0x4b, 0xc3, 0xc0, 0x17, 0xe8, 0xfc,
+	0x87, 0x29, 0x78, 0xe4, 0xbf, 0x44, 0x60, 0xc7, 0x32, 0x04, 0xf2, 0x15, 0x94, 0xe4, 0xf7, 0xe1,
+	0x5b, 0x4c, 0xde, 0xbb, 0xd9, 0xd4, 0xc3, 0xb7, 0x9a, 0x88, 0x60, 0x72, 0x04, 0xf5, 0x91, 0x3f,
+	0x9b, 0xb9, 0x02, 0xe7, 0x2d, 0x2a, 0xf2, 0xfd, 0x65, 0xf2, 0x7e, 0x02, 0xa5, 0x4d, 0xa4, 0x88,
+	0x64, 0x17, 0xc0, 0x8c, 0x0f, 0xdf, 0xaa, 0x62, 0xb3, 0xd8, 0x72, 0x53, 0x66, 0x8c, 0x1f, 0x09,
+	0x92, 0xf4, 0x85, 0xfd, 0x92, 0x8d, 0x04, 0x1b, 0xeb, 0xbe, 0x5d, 0xba, 0xce, 0x97, 0x83, 0x04,
+	0x0a, 0x7d, 0x49, 0x12, 0x65, 0xf7, 0x4e, 0x85, 0xe9, 0x06, 0xdd, 0xdb, 0x7a, 0x06, 0xb5, 0x44,
+	0xdc, 0x6e, 0x62, 0xa9, 0x0f, 0x1b, 0x4b, 0x41, 0xbc, 0x89, 0xbd, 0x97, 0xb0, 0xbe, 0x10, 0xcd,
+	0x1b, 0x7a, 0xb7, 0x14, 0xd6, 0x9b, 0x9c, 0x7a, 0xfe, 0xb5, 0x02, 0x8d, 0xe1, 0xe8, 0x9c, 0x8d,
+	0xe7, 0x53, 0x16, 0x76, 0xa9, 0xa0, 0xe4, 0x25, 0x34, 0x64, 0xf7, 0x7d, 0xe5, 0x23, 0x1a, 0x8f,
+	0x3f, 0x9f, 0x62, 0x97, 0x4f, 0x62, 0x75, 0xb9, 0x32, 0x40, 0xbd, 0xc4, 0x69, 0x32, 0xe9, 0x41,
+	0x9d, 0xc6, 0x29, 0xc1, 0x31, 0xeb, 0x3f, 0xc9, 0x32, 0x96, 0x48, 0x1d, 0x93, 0x2e, 0x49, 0x2a,
+	0x79, 0xa4, 0x0e, 0xeb, 0x6a, 0x80, 0xbd, 0x75, 0x63, 0x29, 0xe7, 0x9c, 0x08, 0x62, 0x7d, 0x07,
+	0x64, 0xd9, 0xbd, 0x8c, 0x50, 0xdd, 0x4a, 0x86, 0xaa, 0x9a, 0x8c, 0xf5, 0x09, 0x6c, 0x2c, 0xf9,
+	0x94, 0x61, 0xe0, 0xe3, 0x74, 0xac, 0xd7, 0xd2, 0x95, 0x2c, 0x61, 0xf0, 0x79, 0xb1, 0xb2, 0xd2,
+	0x2c, 0xd8, 0x7f, 0x2a, 0x40, 0x7d, 0x48, 0xa7, 0x8c, 0xcf, 0xa8, 0xa7, 0x22, 0xde, 0x87, 0x35,
+	0xfc, 0xd1, 0xfd, 0xa3, 0xd0, 0x9f, 0x07, 0xe6, 0x00, 0x67, 0x42, 0x9e, 0xc0, 0x9a, 0x7f, 0x45,
+	0xa0, 0x0e, 0xd3, 0x02, 0x9b, 0x7c, 0x01, 0xab, 0xf2, 0x2c, 0xc4, 0xd3, 0x25, 0x26, 0x65, 0x46,
+	0x1e, 0x68, 0x90, 0xad, 0xb1, 0xe4, 0x6b, 0x28, 0xf9, 0xe1, 0x98, 0x85, 0x1c, 0x6b, 0xcb, 0xbd,
+	0x0c, 0xd6, 0x89, 0x02, 0x60, 0x65, 0xd2, 0x68, 0x6b, 0x17, 0x36, 0x33, 0x7c, 0x7a, 0xa7, 0x38,
+	0x77, 0x01, 0x62, 0x7f, 0x32, 0x98, 0xdb, 0xe9, 0x00, 0x27, 0x0f, 0x7d, 0x09, 0x2b, 0x87, 0x50,
+	0x4b, 0xf8, 0x97, 0x61, 0xe6, 0xa3, 0xb4, 0x19, 0xbc, 0x9e, 0x28, 0x4e, 0xaa, 0x31, 0xe4, 0x61,
+	0xbd, 0xcb, 0xde, 0xcc, 0x27, 0xb2, 0x5d, 0x32, 0x7d, 0x8e, 0xf9, 0x06, 0x1a, 0x3c, 0x99, 0xab,
+	0xd8, 0x26, 0x36, 0x33, 0xd2, 0xd8, 0x49, 0x23, 0xc9, 0xd7, 0x50, 0xe7, 0x89, 0x18, 0xe2, 0xe4,
+	0x64, 0x39, 0xba, 0x4e, 0x0a, 0x67, 0x7f, 0x03, 0x1b, 0x83, 0x79, 0x38, 0x61, 0x32, 0x8f, 0xf8,
+	0x3b, 0x3d, 0x2d, 0xd8, 0x5b, 0x70, 0x4b, 0x3f, 0x1b, 0x1c, 0x33, 0x11, 0xba, 0x23, 0xc3, 0xb6,
+	0xff, 0x90, 0x87, 0xdb, 0x0b, 0x0a, 0x1e, 0xf8, 0x1e, 0x67, 0x64, 0x0f, 0xca, 0x33, 0x2d, 0xc2,
+	0xdd, 0xde, 0xd6, 0x86, 0x33, 0xd1, 0x1d, 0x1c, 0xe3, 0xc9, 0x0a, 0x89, 0xd6, 0x13, 0xa8, 0x27,
+	0x15, 0xff, 0x2d, 0x03, 0xf2, 0x89, 0x98, 0xef, 0xfc, 0xb6, 0x04, 0x4d, 0x9c, 0x8b, 0x7a, 0x74,
+	0xc2, 0x66, 0xcc, 0x13, 0xe4, 0x41, 0x7c, 0x62, 0xc1, 0x73, 0xcd, 0x2c, 0x10, 0x57, 0xd6, 0x46,
+	0xf4, 0x1c, 0x61, 0x8e, 0x7a, 0x76, 0x8e, 0x3c, 0x84, 0x32, 0x5e, 0x93, 0xd2, 0x60, 0x62, 0x72,
+	0x25, 0xbe, 0x42, 0xd9, 0x39, 0xf2, 0x18, 0x6a, 0x87, 0x21, 0x63, 0xef, 0xc0, 0xf8, 0x0c, 0x56,
+	0xd5, 0x42, 0xa4, 0xb1, 0x9b, 0x19, 0x57, 0x42, 0x3b, 0x47, 0x3a, 0x50, 0x31, 0xb7, 0xd2, 0x4c,
+	0x7c, 0xea, 0x6e, 0x6b, 0xe7, 0xc8, 0x03, 0x68, 0xec, 0x87, 0x8c, 0x0a, 0x66, 0x8a, 0x66, 0xba,
+	0x5c, 0x5b, 0x15, 0x3d, 0xec, 0x75, 0xed, 0x1c, 0x69, 0x43, 0xc3, 0x61, 0x33, 0xff, 0x32, 0xc2,
+	0x46, 0x4a, 0x2b, 0x39, 0x95, 0x72, 0xb9, 0xa1, 0x12, 0x28, 0xdb, 0x95, 0x05, 0xf0, 0xb7, 0x70,
+	0x3b, 0x05, 0xee, 0x32, 0x41, 0xdd, 0x29, 0x1b, 0xa7, 0x49, 0x78, 0x09, 0x38, 0x08, 0x43, 0x3f,
+	0xdc, 0xbb, 0x1a, 0x8a, 0xd0, 0xf5, 0x26, 0xca, 0xab, 0xaf, 0x60, 0xd3, 0x6c, 0x82, 0x63, 0xea,
+	0x7a, 0x82, 0x79, 0xd4, 0x1b, 0x31, 0x82, 0xe7, 0xd1, 0x57, 0xe6, 0x49, 0x70, 0x71, 0xd6, 0xcf,
+	0x61, 0xbd, 0xcf, 0x7e, 0x2d, 0x92, 0x94, 0xd4, 0x7c, 0x8b, 0x7c, 0x3b, 0x47, 0x76, 0x64, 0xad,
+	0x30, 0x9b, 0x33, 0xd3, 0xbb, 0x85, 0xbd, 0xab, 0xa7, 0xd1, 0x31, 0x8b, 0x1e, 0x2c, 0x8c, 0x67,
+	0xfd, 0xf9, 0x8c, 0x85, 0xee, 0x68, 0x39, 0x78, 0x8f, 0xe4, 0xdd, 0x35, 0x9c, 0xc4, 0x8c, 0xef,
+	0x0f, 0x5f, 0x17, 0xca, 0x98, 0xfb, 0xc4, 0xca, 0xdc, 0x39, 0x6a, 0x03, 0x5a, 0x1f, 0x7c, 0xcf,
+	0xae, 0xb2, 0x73, 0x3b, 0xff, 0x2c, 0x40, 0x49, 0xeb, 0x64, 0xaf, 0x1b, 0xcc, 0xf9, 0xb9, 0xcc,
+	0x2c, 0x33, 0xf1, 0xfe, 0xf9, 0xdc, 0xbb, 0xb0, 0xb0, 0xbb, 0x0c, 0x42, 0x7f, 0x12, 0x32, 0xce,
+	0xed, 0x5c, 0x3b, 0xff, 0x38, 0x4f, 0x76, 0x24, 0x5c, 0x5f, 0xb5, 0x09, 0x86, 0x61, 0xe1, 0xea,
+	0x6d, 0x25, 0xad, 0xd8, 0xb9, 0xc7, 0x79, 0xf2, 0x14, 0xaa, 0xd1, 0x93, 0x1e, 0xd9, 0x5a, 0x7a,
+	0xe3, 0xd3, 0xac, 0x5b, 0x59, 0x6f, 0x7f, 0x76, 0x8e, 0xdc, 0x87, 0xca, 0x50, 0xf8, 0x81, 0xe2,
+	0x5e, 0x9b, 0x81, 0x3f, 0x01, 0x88, 0x4b, 0x18, 0xf9, 0x3f, 0xe3, 0xd7, 0x42, 0x51, 0xbb, 0x3e,
+	0xab, 0x7e, 0x08, 0x10, 0x5f, 0xea, 0x12, 0xd3, 0x64, 0xdf, 0x45, 0xed, 0x1c, 0xd9, 0x83, 0x5a,
+	0xe2, 0xa5, 0x94, 0xdc, 0x4b, 0x86, 0x7b, 0xf9, 0x09, 0xd5, 0x54, 0x12, 0x94, 0x0e, 0x03, 0x36,
+	0xb2, 0x73, 0xe4, 0x89, 0xbe, 0xcc, 0xbc, 0xf4, 0x27, 0x9c, 0x24, 0x26, 0x92, 0x63, 0xc3, 0xdb,
+	0x4c, 0x8b, 0xe3, 0x90, 0x76, 0xa0, 0x76, 0xc4, 0x84, 0x79, 0x2c, 0x48, 0x78, 0xbc, 0x99, 0xf1,
+	0x8c, 0x60, 0xe7, 0xde, 0x94, 0xd4, 0x13, 0xf9, 0x17, 0xff, 0x09, 0x00, 0x00, 0xff, 0xff, 0x30,
+	0x38, 0x75, 0xb3, 0xc8, 0x17, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -754,8 +1377,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for WorkerManagement service
-
+// WorkerManagementClient is the client API for WorkerManagement service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type WorkerManagementClient interface {
 	// Status produse a detailed info about worker
 	Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*StatusReply, error)
@@ -805,7 +1429,7 @@ func NewWorkerManagementClient(cc *grpc.ClientConn) WorkerManagementClient {
 
 func (c *workerManagementClient) Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*StatusReply, error) {
 	out := new(StatusReply)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/Status", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/Status", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -814,7 +1438,7 @@ func (c *workerManagementClient) Status(ctx context.Context, in *Empty, opts ...
 
 func (c *workerManagementClient) Devices(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*DevicesReply, error) {
 	out := new(DevicesReply)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/Devices", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/Devices", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -823,7 +1447,7 @@ func (c *workerManagementClient) Devices(ctx context.Context, in *Empty, opts ..
 
 func (c *workerManagementClient) FreeDevices(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*DevicesReply, error) {
 	out := new(DevicesReply)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/FreeDevices", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/FreeDevices", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -832,7 +1456,7 @@ func (c *workerManagementClient) FreeDevices(ctx context.Context, in *Empty, opt
 
 func (c *workerManagementClient) Tasks(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TaskListReply, error) {
 	out := new(TaskListReply)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/Tasks", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/Tasks", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -841,7 +1465,7 @@ func (c *workerManagementClient) Tasks(ctx context.Context, in *Empty, opts ...g
 
 func (c *workerManagementClient) AskPlans(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*AskPlansReply, error) {
 	out := new(AskPlansReply)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/AskPlans", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/AskPlans", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -850,7 +1474,7 @@ func (c *workerManagementClient) AskPlans(ctx context.Context, in *Empty, opts .
 
 func (c *workerManagementClient) CreateAskPlan(ctx context.Context, in *AskPlan, opts ...grpc.CallOption) (*ID, error) {
 	out := new(ID)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/CreateAskPlan", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/CreateAskPlan", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -859,7 +1483,7 @@ func (c *workerManagementClient) CreateAskPlan(ctx context.Context, in *AskPlan,
 
 func (c *workerManagementClient) RemoveAskPlan(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/RemoveAskPlan", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/RemoveAskPlan", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -868,7 +1492,7 @@ func (c *workerManagementClient) RemoveAskPlan(ctx context.Context, in *ID, opts
 
 func (c *workerManagementClient) PurgeAskPlans(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/PurgeAskPlans", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/PurgeAskPlans", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -877,7 +1501,7 @@ func (c *workerManagementClient) PurgeAskPlans(ctx context.Context, in *Empty, o
 
 func (c *workerManagementClient) PurgeAskPlansDetailed(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ErrorByStringID, error) {
 	out := new(ErrorByStringID)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/PurgeAskPlansDetailed", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/PurgeAskPlansDetailed", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -886,7 +1510,7 @@ func (c *workerManagementClient) PurgeAskPlansDetailed(ctx context.Context, in *
 
 func (c *workerManagementClient) ScheduleMaintenance(ctx context.Context, in *Timestamp, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/ScheduleMaintenance", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/ScheduleMaintenance", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -895,7 +1519,7 @@ func (c *workerManagementClient) ScheduleMaintenance(ctx context.Context, in *Ti
 
 func (c *workerManagementClient) NextMaintenance(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Timestamp, error) {
 	out := new(Timestamp)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/NextMaintenance", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/NextMaintenance", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -904,7 +1528,7 @@ func (c *workerManagementClient) NextMaintenance(ctx context.Context, in *Empty,
 
 func (c *workerManagementClient) DebugState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*DebugStateReply, error) {
 	out := new(DebugStateReply)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/DebugState", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/DebugState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -913,7 +1537,7 @@ func (c *workerManagementClient) DebugState(ctx context.Context, in *Empty, opts
 
 func (c *workerManagementClient) RemoveBenchmark(ctx context.Context, in *NumericID, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/RemoveBenchmark", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/RemoveBenchmark", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -922,7 +1546,7 @@ func (c *workerManagementClient) RemoveBenchmark(ctx context.Context, in *Numeri
 
 func (c *workerManagementClient) PurgeBenchmarks(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/PurgeBenchmarks", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/PurgeBenchmarks", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -931,15 +1555,14 @@ func (c *workerManagementClient) PurgeBenchmarks(ctx context.Context, in *Empty,
 
 func (c *workerManagementClient) Metrics(ctx context.Context, in *WorkerMetricsRequest, opts ...grpc.CallOption) (*WorkerMetricsResponse, error) {
 	out := new(WorkerMetricsResponse)
-	err := grpc.Invoke(ctx, "/sonm.WorkerManagement/Metrics", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.WorkerManagement/Metrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for WorkerManagement service
-
+// WorkerManagementServer is the server API for WorkerManagement service.
 type WorkerManagementServer interface {
 	// Status produse a detailed info about worker
 	Status(context.Context, *Empty) (*StatusReply, error)
@@ -1322,8 +1945,9 @@ var _WorkerManagement_serviceDesc = grpc.ServiceDesc{
 	Metadata: "worker.proto",
 }
 
-// Client API for Worker service
-
+// WorkerClient is the client API for Worker service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type WorkerClient interface {
 	PushTask(ctx context.Context, opts ...grpc.CallOption) (Worker_PushTaskClient, error)
 	PullTask(ctx context.Context, in *PullTaskRequest, opts ...grpc.CallOption) (Worker_PullTaskClient, error)
@@ -1348,7 +1972,7 @@ func NewWorkerClient(cc *grpc.ClientConn) WorkerClient {
 }
 
 func (c *workerClient) PushTask(ctx context.Context, opts ...grpc.CallOption) (Worker_PushTaskClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Worker_serviceDesc.Streams[0], c.cc, "/sonm.Worker/PushTask", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Worker_serviceDesc.Streams[0], "/sonm.Worker/PushTask", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1379,7 +2003,7 @@ func (x *workerPushTaskClient) Recv() (*Progress, error) {
 }
 
 func (c *workerClient) PullTask(ctx context.Context, in *PullTaskRequest, opts ...grpc.CallOption) (Worker_PullTaskClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Worker_serviceDesc.Streams[1], c.cc, "/sonm.Worker/PullTask", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Worker_serviceDesc.Streams[1], "/sonm.Worker/PullTask", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1412,7 +2036,7 @@ func (x *workerPullTaskClient) Recv() (*Chunk, error) {
 
 func (c *workerClient) StartTask(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskReply, error) {
 	out := new(StartTaskReply)
-	err := grpc.Invoke(ctx, "/sonm.Worker/StartTask", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Worker/StartTask", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1421,7 +2045,7 @@ func (c *workerClient) StartTask(ctx context.Context, in *StartTaskRequest, opts
 
 func (c *workerClient) StopTask(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.Worker/StopTask", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Worker/StopTask", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1430,7 +2054,7 @@ func (c *workerClient) StopTask(ctx context.Context, in *ID, opts ...grpc.CallOp
 
 func (c *workerClient) PurgeTasks(ctx context.Context, in *PurgeTasksRequest, opts ...grpc.CallOption) (*ErrorByStringID, error) {
 	out := new(ErrorByStringID)
-	err := grpc.Invoke(ctx, "/sonm.Worker/PurgeTasks", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Worker/PurgeTasks", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1439,7 +2063,7 @@ func (c *workerClient) PurgeTasks(ctx context.Context, in *PurgeTasksRequest, op
 
 func (c *workerClient) TaskStatus(ctx context.Context, in *ID, opts ...grpc.CallOption) (*TaskStatusReply, error) {
 	out := new(TaskStatusReply)
-	err := grpc.Invoke(ctx, "/sonm.Worker/TaskStatus", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Worker/TaskStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1448,7 +2072,7 @@ func (c *workerClient) TaskStatus(ctx context.Context, in *ID, opts ...grpc.Call
 
 func (c *workerClient) JoinNetwork(ctx context.Context, in *WorkerJoinNetworkRequest, opts ...grpc.CallOption) (*NetworkSpec, error) {
 	out := new(NetworkSpec)
-	err := grpc.Invoke(ctx, "/sonm.Worker/JoinNetwork", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Worker/JoinNetwork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1456,7 +2080,7 @@ func (c *workerClient) JoinNetwork(ctx context.Context, in *WorkerJoinNetworkReq
 }
 
 func (c *workerClient) TaskLogs(ctx context.Context, in *TaskLogsRequest, opts ...grpc.CallOption) (Worker_TaskLogsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Worker_serviceDesc.Streams[2], c.cc, "/sonm.Worker/TaskLogs", opts...)
+	stream, err := c.cc.NewStream(ctx, &_Worker_serviceDesc.Streams[2], "/sonm.Worker/TaskLogs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1489,15 +2113,14 @@ func (x *workerTaskLogsClient) Recv() (*TaskLogsChunk, error) {
 
 func (c *workerClient) GetDealInfo(ctx context.Context, in *ID, opts ...grpc.CallOption) (*DealInfoReply, error) {
 	out := new(DealInfoReply)
-	err := grpc.Invoke(ctx, "/sonm.Worker/GetDealInfo", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Worker/GetDealInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Worker service
-
+// WorkerServer is the server API for Worker service.
 type WorkerServer interface {
 	PushTask(Worker_PushTaskServer) error
 	PullTask(*PullTaskRequest, Worker_PullTaskServer) error
@@ -1741,140 +2364,4 @@ var _Worker_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Metadata: "worker.proto",
-}
-
-func init() { proto.RegisterFile("worker.proto", fileDescriptor16) }
-
-var fileDescriptor16 = []byte{
-	// 2071 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x58, 0xcd, 0x72, 0x1b, 0xb9,
-	0xf1, 0x27, 0x45, 0x8a, 0x1f, 0x4d, 0x52, 0xa2, 0x20, 0x5b, 0x7f, 0xd6, 0xac, 0xed, 0xd5, 0x8e,
-	0x77, 0xf7, 0xcf, 0x78, 0x6d, 0xc6, 0xab, 0xfd, 0xa8, 0xac, 0x9d, 0x4d, 0xad, 0x24, 0x4a, 0x32,
-	0x6d, 0x8b, 0x62, 0x86, 0x56, 0x39, 0x87, 0x54, 0xa5, 0x60, 0x12, 0xa2, 0x26, 0x22, 0x67, 0x26,
-	0x03, 0x50, 0x8e, 0x72, 0x4d, 0x9e, 0x20, 0x97, 0x54, 0xa5, 0xf2, 0x02, 0xb9, 0xe4, 0x92, 0x53,
-	0xaa, 0xf2, 0x04, 0x79, 0x98, 0x54, 0x4e, 0x39, 0xa7, 0x00, 0x34, 0xe6, 0x83, 0x1c, 0x6d, 0xe2,
-	0x92, 0x6f, 0x83, 0xee, 0xdf, 0xaf, 0xd1, 0xd3, 0x68, 0x74, 0x03, 0x80, 0xfa, 0x5b, 0x3f, 0xbc,
-	0x60, 0x61, 0x27, 0x08, 0x7d, 0xe1, 0x93, 0x22, 0xf7, 0xbd, 0x99, 0xb5, 0x46, 0xf9, 0xc5, 0x2f,
-	0x82, 0x29, 0xf5, 0xb4, 0xd4, 0xaa, 0xbf, 0x71, 0x27, 0xae, 0x27, 0x70, 0x44, 0x46, 0x34, 0xa0,
-	0x6f, 0xdc, 0xa9, 0x2b, 0x5c, 0xc6, 0x51, 0xb6, 0x3e, 0xf2, 0x3d, 0x41, 0x5d, 0xcf, 0x18, 0xb2,
-	0x6a, 0x13, 0xe6, 0xbb, 0x81, 0xd1, 0xba, 0x9e, 0xb4, 0xeb, 0xb9, 0x14, 0x05, 0x1b, 0x33, 0x1a,
-	0x5e, 0x30, 0x11, 0x4c, 0xe9, 0x88, 0xa1, 0xa8, 0xea, 0x31, 0x33, 0xc1, 0xba, 0x70, 0x67, 0x8c,
-	0x0b, 0x3a, 0x43, 0xbe, 0x7d, 0x17, 0xca, 0xaf, 0x28, 0xbf, 0x78, 0x45, 0x27, 0x84, 0x40, 0x71,
-	0x4c, 0x05, 0x6d, 0xe5, 0xb7, 0xf3, 0xed, 0xba, 0xa3, 0xbe, 0xed, 0xbf, 0xe7, 0xa1, 0x22, 0xf5,
-	0xc3, 0x80, 0x8d, 0xc8, 0x23, 0xa8, 0x46, 0xbe, 0x28, 0x54, 0x6d, 0x67, 0xbd, 0x23, 0x67, 0xef,
-	0xec, 0x1b, 0xb1, 0x13, 0x23, 0xc8, 0x03, 0xa8, 0x84, 0x6c, 0xe2, 0x72, 0x11, 0x5e, 0xb5, 0x56,
-	0x14, 0x7a, 0x4d, 0xa3, 0x1d, 0x94, 0x3a, 0x91, 0x9e, 0x7c, 0x09, 0xd5, 0x90, 0x71, 0x7f, 0x1e,
-	0x8e, 0x18, 0x6f, 0x15, 0x14, 0x78, 0x4b, 0x83, 0x77, 0xf9, 0xc5, 0x60, 0x4a, 0x3d, 0xc7, 0x68,
-	0x9d, 0x18, 0x48, 0x3e, 0x84, 0x82, 0xa0, 0x93, 0x56, 0x51, 0xe1, 0x1b, 0x1a, 0x8f, 0x7f, 0xe3,
-	0x48, 0x8d, 0xfd, 0x73, 0x68, 0x0e, 0x05, 0x0d, 0x85, 0x14, 0x3a, 0xec, 0x57, 0x73, 0xc6, 0x05,
-	0xf9, 0x18, 0x4a, 0x63, 0x46, 0xa7, 0xbd, 0x2e, 0xfe, 0x42, 0x5d, 0xf3, 0xf6, 0xdc, 0x49, 0xcf,
-	0x13, 0x0e, 0xea, 0x88, 0x0d, 0x45, 0x1e, 0xb0, 0x51, 0xda, 0x71, 0x13, 0x09, 0x47, 0xe9, 0xec,
-	0x01, 0xb4, 0x5e, 0xab, 0x15, 0x7e, 0xee, 0xbb, 0x5e, 0x9f, 0x09, 0xb9, 0xdc, 0x66, 0x96, 0x2d,
-	0x28, 0x09, 0xca, 0x2f, 0x70, 0x96, 0xaa, 0x83, 0x23, 0x72, 0x07, 0xe4, 0x6a, 0x48, 0x64, 0xaf,
-	0xab, 0x8c, 0x57, 0x9d, 0x58, 0x60, 0xff, 0x23, 0x0f, 0x6b, 0x09, 0x87, 0x83, 0xe9, 0x15, 0x59,
-	0x83, 0x15, 0x77, 0x8c, 0x46, 0x56, 0xdc, 0x31, 0x79, 0x0a, 0xe5, 0xc0, 0x0f, 0xc5, 0x31, 0x0d,
-	0x5a, 0x2b, 0xdb, 0x85, 0x76, 0x6d, 0xe7, 0x23, 0xed, 0x5b, 0x9a, 0xd6, 0x19, 0x68, 0xcc, 0x81,
-	0x27, 0xe3, 0x6c, 0x18, 0xe4, 0x1e, 0x40, 0x34, 0x99, 0x8c, 0x73, 0xa1, 0x5d, 0x75, 0x12, 0x12,
-	0xeb, 0x05, 0xd4, 0x93, 0x44, 0xd2, 0x84, 0xc2, 0x05, 0xbb, 0xc2, 0xd9, 0xe5, 0x27, 0xf9, 0x04,
-	0x56, 0x2f, 0xe9, 0x74, 0xce, 0x30, 0x30, 0xb8, 0xfe, 0x07, 0xde, 0x38, 0xf0, 0x5d, 0x4f, 0x70,
-	0x47, 0x6b, 0x9f, 0xac, 0xfc, 0x28, 0x6f, 0xff, 0xa5, 0x00, 0xb5, 0xa1, 0xa0, 0x62, 0xce, 0xf5,
-	0x9f, 0x6c, 0x41, 0x69, 0x1e, 0xc8, 0xfc, 0x53, 0xf6, 0x8a, 0x0e, 0x8e, 0x48, 0x0b, 0xca, 0x97,
-	0x2c, 0xe4, 0xae, 0xef, 0x61, 0x40, 0xcc, 0x90, 0x58, 0x50, 0x09, 0xa6, 0x54, 0x9c, 0xf9, 0xe1,
-	0x4c, 0x25, 0x45, 0xd5, 0x89, 0xc6, 0x92, 0xc5, 0xc4, 0xf9, 0xee, 0x78, 0x1c, 0xaa, 0xf5, 0xaf,
-	0x3a, 0x66, 0x28, 0x43, 0x2c, 0x83, 0xbd, 0xef, 0xcf, 0x3d, 0xd1, 0x5a, 0xdd, 0xce, 0xb7, 0x1b,
-	0x4e, 0x2c, 0x90, 0xda, 0xee, 0xeb, 0x67, 0xda, 0xaf, 0x56, 0x49, 0x2f, 0x40, 0x24, 0x20, 0x0f,
-	0xa0, 0x19, 0x32, 0x6f, 0xcc, 0x7e, 0x73, 0xe9, 0xcf, 0x39, 0x82, 0xca, 0x0a, 0xb4, 0x24, 0x27,
-	0x6d, 0x28, 0xcd, 0x28, 0x17, 0x2c, 0x6c, 0x55, 0x54, 0x2c, 0x9a, 0x18, 0x0b, 0xed, 0x06, 0xe3,
-	0xdc, 0x41, 0x3d, 0xf9, 0x14, 0x56, 0xe9, 0x78, 0xe6, 0x7a, 0xad, 0xea, 0x35, 0x40, 0xad, 0x26,
-	0x0f, 0x61, 0xc3, 0xe5, 0xc7, 0x8a, 0xb3, 0xef, 0x7b, 0x67, 0x6e, 0x38, 0x63, 0xe3, 0x16, 0x6c,
-	0xe7, 0xdb, 0x15, 0x67, 0x59, 0x41, 0x1e, 0xc3, 0xa6, 0xcb, 0xf7, 0x98, 0x37, 0x3a, 0x97, 0x5b,
-	0xfe, 0xd0, 0xf5, 0x5c, 0x7e, 0xce, 0xc6, 0xad, 0x9a, 0xc2, 0x67, 0xa9, 0xc8, 0x5d, 0x28, 0x4c,
-	0x98, 0xdf, 0xaa, 0x2b, 0x2f, 0x6a, 0xda, 0x8b, 0x23, 0xe6, 0xf7, 0x06, 0x8e, 0x94, 0xdb, 0x7f,
-	0xcc, 0x43, 0x03, 0xb7, 0x1b, 0x2e, 0xd9, 0xb7, 0x50, 0xa1, 0x28, 0x68, 0xe5, 0x93, 0xd9, 0x96,
-	0x82, 0x45, 0x23, 0x9d, 0x6d, 0x11, 0xc5, 0x7a, 0x1e, 0xdb, 0xbb, 0x2e, 0x9f, 0xee, 0xa7, 0xf3,
-	0xa9, 0x91, 0xde, 0xf4, 0x89, 0x6c, 0xfa, 0x7d, 0x1e, 0x1a, 0x32, 0xbd, 0x5f, 0xba, 0x5c, 0x68,
-	0xe7, 0x3e, 0x87, 0xa2, 0xeb, 0x9d, 0xf9, 0xe8, 0xd8, 0xdd, 0x78, 0x8b, 0x46, 0x90, 0x4e, 0xcf,
-	0x3b, 0xf3, 0xb5, 0x53, 0x0a, 0x6a, 0xf5, 0xa1, 0x1a, 0x89, 0x32, 0x9c, 0xf9, 0x2c, 0xed, 0xcc,
-	0xed, 0xc4, 0xae, 0x8f, 0xf3, 0x38, 0xe9, 0xd4, 0xdf, 0xf2, 0x50, 0xef, 0xb2, 0x4b, 0x57, 0xd6,
-	0x25, 0xe5, 0xd3, 0x07, 0x50, 0xd8, 0x1f, 0x9c, 0x62, 0x65, 0xa9, 0x62, 0x71, 0x1c, 0x9c, 0x3a,
-	0x52, 0x4a, 0xee, 0x42, 0xf1, 0x68, 0x70, 0xca, 0x71, 0xdf, 0xa2, 0xf6, 0x68, 0x70, 0xea, 0x28,
-	0xb1, 0xe4, 0x3a, 0xbb, 0xc7, 0x58, 0xfd, 0x50, 0xeb, 0xec, 0x1e, 0x3b, 0x52, 0x4a, 0xfe, 0x1f,
-	0xca, 0xb8, 0x4f, 0xd3, 0xe5, 0xce, 0x94, 0x1d, 0xa3, 0x95, 0x40, 0x2e, 0xfc, 0x90, 0x4e, 0x98,
-	0xca, 0xfd, 0x08, 0x38, 0xd4, 0x42, 0xc7, 0x68, 0xed, 0x5d, 0x58, 0x1f, 0xcc, 0xa7, 0xd3, 0x64,
-	0x69, 0xdc, 0xc2, 0xd2, 0x68, 0xea, 0x0d, 0x8e, 0xa2, 0x62, 0x36, 0xc6, 0x0d, 0x8a, 0x23, 0xfb,
-	0xcf, 0x05, 0x68, 0x74, 0x25, 0xc4, 0x3b, 0xf3, 0xf5, 0xff, 0xdf, 0x83, 0xa2, 0xe4, 0x60, 0x00,
-	0x40, 0x4f, 0x2d, 0x21, 0x8e, 0x92, 0x93, 0x27, 0x50, 0x0e, 0xe7, 0x9e, 0xe7, 0x7a, 0x13, 0x8c,
-	0xc2, 0x76, 0x0c, 0x89, 0xac, 0x74, 0x1c, 0x0d, 0xc1, 0xe2, 0x85, 0x04, 0xf2, 0x9d, 0x6c, 0x3f,
-	0xb3, 0x60, 0xca, 0x04, 0x1b, 0xab, 0xda, 0x55, 0xdb, 0xb1, 0xb3, 0xd8, 0xfb, 0x06, 0xa4, 0xf9,
-	0x31, 0x29, 0xdd, 0x65, 0x8a, 0xff, 0x6b, 0x97, 0xb9, 0x03, 0xd5, 0x60, 0xfe, 0x66, 0xea, 0x8e,
-	0x7a, 0x03, 0xde, 0x5a, 0x55, 0x35, 0x33, 0x16, 0x58, 0x3f, 0x85, 0x7a, 0xd2, 0xdd, 0xf7, 0x90,
-	0x55, 0xd6, 0x10, 0xd6, 0xd2, 0xff, 0xf0, 0x3e, 0x52, 0xf5, 0xdf, 0x05, 0x58, 0x5f, 0x50, 0x93,
-	0x2f, 0xa1, 0xc4, 0x75, 0x8d, 0x93, 0x96, 0xd7, 0x76, 0xee, 0x64, 0x5a, 0xe9, 0xe0, 0x37, 0x62,
-	0x65, 0x3c, 0xdc, 0x19, 0x9d, 0xb0, 0x3e, 0x9d, 0x31, 0xd3, 0xc2, 0x22, 0x01, 0xf9, 0x71, 0xdc,
-	0x9f, 0x52, 0x6b, 0xb4, 0x68, 0x34, 0xbb, 0x41, 0xc5, 0x3d, 0xa2, 0x98, 0xea, 0x11, 0x3f, 0x80,
-	0xd5, 0x39, 0x8f, 0x73, 0x7a, 0xd3, 0x1c, 0x24, 0xf4, 0x1a, 0x9d, 0x4a, 0x95, 0xa3, 0x11, 0xe4,
-	0x10, 0x08, 0x9d, 0x4e, 0xfd, 0x11, 0x15, 0x6c, 0x1c, 0xad, 0xa7, 0xaa, 0xf4, 0xd7, 0xaf, 0x76,
-	0x06, 0xc3, 0x1c, 0x2e, 0xca, 0xd7, 0x1d, 0x2e, 0xde, 0x6f, 0xb3, 0xfc, 0x19, 0x94, 0xb0, 0xad,
-	0xd4, 0xa0, 0x7c, 0xda, 0x7f, 0xd1, 0x3f, 0x79, 0xdd, 0x6f, 0xe6, 0x48, 0x1d, 0x2a, 0xc3, 0xc1,
-	0xc9, 0xc9, 0xcb, 0x5e, 0xff, 0xa8, 0x99, 0xd7, 0xa3, 0xdd, 0xd7, 0x7d, 0x39, 0x5a, 0x91, 0x40,
-	0xe7, 0xb4, 0xaf, 0x06, 0x05, 0xa9, 0x3a, 0xec, 0xf5, 0x7b, 0xc3, 0x67, 0x07, 0xdd, 0x66, 0x91,
-	0x00, 0x94, 0xf6, 0x9c, 0x93, 0x17, 0x07, 0xfd, 0xe6, 0xaa, 0xfd, 0x57, 0x3c, 0xc2, 0x0d, 0x7c,
-	0x7f, 0x4a, 0xda, 0x50, 0xa0, 0x53, 0xb3, 0x3d, 0xaf, 0x8b, 0x86, 0x84, 0x90, 0x87, 0x50, 0x9c,
-	0x73, 0x36, 0xc6, 0x6d, 0xda, 0x8a, 0xff, 0x5f, 0xda, 0xe9, 0x9c, 0x72, 0xb3, 0xbd, 0x14, 0xca,
-	0x3a, 0x81, 0x6a, 0x24, 0xca, 0x08, 0xc4, 0xc3, 0x74, 0x20, 0xae, 0x9b, 0x38, 0x11, 0x8f, 0xdf,
-	0x95, 0xa0, 0x86, 0xfa, 0x77, 0x74, 0xfc, 0x29, 0x54, 0xa4, 0x4b, 0xc3, 0xc0, 0x17, 0xe8, 0xfc,
-	0x87, 0x29, 0x78, 0xe4, 0xbf, 0x44, 0x60, 0xc7, 0x32, 0x04, 0xf2, 0x15, 0x94, 0xe4, 0xf7, 0xe1,
-	0x5b, 0x4c, 0xde, 0xbb, 0xd9, 0xd4, 0xc3, 0xb7, 0x9a, 0x88, 0x60, 0x72, 0x04, 0xf5, 0x91, 0x3f,
-	0x9b, 0xb9, 0x02, 0xe7, 0x2d, 0x2a, 0xf2, 0xfd, 0x65, 0xf2, 0x7e, 0x02, 0xa5, 0x4d, 0xa4, 0x88,
-	0x64, 0x17, 0xc0, 0x8c, 0x0f, 0xdf, 0xaa, 0x62, 0xb3, 0xd8, 0x72, 0x53, 0x66, 0x8c, 0x1f, 0x09,
-	0x92, 0xf4, 0x85, 0xfd, 0x92, 0x8d, 0x04, 0x1b, 0xeb, 0xbe, 0x5d, 0xba, 0xce, 0x97, 0x83, 0x04,
-	0x0a, 0x7d, 0x49, 0x12, 0x65, 0xf7, 0x4e, 0x85, 0xe9, 0x06, 0xdd, 0xdb, 0x7a, 0x06, 0xb5, 0x44,
-	0xdc, 0x6e, 0x62, 0xa9, 0x0f, 0x1b, 0x4b, 0x41, 0xbc, 0x89, 0xbd, 0x97, 0xb0, 0xbe, 0x10, 0xcd,
-	0x1b, 0x7a, 0xb7, 0x14, 0xd6, 0x9b, 0x9c, 0x7a, 0xfe, 0xb5, 0x02, 0x8d, 0xe1, 0xe8, 0x9c, 0x8d,
-	0xe7, 0x53, 0x16, 0x76, 0xa9, 0xa0, 0xe4, 0x25, 0x34, 0x64, 0xf7, 0x7d, 0xe5, 0x23, 0x1a, 0x8f,
-	0x3f, 0x9f, 0x62, 0x97, 0x4f, 0x62, 0x75, 0xb9, 0x32, 0x40, 0xbd, 0xc4, 0x69, 0x32, 0xe9, 0x41,
-	0x9d, 0xc6, 0x29, 0xc1, 0x31, 0xeb, 0x3f, 0xc9, 0x32, 0x96, 0x48, 0x1d, 0x93, 0x2e, 0x49, 0x2a,
-	0x79, 0xa4, 0x0e, 0xeb, 0x6a, 0x80, 0xbd, 0x75, 0x63, 0x29, 0xe7, 0x9c, 0x08, 0x62, 0x7d, 0x07,
-	0x64, 0xd9, 0xbd, 0x8c, 0x50, 0xdd, 0x4a, 0x86, 0xaa, 0x9a, 0x8c, 0xf5, 0x09, 0x6c, 0x2c, 0xf9,
-	0x94, 0x61, 0xe0, 0xe3, 0x74, 0xac, 0xd7, 0xd2, 0x95, 0x2c, 0x61, 0xf0, 0x79, 0xb1, 0xb2, 0xd2,
-	0x2c, 0xd8, 0x7f, 0x2a, 0x40, 0x7d, 0x48, 0xa7, 0x8c, 0xcf, 0xa8, 0xa7, 0x22, 0xde, 0x87, 0x35,
-	0xfc, 0xd1, 0xfd, 0xa3, 0xd0, 0x9f, 0x07, 0xe6, 0x00, 0x67, 0x42, 0x9e, 0xc0, 0x9a, 0x7f, 0x45,
-	0xa0, 0x0e, 0xd3, 0x02, 0x9b, 0x7c, 0x01, 0xab, 0xf2, 0x2c, 0xc4, 0xd3, 0x25, 0x26, 0x65, 0x46,
-	0x1e, 0x68, 0x90, 0xad, 0xb1, 0xe4, 0x6b, 0x28, 0xf9, 0xe1, 0x98, 0x85, 0x1c, 0x6b, 0xcb, 0xbd,
-	0x0c, 0xd6, 0x89, 0x02, 0x60, 0x65, 0xd2, 0x68, 0x6b, 0x17, 0x36, 0x33, 0x7c, 0x7a, 0xa7, 0x38,
-	0x77, 0x01, 0x62, 0x7f, 0x32, 0x98, 0xdb, 0xe9, 0x00, 0x27, 0x0f, 0x7d, 0x09, 0x2b, 0x87, 0x50,
-	0x4b, 0xf8, 0x97, 0x61, 0xe6, 0xa3, 0xb4, 0x19, 0xbc, 0x9e, 0x28, 0x4e, 0xaa, 0x31, 0xe4, 0x61,
-	0xbd, 0xcb, 0xde, 0xcc, 0x27, 0xb2, 0x5d, 0x32, 0x7d, 0x8e, 0xf9, 0x06, 0x1a, 0x3c, 0x99, 0xab,
-	0xd8, 0x26, 0x36, 0x33, 0xd2, 0xd8, 0x49, 0x23, 0xc9, 0xd7, 0x50, 0xe7, 0x89, 0x18, 0xe2, 0xe4,
-	0x64, 0x39, 0xba, 0x4e, 0x0a, 0x67, 0x7f, 0x03, 0x1b, 0x83, 0x79, 0x38, 0x61, 0x32, 0x8f, 0xf8,
-	0x3b, 0x3d, 0x2d, 0xd8, 0x5b, 0x70, 0x4b, 0x3f, 0x1b, 0x1c, 0x33, 0x11, 0xba, 0x23, 0xc3, 0xb6,
-	0xff, 0x90, 0x87, 0xdb, 0x0b, 0x0a, 0x1e, 0xf8, 0x1e, 0x67, 0x64, 0x0f, 0xca, 0x33, 0x2d, 0xc2,
-	0xdd, 0xde, 0xd6, 0x86, 0x33, 0xd1, 0x1d, 0x1c, 0xe3, 0xc9, 0x0a, 0x89, 0xd6, 0x13, 0xa8, 0x27,
-	0x15, 0xff, 0x2d, 0x03, 0xf2, 0x89, 0x98, 0xef, 0xfc, 0xb6, 0x04, 0x4d, 0x9c, 0x8b, 0x7a, 0x74,
-	0xc2, 0x66, 0xcc, 0x13, 0xe4, 0x41, 0x7c, 0x62, 0xc1, 0x73, 0xcd, 0x2c, 0x10, 0x57, 0xd6, 0x46,
-	0xf4, 0x1c, 0x61, 0x8e, 0x7a, 0x76, 0x8e, 0x3c, 0x84, 0x32, 0x5e, 0x93, 0xd2, 0x60, 0x62, 0x72,
-	0x25, 0xbe, 0x42, 0xd9, 0x39, 0xf2, 0x18, 0x6a, 0x87, 0x21, 0x63, 0xef, 0xc0, 0xf8, 0x0c, 0x56,
-	0xd5, 0x42, 0xa4, 0xb1, 0x9b, 0x19, 0x57, 0x42, 0x3b, 0x47, 0x3a, 0x50, 0x31, 0xb7, 0xd2, 0x4c,
-	0x7c, 0xea, 0x6e, 0x6b, 0xe7, 0xc8, 0x03, 0x68, 0xec, 0x87, 0x8c, 0x0a, 0x66, 0x8a, 0x66, 0xba,
-	0x5c, 0x5b, 0x15, 0x3d, 0xec, 0x75, 0xed, 0x1c, 0x69, 0x43, 0xc3, 0x61, 0x33, 0xff, 0x32, 0xc2,
-	0x46, 0x4a, 0x2b, 0x39, 0x95, 0x72, 0xb9, 0xa1, 0x12, 0x28, 0xdb, 0x95, 0x05, 0xf0, 0xb7, 0x70,
-	0x3b, 0x05, 0xee, 0x32, 0x41, 0xdd, 0x29, 0x1b, 0xa7, 0x49, 0x78, 0x09, 0x38, 0x08, 0x43, 0x3f,
-	0xdc, 0xbb, 0x1a, 0x8a, 0xd0, 0xf5, 0x26, 0xca, 0xab, 0xaf, 0x60, 0xd3, 0x6c, 0x82, 0x63, 0xea,
-	0x7a, 0x82, 0x79, 0xd4, 0x1b, 0x31, 0x82, 0xe7, 0xd1, 0x57, 0xe6, 0x49, 0x70, 0x71, 0xd6, 0xcf,
-	0x61, 0xbd, 0xcf, 0x7e, 0x2d, 0x92, 0x94, 0xd4, 0x7c, 0x8b, 0x7c, 0x3b, 0x47, 0x76, 0x64, 0xad,
-	0x30, 0x9b, 0x33, 0xd3, 0xbb, 0x85, 0xbd, 0xab, 0xa7, 0xd1, 0x31, 0x8b, 0x1e, 0x2c, 0x8c, 0x67,
-	0xfd, 0xf9, 0x8c, 0x85, 0xee, 0x68, 0x39, 0x78, 0x8f, 0xe4, 0xdd, 0x35, 0x9c, 0xc4, 0x8c, 0xef,
-	0x0f, 0x5f, 0x17, 0xca, 0x98, 0xfb, 0xc4, 0xca, 0xdc, 0x39, 0x6a, 0x03, 0x5a, 0x1f, 0x7c, 0xcf,
-	0xae, 0xb2, 0x73, 0x3b, 0xff, 0x2c, 0x40, 0x49, 0xeb, 0x64, 0xaf, 0x1b, 0xcc, 0xf9, 0xb9, 0xcc,
-	0x2c, 0x33, 0xf1, 0xfe, 0xf9, 0xdc, 0xbb, 0xb0, 0xb0, 0xbb, 0x0c, 0x42, 0x7f, 0x12, 0x32, 0xce,
-	0xed, 0x5c, 0x3b, 0xff, 0x38, 0x4f, 0x76, 0x24, 0x5c, 0x5f, 0xb5, 0x09, 0x86, 0x61, 0xe1, 0xea,
-	0x6d, 0x25, 0xad, 0xd8, 0xb9, 0xc7, 0x79, 0xf2, 0x14, 0xaa, 0xd1, 0x93, 0x1e, 0xd9, 0x5a, 0x7a,
-	0xe3, 0xd3, 0xac, 0x5b, 0x59, 0x6f, 0x7f, 0x76, 0x8e, 0xdc, 0x87, 0xca, 0x50, 0xf8, 0x81, 0xe2,
-	0x5e, 0x9b, 0x81, 0x3f, 0x01, 0x88, 0x4b, 0x18, 0xf9, 0x3f, 0xe3, 0xd7, 0x42, 0x51, 0xbb, 0x3e,
-	0xab, 0x7e, 0x08, 0x10, 0x5f, 0xea, 0x12, 0xd3, 0x64, 0xdf, 0x45, 0xed, 0x1c, 0xd9, 0x83, 0x5a,
-	0xe2, 0xa5, 0x94, 0xdc, 0x4b, 0x86, 0x7b, 0xf9, 0x09, 0xd5, 0x54, 0x12, 0x94, 0x0e, 0x03, 0x36,
-	0xb2, 0x73, 0xe4, 0x89, 0xbe, 0xcc, 0xbc, 0xf4, 0x27, 0x9c, 0x24, 0x26, 0x92, 0x63, 0xc3, 0xdb,
-	0x4c, 0x8b, 0xe3, 0x90, 0x76, 0xa0, 0x76, 0xc4, 0x84, 0x79, 0x2c, 0x48, 0x78, 0xbc, 0x99, 0xf1,
-	0x8c, 0x60, 0xe7, 0xde, 0x94, 0xd4, 0x13, 0xf9, 0x17, 0xff, 0x09, 0x00, 0x00, 0xff, 0xff, 0x30,
-	0x38, 0x75, 0xb3, 0xc8, 0x17, 0x00, 0x00,
 }

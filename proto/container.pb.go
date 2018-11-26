@@ -3,24 +3,55 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type Registry struct {
-	Username string `protobuf:"bytes,1,opt,name=username" json:"username,omitempty"`
-	Password string `protobuf:"bytes,2,opt,name=password" json:"password,omitempty"`
+	Username             string   `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Password             string   `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Registry) Reset()                    { *m = Registry{} }
-func (m *Registry) String() string            { return proto.CompactTextString(m) }
-func (*Registry) ProtoMessage()               {}
-func (*Registry) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (m *Registry) Reset()         { *m = Registry{} }
+func (m *Registry) String() string { return proto.CompactTextString(m) }
+func (*Registry) ProtoMessage()    {}
+func (*Registry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7afe31759757e49a, []int{0}
+}
+
+func (m *Registry) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Registry.Unmarshal(m, b)
+}
+func (m *Registry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Registry.Marshal(b, m, deterministic)
+}
+func (m *Registry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Registry.Merge(m, src)
+}
+func (m *Registry) XXX_Size() int {
+	return xxx_messageInfo_Registry.Size(m)
+}
+func (m *Registry) XXX_DiscardUnknown() {
+	xxx_messageInfo_Registry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Registry proto.InternalMessageInfo
 
 func (m *Registry) GetUsername() string {
 	if m != nil {
@@ -42,14 +73,37 @@ type ContainerRestartPolicy struct {
 	// only when the container exit code is non-zero. If on-failure is used,
 	// MaximumRetryCount controls the number of times to retry before giving up.
 	// The default is not to restart.
-	Name              string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	MaximumRetryCount uint32 `protobuf:"varint,2,opt,name=maximumRetryCount" json:"maximumRetryCount,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	MaximumRetryCount    uint32   `protobuf:"varint,2,opt,name=maximumRetryCount,proto3" json:"maximumRetryCount,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ContainerRestartPolicy) Reset()                    { *m = ContainerRestartPolicy{} }
-func (m *ContainerRestartPolicy) String() string            { return proto.CompactTextString(m) }
-func (*ContainerRestartPolicy) ProtoMessage()               {}
-func (*ContainerRestartPolicy) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
+func (m *ContainerRestartPolicy) Reset()         { *m = ContainerRestartPolicy{} }
+func (m *ContainerRestartPolicy) String() string { return proto.CompactTextString(m) }
+func (*ContainerRestartPolicy) ProtoMessage()    {}
+func (*ContainerRestartPolicy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7afe31759757e49a, []int{1}
+}
+
+func (m *ContainerRestartPolicy) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ContainerRestartPolicy.Unmarshal(m, b)
+}
+func (m *ContainerRestartPolicy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ContainerRestartPolicy.Marshal(b, m, deterministic)
+}
+func (m *ContainerRestartPolicy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ContainerRestartPolicy.Merge(m, src)
+}
+func (m *ContainerRestartPolicy) XXX_Size() int {
+	return xxx_messageInfo_ContainerRestartPolicy.Size(m)
+}
+func (m *ContainerRestartPolicy) XXX_DiscardUnknown() {
+	xxx_messageInfo_ContainerRestartPolicy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ContainerRestartPolicy proto.InternalMessageInfo
 
 func (m *ContainerRestartPolicy) GetName() string {
 	if m != nil {
@@ -66,16 +120,39 @@ func (m *ContainerRestartPolicy) GetMaximumRetryCount() uint32 {
 }
 
 type NetworkSpec struct {
-	Type    string            `protobuf:"bytes,1,opt,name=type" json:"type,omitempty"`
-	Options map[string]string `protobuf:"bytes,2,rep,name=options" json:"options,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Subnet  string            `protobuf:"bytes,3,opt,name=subnet" json:"subnet,omitempty"`
-	Addr    string            `protobuf:"bytes,4,opt,name=addr" json:"addr,omitempty"`
+	Type                 string            `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Options              map[string]string `protobuf:"bytes,2,rep,name=options,proto3" json:"options,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Subnet               string            `protobuf:"bytes,3,opt,name=subnet,proto3" json:"subnet,omitempty"`
+	Addr                 string            `protobuf:"bytes,4,opt,name=addr,proto3" json:"addr,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *NetworkSpec) Reset()                    { *m = NetworkSpec{} }
-func (m *NetworkSpec) String() string            { return proto.CompactTextString(m) }
-func (*NetworkSpec) ProtoMessage()               {}
-func (*NetworkSpec) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{2} }
+func (m *NetworkSpec) Reset()         { *m = NetworkSpec{} }
+func (m *NetworkSpec) String() string { return proto.CompactTextString(m) }
+func (*NetworkSpec) ProtoMessage()    {}
+func (*NetworkSpec) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7afe31759757e49a, []int{2}
+}
+
+func (m *NetworkSpec) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NetworkSpec.Unmarshal(m, b)
+}
+func (m *NetworkSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NetworkSpec.Marshal(b, m, deterministic)
+}
+func (m *NetworkSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NetworkSpec.Merge(m, src)
+}
+func (m *NetworkSpec) XXX_Size() int {
+	return xxx_messageInfo_NetworkSpec.Size(m)
+}
+func (m *NetworkSpec) XXX_DiscardUnknown() {
+	xxx_messageInfo_NetworkSpec.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NetworkSpec proto.InternalMessageInfo
 
 func (m *NetworkSpec) GetType() string {
 	if m != nil {
@@ -107,34 +184,57 @@ func (m *NetworkSpec) GetAddr() string {
 
 type Container struct {
 	// Image describes a Docker image name. Required.
-	Image string `protobuf:"bytes,1,opt,name=image" json:"image,omitempty"`
+	Image string `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
 	// SSH public key used to attach to the container.
-	SshKey string `protobuf:"bytes,2,opt,name=sshKey" json:"sshKey,omitempty"`
+	SshKey string `protobuf:"bytes,2,opt,name=sshKey,proto3" json:"sshKey,omitempty"`
 	// CommitOnStop points whether a container should commit when stopped.
 	// Committed containers can be fetched later while there is an active
 	// deal.
-	CommitOnStop bool `protobuf:"varint,3,opt,name=commitOnStop" json:"commitOnStop,omitempty"`
+	CommitOnStop bool `protobuf:"varint,3,opt,name=commitOnStop,proto3" json:"commitOnStop,omitempty"`
 	// Env describes environment variables forwarded into the container.
-	Env map[string]string `protobuf:"bytes,4,rep,name=env" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Env map[string]string `protobuf:"bytes,4,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Volumes describes network volumes that are used to be mounted inside
 	// the container.
 	// Mapping from the volume type (cifs, nfs, etc.) to its settings.
-	Volumes map[string]*Volume `protobuf:"bytes,5,rep,name=volumes" json:"volumes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Volumes map[string]*Volume `protobuf:"bytes,5,rep,name=volumes,proto3" json:"volumes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// Mounts describes mount points from the volume name to the container.
-	Mounts   []string       `protobuf:"bytes,6,rep,name=mounts" json:"mounts,omitempty"`
-	Networks []*NetworkSpec `protobuf:"bytes,7,rep,name=networks" json:"networks,omitempty"`
+	Mounts   []string       `protobuf:"bytes,6,rep,name=mounts,proto3" json:"mounts,omitempty"`
+	Networks []*NetworkSpec `protobuf:"bytes,7,rep,name=networks,proto3" json:"networks,omitempty"`
 	// ContainerRestartPolicy describes the restart policies of the container.
-	RestartPolicy *ContainerRestartPolicy `protobuf:"bytes,8,opt,name=restartPolicy" json:"restartPolicy,omitempty"`
+	RestartPolicy *ContainerRestartPolicy `protobuf:"bytes,8,opt,name=restartPolicy,proto3" json:"restartPolicy,omitempty"`
 	// Expose controls how container ports are exposed.
-	Expose []string `protobuf:"bytes,10,rep,name=expose" json:"expose,omitempty"`
+	Expose []string `protobuf:"bytes,10,rep,name=expose,proto3" json:"expose,omitempty"`
 	// Push the committed image to remote repository (works only if CommitOnStop is set to `true`).
-	PushOnStop bool `protobuf:"varint,11,opt,name=pushOnStop" json:"pushOnStop,omitempty"`
+	PushOnStop           bool     `protobuf:"varint,11,opt,name=pushOnStop,proto3" json:"pushOnStop,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Container) Reset()                    { *m = Container{} }
-func (m *Container) String() string            { return proto.CompactTextString(m) }
-func (*Container) ProtoMessage()               {}
-func (*Container) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{3} }
+func (m *Container) Reset()         { *m = Container{} }
+func (m *Container) String() string { return proto.CompactTextString(m) }
+func (*Container) ProtoMessage()    {}
+func (*Container) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7afe31759757e49a, []int{3}
+}
+
+func (m *Container) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Container.Unmarshal(m, b)
+}
+func (m *Container) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Container.Marshal(b, m, deterministic)
+}
+func (m *Container) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Container.Merge(m, src)
+}
+func (m *Container) XXX_Size() int {
+	return xxx_messageInfo_Container.Size(m)
+}
+func (m *Container) XXX_DiscardUnknown() {
+	xxx_messageInfo_Container.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Container proto.InternalMessageInfo
 
 func (m *Container) GetImage() string {
 	if m != nil {
@@ -210,12 +310,15 @@ func init() {
 	proto.RegisterType((*Registry)(nil), "sonm.Registry")
 	proto.RegisterType((*ContainerRestartPolicy)(nil), "sonm.ContainerRestartPolicy")
 	proto.RegisterType((*NetworkSpec)(nil), "sonm.NetworkSpec")
+	proto.RegisterMapType((map[string]string)(nil), "sonm.NetworkSpec.OptionsEntry")
 	proto.RegisterType((*Container)(nil), "sonm.Container")
+	proto.RegisterMapType((map[string]string)(nil), "sonm.Container.EnvEntry")
+	proto.RegisterMapType((map[string]*Volume)(nil), "sonm.Container.VolumesEntry")
 }
 
-func init() { proto.RegisterFile("container.proto", fileDescriptor4) }
+func init() { proto.RegisterFile("container.proto", fileDescriptor_7afe31759757e49a) }
 
-var fileDescriptor4 = []byte{
+var fileDescriptor_7afe31759757e49a = []byte{
 	// 459 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0xc1, 0x6a, 0xdc, 0x30,
 	0x10, 0xc5, 0x6b, 0x67, 0xd7, 0x99, 0x75, 0x68, 0x23, 0x4a, 0x10, 0xa6, 0x84, 0xc5, 0xa7, 0x50,

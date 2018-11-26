@@ -3,24 +3,57 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type Addr struct {
-	Protocol string      `protobuf:"bytes,1,opt,name=protocol" json:"protocol,omitempty"`
-	Addr     *SocketAddr `protobuf:"bytes,2,opt,name=addr" json:"addr,omitempty"`
+	// Protocol describes the underlying transport protocol, for example "tcp"
+	// or "udp".
+	Protocol             string      `protobuf:"bytes,1,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	Addr                 *SocketAddr `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *Addr) Reset()                    { *m = Addr{} }
-func (m *Addr) String() string            { return proto.CompactTextString(m) }
-func (*Addr) ProtoMessage()               {}
-func (*Addr) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (m *Addr) Reset()         { *m = Addr{} }
+func (m *Addr) String() string { return proto.CompactTextString(m) }
+func (*Addr) ProtoMessage()    {}
+func (*Addr) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{0}
+}
+
+func (m *Addr) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Addr.Unmarshal(m, b)
+}
+func (m *Addr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Addr.Marshal(b, m, deterministic)
+}
+func (m *Addr) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Addr.Merge(m, src)
+}
+func (m *Addr) XXX_Size() int {
+	return xxx_messageInfo_Addr.Size(m)
+}
+func (m *Addr) XXX_DiscardUnknown() {
+	xxx_messageInfo_Addr.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Addr proto.InternalMessageInfo
 
 func (m *Addr) GetProtocol() string {
 	if m != nil {
@@ -38,16 +71,39 @@ func (m *Addr) GetAddr() *SocketAddr {
 
 type SocketAddr struct {
 	// Addr describes an IP address.
-	Addr string `protobuf:"bytes,1,opt,name=addr" json:"addr,omitempty"`
+	Addr string `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
 	// Port describes a port number.
 	// Actually an `uint16` here. Protobuf is so clear and handy.
-	Port uint32 `protobuf:"varint,2,opt,name=port" json:"port,omitempty"`
+	Port                 uint32   `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SocketAddr) Reset()                    { *m = SocketAddr{} }
-func (m *SocketAddr) String() string            { return proto.CompactTextString(m) }
-func (*SocketAddr) ProtoMessage()               {}
-func (*SocketAddr) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (m *SocketAddr) Reset()         { *m = SocketAddr{} }
+func (m *SocketAddr) String() string { return proto.CompactTextString(m) }
+func (*SocketAddr) ProtoMessage()    {}
+func (*SocketAddr) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{1}
+}
+
+func (m *SocketAddr) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SocketAddr.Unmarshal(m, b)
+}
+func (m *SocketAddr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SocketAddr.Marshal(b, m, deterministic)
+}
+func (m *SocketAddr) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SocketAddr.Merge(m, src)
+}
+func (m *SocketAddr) XXX_Size() int {
+	return xxx_messageInfo_SocketAddr.Size(m)
+}
+func (m *SocketAddr) XXX_DiscardUnknown() {
+	xxx_messageInfo_SocketAddr.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SocketAddr proto.InternalMessageInfo
 
 func (m *SocketAddr) GetAddr() string {
 	if m != nil {
@@ -64,13 +120,36 @@ func (m *SocketAddr) GetPort() uint32 {
 }
 
 type Endpoints struct {
-	Endpoints []*SocketAddr `protobuf:"bytes,1,rep,name=endpoints" json:"endpoints,omitempty"`
+	Endpoints            []*SocketAddr `protobuf:"bytes,1,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
 }
 
-func (m *Endpoints) Reset()                    { *m = Endpoints{} }
-func (m *Endpoints) String() string            { return proto.CompactTextString(m) }
-func (*Endpoints) ProtoMessage()               {}
-func (*Endpoints) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (m *Endpoints) Reset()         { *m = Endpoints{} }
+func (m *Endpoints) String() string { return proto.CompactTextString(m) }
+func (*Endpoints) ProtoMessage()    {}
+func (*Endpoints) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{2}
+}
+
+func (m *Endpoints) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Endpoints.Unmarshal(m, b)
+}
+func (m *Endpoints) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Endpoints.Marshal(b, m, deterministic)
+}
+func (m *Endpoints) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Endpoints.Merge(m, src)
+}
+func (m *Endpoints) XXX_Size() int {
+	return xxx_messageInfo_Endpoints.Size(m)
+}
+func (m *Endpoints) XXX_DiscardUnknown() {
+	xxx_messageInfo_Endpoints.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Endpoints proto.InternalMessageInfo
 
 func (m *Endpoints) GetEndpoints() []*SocketAddr {
 	if m != nil {
@@ -85,9 +164,9 @@ func init() {
 	proto.RegisterType((*Endpoints)(nil), "sonm.Endpoints")
 }
 
-func init() { proto.RegisterFile("net.proto", fileDescriptor9) }
+func init() { proto.RegisterFile("net.proto", fileDescriptor_a5b10ce944527a32) }
 
-var fileDescriptor9 = []byte{
+var fileDescriptor_a5b10ce944527a32 = []byte{
 	// 156 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcc, 0x4b, 0x2d, 0xd1,
 	0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x55, 0xf2, 0xe0, 0x62, 0x71,

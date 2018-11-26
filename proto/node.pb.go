@@ -3,14 +3,13 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import io_prometheus_client "github.com/prometheus/client_model/go"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	_go "github.com/prometheus/client_model/go"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -18,15 +17,44 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type JoinNetworkRequest struct {
-	TaskID    *TaskID `protobuf:"bytes,1,opt,name=taskID" json:"taskID,omitempty"`
-	NetworkID string  `protobuf:"bytes,2,opt,name=NetworkID" json:"NetworkID,omitempty"`
+	TaskID               *TaskID  `protobuf:"bytes,1,opt,name=taskID,proto3" json:"taskID,omitempty"`
+	NetworkID            string   `protobuf:"bytes,2,opt,name=NetworkID,proto3" json:"NetworkID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *JoinNetworkRequest) Reset()                    { *m = JoinNetworkRequest{} }
-func (m *JoinNetworkRequest) String() string            { return proto.CompactTextString(m) }
-func (*JoinNetworkRequest) ProtoMessage()               {}
-func (*JoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{0} }
+func (m *JoinNetworkRequest) Reset()         { *m = JoinNetworkRequest{} }
+func (m *JoinNetworkRequest) String() string { return proto.CompactTextString(m) }
+func (*JoinNetworkRequest) ProtoMessage()    {}
+func (*JoinNetworkRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{0}
+}
+
+func (m *JoinNetworkRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_JoinNetworkRequest.Unmarshal(m, b)
+}
+func (m *JoinNetworkRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_JoinNetworkRequest.Marshal(b, m, deterministic)
+}
+func (m *JoinNetworkRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_JoinNetworkRequest.Merge(m, src)
+}
+func (m *JoinNetworkRequest) XXX_Size() int {
+	return xxx_messageInfo_JoinNetworkRequest.Size(m)
+}
+func (m *JoinNetworkRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_JoinNetworkRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_JoinNetworkRequest proto.InternalMessageInfo
 
 func (m *JoinNetworkRequest) GetTaskID() *TaskID {
 	if m != nil {
@@ -43,13 +71,36 @@ func (m *JoinNetworkRequest) GetNetworkID() string {
 }
 
 type TaskListRequest struct {
-	DealID *BigInt `protobuf:"bytes,1,opt,name=dealID" json:"dealID,omitempty"`
+	DealID               *BigInt  `protobuf:"bytes,1,opt,name=dealID,proto3" json:"dealID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *TaskListRequest) Reset()                    { *m = TaskListRequest{} }
-func (m *TaskListRequest) String() string            { return proto.CompactTextString(m) }
-func (*TaskListRequest) ProtoMessage()               {}
-func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{1} }
+func (m *TaskListRequest) Reset()         { *m = TaskListRequest{} }
+func (m *TaskListRequest) String() string { return proto.CompactTextString(m) }
+func (*TaskListRequest) ProtoMessage()    {}
+func (*TaskListRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{1}
+}
+
+func (m *TaskListRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TaskListRequest.Unmarshal(m, b)
+}
+func (m *TaskListRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TaskListRequest.Marshal(b, m, deterministic)
+}
+func (m *TaskListRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TaskListRequest.Merge(m, src)
+}
+func (m *TaskListRequest) XXX_Size() int {
+	return xxx_messageInfo_TaskListRequest.Size(m)
+}
+func (m *TaskListRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TaskListRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TaskListRequest proto.InternalMessageInfo
 
 func (m *TaskListRequest) GetDealID() *BigInt {
 	if m != nil {
@@ -59,15 +110,38 @@ func (m *TaskListRequest) GetDealID() *BigInt {
 }
 
 type QuickBuyRequest struct {
-	AskID    *BigInt   `protobuf:"bytes,1,opt,name=askID" json:"askID,omitempty"`
-	Duration *Duration `protobuf:"bytes,2,opt,name=duration" json:"duration,omitempty"`
-	Force    bool      `protobuf:"varint,3,opt,name=force" json:"force,omitempty"`
+	AskID                *BigInt   `protobuf:"bytes,1,opt,name=askID,proto3" json:"askID,omitempty"`
+	Duration             *Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	Force                bool      `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
+	XXX_unrecognized     []byte    `json:"-"`
+	XXX_sizecache        int32     `json:"-"`
 }
 
-func (m *QuickBuyRequest) Reset()                    { *m = QuickBuyRequest{} }
-func (m *QuickBuyRequest) String() string            { return proto.CompactTextString(m) }
-func (*QuickBuyRequest) ProtoMessage()               {}
-func (*QuickBuyRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{2} }
+func (m *QuickBuyRequest) Reset()         { *m = QuickBuyRequest{} }
+func (m *QuickBuyRequest) String() string { return proto.CompactTextString(m) }
+func (*QuickBuyRequest) ProtoMessage()    {}
+func (*QuickBuyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{2}
+}
+
+func (m *QuickBuyRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QuickBuyRequest.Unmarshal(m, b)
+}
+func (m *QuickBuyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QuickBuyRequest.Marshal(b, m, deterministic)
+}
+func (m *QuickBuyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QuickBuyRequest.Merge(m, src)
+}
+func (m *QuickBuyRequest) XXX_Size() int {
+	return xxx_messageInfo_QuickBuyRequest.Size(m)
+}
+func (m *QuickBuyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QuickBuyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QuickBuyRequest proto.InternalMessageInfo
 
 func (m *QuickBuyRequest) GetAskID() *BigInt {
 	if m != nil {
@@ -91,14 +165,37 @@ func (m *QuickBuyRequest) GetForce() bool {
 }
 
 type DealFinishRequest struct {
-	Id            *BigInt       `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	BlacklistType BlacklistType `protobuf:"varint,2,opt,name=blacklistType,enum=sonm.BlacklistType" json:"blacklistType,omitempty"`
+	Id                   *BigInt       `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	BlacklistType        BlacklistType `protobuf:"varint,2,opt,name=blacklistType,proto3,enum=sonm.BlacklistType" json:"blacklistType,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
 }
 
-func (m *DealFinishRequest) Reset()                    { *m = DealFinishRequest{} }
-func (m *DealFinishRequest) String() string            { return proto.CompactTextString(m) }
-func (*DealFinishRequest) ProtoMessage()               {}
-func (*DealFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{3} }
+func (m *DealFinishRequest) Reset()         { *m = DealFinishRequest{} }
+func (m *DealFinishRequest) String() string { return proto.CompactTextString(m) }
+func (*DealFinishRequest) ProtoMessage()    {}
+func (*DealFinishRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{3}
+}
+
+func (m *DealFinishRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DealFinishRequest.Unmarshal(m, b)
+}
+func (m *DealFinishRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DealFinishRequest.Marshal(b, m, deterministic)
+}
+func (m *DealFinishRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DealFinishRequest.Merge(m, src)
+}
+func (m *DealFinishRequest) XXX_Size() int {
+	return xxx_messageInfo_DealFinishRequest.Size(m)
+}
+func (m *DealFinishRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DealFinishRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DealFinishRequest proto.InternalMessageInfo
 
 func (m *DealFinishRequest) GetId() *BigInt {
 	if m != nil {
@@ -115,13 +212,36 @@ func (m *DealFinishRequest) GetBlacklistType() BlacklistType {
 }
 
 type DealsFinishRequest struct {
-	DealInfo []*DealFinishRequest `protobuf:"bytes,1,rep,name=dealInfo" json:"dealInfo,omitempty"`
+	DealInfo             []*DealFinishRequest `protobuf:"bytes,1,rep,name=dealInfo,proto3" json:"dealInfo,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
-func (m *DealsFinishRequest) Reset()                    { *m = DealsFinishRequest{} }
-func (m *DealsFinishRequest) String() string            { return proto.CompactTextString(m) }
-func (*DealsFinishRequest) ProtoMessage()               {}
-func (*DealsFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{4} }
+func (m *DealsFinishRequest) Reset()         { *m = DealsFinishRequest{} }
+func (m *DealsFinishRequest) String() string { return proto.CompactTextString(m) }
+func (*DealsFinishRequest) ProtoMessage()    {}
+func (*DealsFinishRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{4}
+}
+
+func (m *DealsFinishRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DealsFinishRequest.Unmarshal(m, b)
+}
+func (m *DealsFinishRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DealsFinishRequest.Marshal(b, m, deterministic)
+}
+func (m *DealsFinishRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DealsFinishRequest.Merge(m, src)
+}
+func (m *DealsFinishRequest) XXX_Size() int {
+	return xxx_messageInfo_DealsFinishRequest.Size(m)
+}
+func (m *DealsFinishRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DealsFinishRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DealsFinishRequest proto.InternalMessageInfo
 
 func (m *DealsFinishRequest) GetDealInfo() []*DealFinishRequest {
 	if m != nil {
@@ -131,13 +251,36 @@ func (m *DealsFinishRequest) GetDealInfo() []*DealFinishRequest {
 }
 
 type DealsPurgeRequest struct {
-	BlacklistType BlacklistType `protobuf:"varint,1,opt,name=blacklistType,enum=sonm.BlacklistType" json:"blacklistType,omitempty"`
+	BlacklistType        BlacklistType `protobuf:"varint,1,opt,name=blacklistType,proto3,enum=sonm.BlacklistType" json:"blacklistType,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
 }
 
-func (m *DealsPurgeRequest) Reset()                    { *m = DealsPurgeRequest{} }
-func (m *DealsPurgeRequest) String() string            { return proto.CompactTextString(m) }
-func (*DealsPurgeRequest) ProtoMessage()               {}
-func (*DealsPurgeRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{5} }
+func (m *DealsPurgeRequest) Reset()         { *m = DealsPurgeRequest{} }
+func (m *DealsPurgeRequest) String() string { return proto.CompactTextString(m) }
+func (*DealsPurgeRequest) ProtoMessage()    {}
+func (*DealsPurgeRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{5}
+}
+
+func (m *DealsPurgeRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DealsPurgeRequest.Unmarshal(m, b)
+}
+func (m *DealsPurgeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DealsPurgeRequest.Marshal(b, m, deterministic)
+}
+func (m *DealsPurgeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DealsPurgeRequest.Merge(m, src)
+}
+func (m *DealsPurgeRequest) XXX_Size() int {
+	return xxx_messageInfo_DealsPurgeRequest.Size(m)
+}
+func (m *DealsPurgeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DealsPurgeRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DealsPurgeRequest proto.InternalMessageInfo
 
 func (m *DealsPurgeRequest) GetBlacklistType() BlacklistType {
 	if m != nil {
@@ -147,13 +290,36 @@ func (m *DealsPurgeRequest) GetBlacklistType() BlacklistType {
 }
 
 type DealsReply struct {
-	Deal []*Deal `protobuf:"bytes,1,rep,name=deal" json:"deal,omitempty"`
+	Deal                 []*Deal  `protobuf:"bytes,1,rep,name=deal,proto3" json:"deal,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DealsReply) Reset()                    { *m = DealsReply{} }
-func (m *DealsReply) String() string            { return proto.CompactTextString(m) }
-func (*DealsReply) ProtoMessage()               {}
-func (*DealsReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{6} }
+func (m *DealsReply) Reset()         { *m = DealsReply{} }
+func (m *DealsReply) String() string { return proto.CompactTextString(m) }
+func (*DealsReply) ProtoMessage()    {}
+func (*DealsReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{6}
+}
+
+func (m *DealsReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DealsReply.Unmarshal(m, b)
+}
+func (m *DealsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DealsReply.Marshal(b, m, deterministic)
+}
+func (m *DealsReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DealsReply.Merge(m, src)
+}
+func (m *DealsReply) XXX_Size() int {
+	return xxx_messageInfo_DealsReply.Size(m)
+}
+func (m *DealsReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_DealsReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DealsReply proto.InternalMessageInfo
 
 func (m *DealsReply) GetDeal() []*Deal {
 	if m != nil {
@@ -163,15 +329,38 @@ func (m *DealsReply) GetDeal() []*Deal {
 }
 
 type OpenDealRequest struct {
-	BidID *BigInt `protobuf:"bytes,1,opt,name=bidID" json:"bidID,omitempty"`
-	AskID *BigInt `protobuf:"bytes,2,opt,name=askID" json:"askID,omitempty"`
-	Force bool    `protobuf:"varint,3,opt,name=force" json:"force,omitempty"`
+	BidID                *BigInt  `protobuf:"bytes,1,opt,name=bidID,proto3" json:"bidID,omitempty"`
+	AskID                *BigInt  `protobuf:"bytes,2,opt,name=askID,proto3" json:"askID,omitempty"`
+	Force                bool     `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *OpenDealRequest) Reset()                    { *m = OpenDealRequest{} }
-func (m *OpenDealRequest) String() string            { return proto.CompactTextString(m) }
-func (*OpenDealRequest) ProtoMessage()               {}
-func (*OpenDealRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{7} }
+func (m *OpenDealRequest) Reset()         { *m = OpenDealRequest{} }
+func (m *OpenDealRequest) String() string { return proto.CompactTextString(m) }
+func (*OpenDealRequest) ProtoMessage()    {}
+func (*OpenDealRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{7}
+}
+
+func (m *OpenDealRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_OpenDealRequest.Unmarshal(m, b)
+}
+func (m *OpenDealRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_OpenDealRequest.Marshal(b, m, deterministic)
+}
+func (m *OpenDealRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_OpenDealRequest.Merge(m, src)
+}
+func (m *OpenDealRequest) XXX_Size() int {
+	return xxx_messageInfo_OpenDealRequest.Size(m)
+}
+func (m *OpenDealRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_OpenDealRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_OpenDealRequest proto.InternalMessageInfo
 
 func (m *OpenDealRequest) GetBidID() *BigInt {
 	if m != nil {
@@ -195,14 +384,37 @@ func (m *OpenDealRequest) GetForce() bool {
 }
 
 type WorkerRemoveRequest struct {
-	Master *EthAddress `protobuf:"bytes,1,opt,name=master" json:"master,omitempty"`
-	Worker *EthAddress `protobuf:"bytes,2,opt,name=worker" json:"worker,omitempty"`
+	Master               *EthAddress `protobuf:"bytes,1,opt,name=master,proto3" json:"master,omitempty"`
+	Worker               *EthAddress `protobuf:"bytes,2,opt,name=worker,proto3" json:"worker,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *WorkerRemoveRequest) Reset()                    { *m = WorkerRemoveRequest{} }
-func (m *WorkerRemoveRequest) String() string            { return proto.CompactTextString(m) }
-func (*WorkerRemoveRequest) ProtoMessage()               {}
-func (*WorkerRemoveRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{8} }
+func (m *WorkerRemoveRequest) Reset()         { *m = WorkerRemoveRequest{} }
+func (m *WorkerRemoveRequest) String() string { return proto.CompactTextString(m) }
+func (*WorkerRemoveRequest) ProtoMessage()    {}
+func (*WorkerRemoveRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{8}
+}
+
+func (m *WorkerRemoveRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WorkerRemoveRequest.Unmarshal(m, b)
+}
+func (m *WorkerRemoveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WorkerRemoveRequest.Marshal(b, m, deterministic)
+}
+func (m *WorkerRemoveRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerRemoveRequest.Merge(m, src)
+}
+func (m *WorkerRemoveRequest) XXX_Size() int {
+	return xxx_messageInfo_WorkerRemoveRequest.Size(m)
+}
+func (m *WorkerRemoveRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WorkerRemoveRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WorkerRemoveRequest proto.InternalMessageInfo
 
 func (m *WorkerRemoveRequest) GetMaster() *EthAddress {
 	if m != nil {
@@ -219,13 +431,36 @@ func (m *WorkerRemoveRequest) GetWorker() *EthAddress {
 }
 
 type WorkerListReply struct {
-	Workers []*DWHWorker `protobuf:"bytes,1,rep,name=workers" json:"workers,omitempty"`
+	Workers              []*DWHWorker `protobuf:"bytes,1,rep,name=workers,proto3" json:"workers,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *WorkerListReply) Reset()                    { *m = WorkerListReply{} }
-func (m *WorkerListReply) String() string            { return proto.CompactTextString(m) }
-func (*WorkerListReply) ProtoMessage()               {}
-func (*WorkerListReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{9} }
+func (m *WorkerListReply) Reset()         { *m = WorkerListReply{} }
+func (m *WorkerListReply) String() string { return proto.CompactTextString(m) }
+func (*WorkerListReply) ProtoMessage()    {}
+func (*WorkerListReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{9}
+}
+
+func (m *WorkerListReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WorkerListReply.Unmarshal(m, b)
+}
+func (m *WorkerListReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WorkerListReply.Marshal(b, m, deterministic)
+}
+func (m *WorkerListReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WorkerListReply.Merge(m, src)
+}
+func (m *WorkerListReply) XXX_Size() int {
+	return xxx_messageInfo_WorkerListReply.Size(m)
+}
+func (m *WorkerListReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_WorkerListReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WorkerListReply proto.InternalMessageInfo
 
 func (m *WorkerListReply) GetWorkers() []*DWHWorker {
 	if m != nil {
@@ -235,15 +470,38 @@ func (m *WorkerListReply) GetWorkers() []*DWHWorker {
 }
 
 type BalanceReply struct {
-	LiveBalance    *BigInt `protobuf:"bytes,1,opt,name=liveBalance" json:"liveBalance,omitempty"`
-	SideBalance    *BigInt `protobuf:"bytes,2,opt,name=sideBalance" json:"sideBalance,omitempty"`
-	LiveEthBalance *BigInt `protobuf:"bytes,3,opt,name=liveEthBalance" json:"liveEthBalance,omitempty"`
+	LiveBalance          *BigInt  `protobuf:"bytes,1,opt,name=liveBalance,proto3" json:"liveBalance,omitempty"`
+	SideBalance          *BigInt  `protobuf:"bytes,2,opt,name=sideBalance,proto3" json:"sideBalance,omitempty"`
+	LiveEthBalance       *BigInt  `protobuf:"bytes,3,opt,name=liveEthBalance,proto3" json:"liveEthBalance,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *BalanceReply) Reset()                    { *m = BalanceReply{} }
-func (m *BalanceReply) String() string            { return proto.CompactTextString(m) }
-func (*BalanceReply) ProtoMessage()               {}
-func (*BalanceReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{10} }
+func (m *BalanceReply) Reset()         { *m = BalanceReply{} }
+func (m *BalanceReply) String() string { return proto.CompactTextString(m) }
+func (*BalanceReply) ProtoMessage()    {}
+func (*BalanceReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{10}
+}
+
+func (m *BalanceReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BalanceReply.Unmarshal(m, b)
+}
+func (m *BalanceReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BalanceReply.Marshal(b, m, deterministic)
+}
+func (m *BalanceReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BalanceReply.Merge(m, src)
+}
+func (m *BalanceReply) XXX_Size() int {
+	return xxx_messageInfo_BalanceReply.Size(m)
+}
+func (m *BalanceReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_BalanceReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BalanceReply proto.InternalMessageInfo
 
 func (m *BalanceReply) GetLiveBalance() *BigInt {
 	if m != nil {
@@ -267,14 +525,37 @@ func (m *BalanceReply) GetLiveEthBalance() *BigInt {
 }
 
 type TokenTransferRequest struct {
-	To     *EthAddress `protobuf:"bytes,1,opt,name=to" json:"to,omitempty"`
-	Amount *BigInt     `protobuf:"bytes,2,opt,name=amount" json:"amount,omitempty"`
+	To                   *EthAddress `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
+	Amount               *BigInt     `protobuf:"bytes,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *TokenTransferRequest) Reset()                    { *m = TokenTransferRequest{} }
-func (m *TokenTransferRequest) String() string            { return proto.CompactTextString(m) }
-func (*TokenTransferRequest) ProtoMessage()               {}
-func (*TokenTransferRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{11} }
+func (m *TokenTransferRequest) Reset()         { *m = TokenTransferRequest{} }
+func (m *TokenTransferRequest) String() string { return proto.CompactTextString(m) }
+func (*TokenTransferRequest) ProtoMessage()    {}
+func (*TokenTransferRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{11}
+}
+
+func (m *TokenTransferRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TokenTransferRequest.Unmarshal(m, b)
+}
+func (m *TokenTransferRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TokenTransferRequest.Marshal(b, m, deterministic)
+}
+func (m *TokenTransferRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TokenTransferRequest.Merge(m, src)
+}
+func (m *TokenTransferRequest) XXX_Size() int {
+	return xxx_messageInfo_TokenTransferRequest.Size(m)
+}
+func (m *TokenTransferRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TokenTransferRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TokenTransferRequest proto.InternalMessageInfo
 
 func (m *TokenTransferRequest) GetTo() *EthAddress {
 	if m != nil {
@@ -291,13 +572,36 @@ func (m *TokenTransferRequest) GetAmount() *BigInt {
 }
 
 type NPPMetricsReply struct {
-	Metrics map[string]*NamedMetrics `protobuf:"bytes,1,rep,name=metrics" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metrics              map[string]*NamedMetrics `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
 }
 
-func (m *NPPMetricsReply) Reset()                    { *m = NPPMetricsReply{} }
-func (m *NPPMetricsReply) String() string            { return proto.CompactTextString(m) }
-func (*NPPMetricsReply) ProtoMessage()               {}
-func (*NPPMetricsReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{12} }
+func (m *NPPMetricsReply) Reset()         { *m = NPPMetricsReply{} }
+func (m *NPPMetricsReply) String() string { return proto.CompactTextString(m) }
+func (*NPPMetricsReply) ProtoMessage()    {}
+func (*NPPMetricsReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{12}
+}
+
+func (m *NPPMetricsReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NPPMetricsReply.Unmarshal(m, b)
+}
+func (m *NPPMetricsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NPPMetricsReply.Marshal(b, m, deterministic)
+}
+func (m *NPPMetricsReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NPPMetricsReply.Merge(m, src)
+}
+func (m *NPPMetricsReply) XXX_Size() int {
+	return xxx_messageInfo_NPPMetricsReply.Size(m)
+}
+func (m *NPPMetricsReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_NPPMetricsReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NPPMetricsReply proto.InternalMessageInfo
 
 func (m *NPPMetricsReply) GetMetrics() map[string]*NamedMetrics {
 	if m != nil {
@@ -307,13 +611,36 @@ func (m *NPPMetricsReply) GetMetrics() map[string]*NamedMetrics {
 }
 
 type NamedMetrics struct {
-	Metrics []*NamedMetric `protobuf:"bytes,1,rep,name=metrics" json:"metrics,omitempty"`
+	Metrics              []*NamedMetric `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
-func (m *NamedMetrics) Reset()                    { *m = NamedMetrics{} }
-func (m *NamedMetrics) String() string            { return proto.CompactTextString(m) }
-func (*NamedMetrics) ProtoMessage()               {}
-func (*NamedMetrics) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{13} }
+func (m *NamedMetrics) Reset()         { *m = NamedMetrics{} }
+func (m *NamedMetrics) String() string { return proto.CompactTextString(m) }
+func (*NamedMetrics) ProtoMessage()    {}
+func (*NamedMetrics) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{13}
+}
+
+func (m *NamedMetrics) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NamedMetrics.Unmarshal(m, b)
+}
+func (m *NamedMetrics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NamedMetrics.Marshal(b, m, deterministic)
+}
+func (m *NamedMetrics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NamedMetrics.Merge(m, src)
+}
+func (m *NamedMetrics) XXX_Size() int {
+	return xxx_messageInfo_NamedMetrics.Size(m)
+}
+func (m *NamedMetrics) XXX_DiscardUnknown() {
+	xxx_messageInfo_NamedMetrics.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NamedMetrics proto.InternalMessageInfo
 
 func (m *NamedMetrics) GetMetrics() []*NamedMetric {
 	if m != nil {
@@ -323,14 +650,37 @@ func (m *NamedMetrics) GetMetrics() []*NamedMetric {
 }
 
 type NamedMetric struct {
-	Name   string                       `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Metric *io_prometheus_client.Metric `protobuf:"bytes,2,opt,name=metric" json:"metric,omitempty"`
+	Name                 string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Metric               *_go.Metric `protobuf:"bytes,2,opt,name=metric,proto3" json:"metric,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *NamedMetric) Reset()                    { *m = NamedMetric{} }
-func (m *NamedMetric) String() string            { return proto.CompactTextString(m) }
-func (*NamedMetric) ProtoMessage()               {}
-func (*NamedMetric) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{14} }
+func (m *NamedMetric) Reset()         { *m = NamedMetric{} }
+func (m *NamedMetric) String() string { return proto.CompactTextString(m) }
+func (*NamedMetric) ProtoMessage()    {}
+func (*NamedMetric) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0c843d59d2d938e7, []int{14}
+}
+
+func (m *NamedMetric) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NamedMetric.Unmarshal(m, b)
+}
+func (m *NamedMetric) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NamedMetric.Marshal(b, m, deterministic)
+}
+func (m *NamedMetric) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NamedMetric.Merge(m, src)
+}
+func (m *NamedMetric) XXX_Size() int {
+	return xxx_messageInfo_NamedMetric.Size(m)
+}
+func (m *NamedMetric) XXX_DiscardUnknown() {
+	xxx_messageInfo_NamedMetric.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NamedMetric proto.InternalMessageInfo
 
 func (m *NamedMetric) GetName() string {
 	if m != nil {
@@ -339,7 +689,7 @@ func (m *NamedMetric) GetName() string {
 	return ""
 }
 
-func (m *NamedMetric) GetMetric() *io_prometheus_client.Metric {
+func (m *NamedMetric) GetMetric() *_go.Metric {
 	if m != nil {
 		return m.Metric
 	}
@@ -360,8 +710,97 @@ func init() {
 	proto.RegisterType((*BalanceReply)(nil), "sonm.BalanceReply")
 	proto.RegisterType((*TokenTransferRequest)(nil), "sonm.TokenTransferRequest")
 	proto.RegisterType((*NPPMetricsReply)(nil), "sonm.NPPMetricsReply")
+	proto.RegisterMapType((map[string]*NamedMetrics)(nil), "sonm.NPPMetricsReply.MetricsEntry")
 	proto.RegisterType((*NamedMetrics)(nil), "sonm.NamedMetrics")
 	proto.RegisterType((*NamedMetric)(nil), "sonm.NamedMetric")
+}
+
+func init() { proto.RegisterFile("node.proto", fileDescriptor_0c843d59d2d938e7) }
+
+var fileDescriptor_0c843d59d2d938e7 = []byte{
+	// 1312 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x57, 0x5f, 0x73, 0xdb, 0x44,
+	0x10, 0xb7, 0x1c, 0xc7, 0x71, 0xd6, 0x6e, 0x9c, 0x5e, 0x52, 0x08, 0x9a, 0xc2, 0x64, 0x04, 0x43,
+	0x5d, 0xda, 0x3a, 0x19, 0xb7, 0xd0, 0x50, 0x32, 0x0c, 0x49, 0x1c, 0x86, 0x30, 0x4d, 0x6a, 0x94,
+	0xcc, 0x84, 0x27, 0x18, 0xc5, 0xba, 0xd8, 0x37, 0x96, 0xee, 0x84, 0xee, 0x94, 0x8c, 0x3f, 0x09,
+	0xbc, 0xf1, 0xc2, 0x33, 0xcf, 0x7c, 0x12, 0xbe, 0x01, 0xdf, 0x83, 0x39, 0xdd, 0x9d, 0x2d, 0xc9,
+	0x4a, 0x0b, 0x6f, 0xd6, 0xee, 0x6f, 0xff, 0xfd, 0xf6, 0x6e, 0xf7, 0x0c, 0x40, 0x99, 0x8f, 0xbb,
+	0x51, 0xcc, 0x04, 0x43, 0x35, 0xce, 0x68, 0x68, 0xb7, 0xae, 0xc8, 0x88, 0x50, 0xa1, 0x64, 0x76,
+	0x7b, 0xc8, 0xa8, 0xf0, 0x08, 0xc5, 0xb1, 0x16, 0xac, 0xfa, 0xb7, 0x63, 0xa3, 0x23, 0x54, 0x5a,
+	0x50, 0xe2, 0x69, 0xc1, 0xfd, 0xd0, 0x8b, 0x27, 0x58, 0x44, 0x81, 0x37, 0xd4, 0x3e, 0xed, 0xd6,
+	0x2d, 0x8b, 0x27, 0x33, 0xe3, 0xdd, 0x11, 0x11, 0xe3, 0xe4, 0xaa, 0x3b, 0x64, 0xe1, 0x4e, 0x14,
+	0xb3, 0x10, 0x8b, 0x31, 0x4e, 0xf8, 0xce, 0x30, 0x20, 0x98, 0x8a, 0x9f, 0x43, 0xe6, 0xe3, 0x60,
+	0x27, 0xc4, 0x22, 0x26, 0x43, 0xae, 0x2c, 0x9c, 0x1f, 0x01, 0x7d, 0xcf, 0x08, 0x3d, 0xc3, 0x42,
+	0x3a, 0x72, 0xf1, 0x2f, 0x09, 0xe6, 0x02, 0x7d, 0x02, 0x75, 0xe1, 0xf1, 0xc9, 0x49, 0x7f, 0xcb,
+	0xda, 0xb6, 0x3a, 0xcd, 0x5e, 0xab, 0x2b, 0x13, 0xe9, 0x5e, 0xa4, 0x32, 0x57, 0xeb, 0xd0, 0x43,
+	0x58, 0xd5, 0x76, 0x27, 0xfd, 0xad, 0xea, 0xb6, 0xd5, 0x59, 0x75, 0xe7, 0x02, 0xe7, 0x25, 0xb4,
+	0x25, 0xfe, 0x35, 0xe1, 0x22, 0xe3, 0xd6, 0xc7, 0x5e, 0x50, 0x74, 0x7b, 0x48, 0x46, 0x27, 0x54,
+	0xb8, 0x5a, 0xe7, 0xdc, 0x42, 0xfb, 0x87, 0x84, 0x0c, 0x27, 0x87, 0xc9, 0xd4, 0x18, 0x3a, 0xb0,
+	0x5c, 0x92, 0x8e, 0xb6, 0x53, 0x2a, 0xf4, 0x19, 0x34, 0xfc, 0x24, 0xf6, 0x04, 0x61, 0x34, 0x4d,
+	0xa6, 0xd9, 0x5b, 0x53, 0xb0, 0xbe, 0x96, 0xba, 0x33, 0x3d, 0xda, 0x84, 0xe5, 0x6b, 0x16, 0x0f,
+	0xf1, 0xd6, 0xd2, 0xb6, 0xd5, 0x69, 0xb8, 0xea, 0xc3, 0x09, 0xe0, 0x7e, 0x1f, 0x7b, 0xc1, 0xb7,
+	0x84, 0x12, 0x3e, 0x36, 0xa1, 0x1f, 0x42, 0x95, 0xf8, 0xa5, 0x71, 0xab, 0xc4, 0x47, 0x5f, 0xc2,
+	0xbd, 0xab, 0xc0, 0x1b, 0x4e, 0x02, 0xc2, 0xc5, 0xc5, 0x34, 0xc2, 0x69, 0xe4, 0xb5, 0xde, 0x86,
+	0x06, 0x66, 0x55, 0x6e, 0x1e, 0xe9, 0x9c, 0x00, 0x92, 0xd1, 0x78, 0x3e, 0xdc, 0x73, 0x68, 0xa4,
+	0x34, 0xd0, 0x6b, 0xb6, 0x65, 0x6d, 0x2f, 0x75, 0x9a, 0xbd, 0xf7, 0x75, 0x15, 0xc5, 0xcc, 0xdc,
+	0x19, 0xd0, 0x39, 0x53, 0x89, 0xf3, 0x41, 0x12, 0x8f, 0xb0, 0xf1, 0xb4, 0x90, 0x9a, 0xf5, 0x9f,
+	0x53, 0x7b, 0x0a, 0x90, 0xfa, 0x73, 0x71, 0x14, 0x4c, 0xd1, 0x47, 0x50, 0x93, 0x91, 0x74, 0x3a,
+	0x30, 0x4f, 0xc7, 0x4d, 0xe5, 0x0e, 0x83, 0xf6, 0x9b, 0x08, 0xd3, 0x54, 0x32, 0xef, 0xd7, 0x15,
+	0xf1, 0xef, 0xea, 0x57, 0xaa, 0x9a, 0xf7, 0xb4, 0x7a, 0x77, 0x4f, 0xcb, 0xfb, 0x44, 0x60, 0xe3,
+	0x32, 0x3d, 0xf5, 0x2e, 0x0e, 0xd9, 0xcd, 0xac, 0xe0, 0x0e, 0xd4, 0x43, 0x8f, 0x0b, 0x1c, 0xeb,
+	0xa8, 0xeb, 0xca, 0xe3, 0xb1, 0x18, 0x1f, 0xf8, 0x7e, 0x8c, 0x39, 0x77, 0xb5, 0x5e, 0x22, 0xd5,
+	0xb5, 0xd1, 0xb1, 0x4b, 0x90, 0x4a, 0xef, 0xec, 0x43, 0x5b, 0x85, 0x52, 0xc7, 0x58, 0xd2, 0xf1,
+	0x18, 0x56, 0x94, 0x92, 0x6b, 0x46, 0xda, 0x9a, 0x91, 0xcb, 0xef, 0x74, 0x56, 0x46, 0xef, 0xfc,
+	0x61, 0x41, 0xeb, 0xd0, 0x0b, 0x3c, 0x3a, 0xc4, 0xca, 0xb6, 0x0b, 0xcd, 0x80, 0xdc, 0x60, 0x2d,
+	0x2b, 0x65, 0x27, 0x0b, 0x90, 0x78, 0x4e, 0xfc, 0x19, 0xbe, 0x8c, 0xa9, 0x2c, 0x00, 0xbd, 0x80,
+	0x35, 0x69, 0x7e, 0x2c, 0xc6, 0xc6, 0x64, 0xa9, 0xc4, 0xa4, 0x80, 0x71, 0x7e, 0x82, 0xcd, 0x0b,
+	0x36, 0xc1, 0xf4, 0x22, 0xf6, 0x28, 0xbf, 0x96, 0xb4, 0x2a, 0x42, 0xb7, 0xa1, 0x2a, 0xd8, 0x9d,
+	0x64, 0x56, 0x05, 0x93, 0x17, 0xda, 0x0b, 0x59, 0x42, 0x45, 0x69, 0x6a, 0x5a, 0xe7, 0xfc, 0x6e,
+	0x41, 0xfb, 0x6c, 0x30, 0x38, 0x55, 0x83, 0x47, 0x31, 0xb1, 0x0f, 0x2b, 0x7a, 0x10, 0x69, 0x16,
+	0x1d, 0x65, 0x5a, 0xc0, 0x75, 0xf5, 0xc7, 0x31, 0x15, 0xf1, 0xd4, 0x35, 0x26, 0xf6, 0x19, 0xb4,
+	0xb2, 0x0a, 0xb4, 0x0e, 0x4b, 0x13, 0x3c, 0x4d, 0x53, 0x5d, 0x75, 0xe5, 0x4f, 0xd4, 0x81, 0xe5,
+	0x1b, 0x2f, 0x48, 0x0c, 0x67, 0x48, 0x7b, 0xf7, 0x42, 0xec, 0x1b, 0xff, 0x0a, 0xf0, 0xaa, 0xba,
+	0x67, 0x39, 0x5f, 0x41, 0x2b, 0xab, 0x42, 0x4f, 0x8a, 0xd9, 0xdd, 0x5f, 0xb0, 0x9f, 0x25, 0xe3,
+	0x5c, 0x42, 0x33, 0x23, 0x47, 0x08, 0x6a, 0xd4, 0x0b, 0xb1, 0x4e, 0x26, 0xfd, 0x8d, 0x5e, 0x40,
+	0x5d, 0xa1, 0x75, 0x3a, 0x0f, 0xbb, 0x84, 0x75, 0xe7, 0x03, 0xba, 0xab, 0x06, 0xb4, 0x2e, 0xd6,
+	0xd5, 0xd8, 0xde, 0x9f, 0x4b, 0xb0, 0x26, 0x47, 0xe8, 0xa9, 0x47, 0xbd, 0x11, 0x0e, 0x31, 0x15,
+	0xe8, 0x05, 0xd4, 0xe4, 0x49, 0x44, 0x0f, 0xe6, 0x03, 0x39, 0x33, 0x60, 0xed, 0x8d, 0xa2, 0x38,
+	0x0a, 0xa6, 0x4e, 0x05, 0x3d, 0x83, 0xc6, 0x20, 0xe1, 0x63, 0x29, 0x46, 0x4d, 0x05, 0x39, 0x1a,
+	0x27, 0x74, 0x62, 0xeb, 0x09, 0x39, 0x88, 0xd9, 0x48, 0xf6, 0xd4, 0xa9, 0x74, 0xac, 0x5d, 0x0b,
+	0xbd, 0x84, 0xe5, 0x73, 0xe1, 0xc5, 0x02, 0xbd, 0xa7, 0xd4, 0xe9, 0x87, 0x34, 0x36, 0x61, 0x36,
+	0x17, 0xe4, 0x2a, 0xce, 0x3e, 0x34, 0x33, 0xcb, 0x04, 0x6d, 0x29, 0xd8, 0xe2, 0x7e, 0xb1, 0x0d,
+	0x9d, 0x4a, 0x7a, 0x1e, 0xe1, 0xa1, 0x53, 0x41, 0x3b, 0x50, 0x3f, 0x17, 0x9e, 0x48, 0x38, 0xca,
+	0xad, 0x1b, 0x3b, 0x53, 0xab, 0xd2, 0x9b, 0x70, 0x5f, 0x40, 0xed, 0x35, 0x1b, 0xf1, 0x1c, 0x19,
+	0x6c, 0xc4, 0xcb, 0xc8, 0x60, 0x23, 0x9e, 0x56, 0xec, 0x54, 0x76, 0x2d, 0xf4, 0x31, 0xd4, 0xce,
+	0x05, 0x8b, 0x0a, 0x61, 0x34, 0x31, 0xc7, 0x61, 0x24, 0xa4, 0xf3, 0x9e, 0xe4, 0x2c, 0x08, 0x52,
+	0xce, 0x74, 0x00, 0xf3, 0x6d, 0x02, 0x64, 0xa9, 0x94, 0x8e, 0x7b, 0xff, 0xd4, 0x60, 0x4d, 0x8e,
+	0xc1, 0x4c, 0xc3, 0x1e, 0xe9, 0x86, 0x19, 0xac, 0xbc, 0x10, 0xf6, 0xfa, 0x7c, 0x86, 0xf2, 0x79,
+	0x8f, 0x0a, 0xd5, 0xab, 0x4b, 0x64, 0xaa, 0xe8, 0xeb, 0x59, 0x6f, 0xe0, 0xbb, 0x50, 0x57, 0xdb,
+	0x00, 0xdd, 0xb5, 0x1f, 0x8a, 0x05, 0xbd, 0x82, 0xa6, 0xd2, 0xa7, 0x61, 0x4d, 0x73, 0x16, 0x57,
+	0x90, 0xad, 0xe7, 0xd9, 0x71, 0x1c, 0xb3, 0xf8, 0x70, 0x7a, 0xd2, 0x77, 0x2a, 0x68, 0x0f, 0x20,
+	0xdd, 0x2d, 0xca, 0x34, 0x13, 0x31, 0xb7, 0x72, 0xca, 0x2c, 0x9f, 0x40, 0x4d, 0x2e, 0x07, 0x43,
+	0x61, 0x61, 0x51, 0xd8, 0x99, 0x6d, 0xe2, 0x54, 0xd0, 0x11, 0xa0, 0xa3, 0xb1, 0x47, 0x67, 0x0e,
+	0x79, 0x4a, 0x5d, 0x9e, 0x8f, 0x0f, 0xe7, 0x16, 0x79, 0xac, 0x61, 0xe6, 0x6b, 0xd8, 0x38, 0x8a,
+	0xb1, 0x27, 0x70, 0x4e, 0x9d, 0x4d, 0x3a, 0xa7, 0xb0, 0x73, 0xee, 0x9d, 0x0a, 0x7a, 0x0e, 0x9b,
+	0x07, 0x51, 0x14, 0xb3, 0x9b, 0x82, 0x83, 0x7c, 0x1a, 0x0b, 0xa7, 0x65, 0xe3, 0x48, 0xce, 0xd2,
+	0xe0, 0x7f, 0xd8, 0xec, 0x41, 0xc3, 0xbc, 0x73, 0x0c, 0x3d, 0x85, 0x77, 0xcf, 0x1d, 0xcd, 0xef,
+	0xfd, 0x65, 0xc1, 0xfa, 0x69, 0xba, 0xca, 0x32, 0x27, 0x6d, 0x0f, 0x9a, 0x6a, 0xff, 0x28, 0xd6,
+	0x16, 0x06, 0xb6, 0xb9, 0x47, 0x85, 0x7d, 0x96, 0x9e, 0xa5, 0x7b, 0x4a, 0x78, 0xc4, 0xe8, 0x35,
+	0x89, 0xc3, 0x12, 0xdb, 0x85, 0xd4, 0x5b, 0xd9, 0x0d, 0x8c, 0x3e, 0xc8, 0xba, 0xce, 0x6d, 0xe5,
+	0x82, 0x65, 0xef, 0xef, 0x2a, 0xb4, 0xd3, 0x65, 0x93, 0xc9, 0xbc, 0x03, 0x70, 0x81, 0xb9, 0x48,
+	0xc5, 0x1c, 0x65, 0x0d, 0x8a, 0x71, 0x9f, 0xc2, 0x8a, 0x59, 0x75, 0x39, 0x98, 0x1e, 0xef, 0xd9,
+	0x5d, 0x9b, 0x76, 0x72, 0x55, 0x4b, 0xde, 0x5c, 0x97, 0xd4, 0x54, 0x6e, 0xf4, 0x29, 0xac, 0xf4,
+	0x71, 0xc4, 0x38, 0x79, 0x47, 0xf7, 0x1e, 0x41, 0xe3, 0x92, 0x88, 0xb1, 0x1f, 0x7b, 0xb7, 0x6f,
+	0x07, 0x76, 0xa1, 0x7d, 0x9a, 0x3e, 0xdb, 0x0f, 0x82, 0x80, 0xdd, 0x2e, 0xe6, 0x5e, 0x3c, 0x7f,
+	0x9f, 0x43, 0xc3, 0x2c, 0x62, 0x64, 0xeb, 0x09, 0x55, 0xb2, 0x9d, 0x8b, 0xc4, 0xfe, 0x6a, 0xc1,
+	0xea, 0xec, 0x51, 0x87, 0x76, 0xf5, 0xd8, 0x59, 0xac, 0x7a, 0xb3, 0xf0, 0xfe, 0x33, 0x75, 0x3f,
+	0x86, 0xba, 0x6e, 0xe6, 0x3b, 0xbb, 0xff, 0x0c, 0x96, 0xd3, 0x6b, 0x9f, 0xaf, 0xe3, 0x41, 0xee,
+	0xf2, 0x9f, 0x8b, 0x98, 0xd0, 0x91, 0x1c, 0x01, 0xbd, 0xdf, 0x2c, 0x68, 0x0c, 0x62, 0x76, 0x4d,
+	0x02, 0xcc, 0x8b, 0x0b, 0xcc, 0xc8, 0x0b, 0x07, 0x7e, 0x2e, 0x36, 0x4d, 0x31, 0xc3, 0xb1, 0x39,
+	0x4b, 0xee, 0xa4, 0x6f, 0xdf, 0xcb, 0xa1, 0x15, 0xd7, 0xaa, 0x88, 0x03, 0x21, 0x62, 0x72, 0x95,
+	0x08, 0xfc, 0xd6, 0xde, 0xf4, 0xbe, 0x01, 0x38, 0x65, 0x94, 0x08, 0x26, 0x93, 0x45, 0x3d, 0x00,
+	0xfd, 0x00, 0x38, 0x1b, 0x0c, 0x4a, 0x8b, 0x2b, 0xbc, 0x4e, 0x9c, 0xca, 0x55, 0x3d, 0xfd, 0x1b,
+	0xf5, 0xfc, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x85, 0xed, 0x38, 0x24, 0xe8, 0x0d, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -372,8 +811,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for TaskManagement service
-
+// TaskManagementClient is the client API for TaskManagement service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TaskManagementClient interface {
 	// List produces a list of all tasks running on different SONM nodes
 	List(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListReply, error)
@@ -403,7 +843,7 @@ func NewTaskManagementClient(cc *grpc.ClientConn) TaskManagementClient {
 
 func (c *taskManagementClient) List(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListReply, error) {
 	out := new(TaskListReply)
-	err := grpc.Invoke(ctx, "/sonm.TaskManagement/List", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TaskManagement/List", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +851,7 @@ func (c *taskManagementClient) List(ctx context.Context, in *TaskListRequest, op
 }
 
 func (c *taskManagementClient) PushTask(ctx context.Context, opts ...grpc.CallOption) (TaskManagement_PushTaskClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_TaskManagement_serviceDesc.Streams[0], c.cc, "/sonm.TaskManagement/PushTask", opts...)
+	stream, err := c.cc.NewStream(ctx, &_TaskManagement_serviceDesc.Streams[0], "/sonm.TaskManagement/PushTask", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -443,7 +883,7 @@ func (x *taskManagementPushTaskClient) Recv() (*Progress, error) {
 
 func (c *taskManagementClient) Start(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskReply, error) {
 	out := new(StartTaskReply)
-	err := grpc.Invoke(ctx, "/sonm.TaskManagement/Start", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TaskManagement/Start", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +892,7 @@ func (c *taskManagementClient) Start(ctx context.Context, in *StartTaskRequest, 
 
 func (c *taskManagementClient) JoinNetwork(ctx context.Context, in *JoinNetworkRequest, opts ...grpc.CallOption) (*NetworkSpec, error) {
 	out := new(NetworkSpec)
-	err := grpc.Invoke(ctx, "/sonm.TaskManagement/JoinNetwork", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TaskManagement/JoinNetwork", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +901,7 @@ func (c *taskManagementClient) JoinNetwork(ctx context.Context, in *JoinNetworkR
 
 func (c *taskManagementClient) Status(ctx context.Context, in *TaskID, opts ...grpc.CallOption) (*TaskStatusReply, error) {
 	out := new(TaskStatusReply)
-	err := grpc.Invoke(ctx, "/sonm.TaskManagement/Status", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TaskManagement/Status", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -469,7 +909,7 @@ func (c *taskManagementClient) Status(ctx context.Context, in *TaskID, opts ...g
 }
 
 func (c *taskManagementClient) Logs(ctx context.Context, in *TaskLogsRequest, opts ...grpc.CallOption) (TaskManagement_LogsClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_TaskManagement_serviceDesc.Streams[1], c.cc, "/sonm.TaskManagement/Logs", opts...)
+	stream, err := c.cc.NewStream(ctx, &_TaskManagement_serviceDesc.Streams[1], "/sonm.TaskManagement/Logs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +942,7 @@ func (x *taskManagementLogsClient) Recv() (*TaskLogsChunk, error) {
 
 func (c *taskManagementClient) Stop(ctx context.Context, in *TaskID, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.TaskManagement/Stop", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TaskManagement/Stop", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -510,7 +950,7 @@ func (c *taskManagementClient) Stop(ctx context.Context, in *TaskID, opts ...grp
 }
 
 func (c *taskManagementClient) PullTask(ctx context.Context, in *PullTaskRequest, opts ...grpc.CallOption) (TaskManagement_PullTaskClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_TaskManagement_serviceDesc.Streams[2], c.cc, "/sonm.TaskManagement/PullTask", opts...)
+	stream, err := c.cc.NewStream(ctx, &_TaskManagement_serviceDesc.Streams[2], "/sonm.TaskManagement/PullTask", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -541,8 +981,7 @@ func (x *taskManagementPullTaskClient) Recv() (*Chunk, error) {
 	return m, nil
 }
 
-// Server API for TaskManagement service
-
+// TaskManagementServer is the server API for TaskManagement service.
 type TaskManagementServer interface {
 	// List produces a list of all tasks running on different SONM nodes
 	List(context.Context, *TaskListRequest) (*TaskListReply, error)
@@ -770,8 +1209,9 @@ var _TaskManagement_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-// Client API for DealManagement service
-
+// DealManagementClient is the client API for DealManagement service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DealManagementClient interface {
 	// List produces a list of all deals made by client with given ID
 	List(ctx context.Context, in *Count, opts ...grpc.CallOption) (*DealsReply, error)
@@ -809,7 +1249,7 @@ func NewDealManagementClient(cc *grpc.ClientConn) DealManagementClient {
 
 func (c *dealManagementClient) List(ctx context.Context, in *Count, opts ...grpc.CallOption) (*DealsReply, error) {
 	out := new(DealsReply)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/List", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/List", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -818,7 +1258,7 @@ func (c *dealManagementClient) List(ctx context.Context, in *Count, opts ...grpc
 
 func (c *dealManagementClient) Status(ctx context.Context, in *BigInt, opts ...grpc.CallOption) (*DealInfoReply, error) {
 	out := new(DealInfoReply)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/Status", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/Status", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -827,7 +1267,7 @@ func (c *dealManagementClient) Status(ctx context.Context, in *BigInt, opts ...g
 
 func (c *dealManagementClient) Finish(ctx context.Context, in *DealFinishRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/Finish", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/Finish", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -836,7 +1276,7 @@ func (c *dealManagementClient) Finish(ctx context.Context, in *DealFinishRequest
 
 func (c *dealManagementClient) FinishDeals(ctx context.Context, in *DealsFinishRequest, opts ...grpc.CallOption) (*ErrorByID, error) {
 	out := new(ErrorByID)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/FinishDeals", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/FinishDeals", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -845,7 +1285,7 @@ func (c *dealManagementClient) FinishDeals(ctx context.Context, in *DealsFinishR
 
 func (c *dealManagementClient) PurgeDeals(ctx context.Context, in *DealsPurgeRequest, opts ...grpc.CallOption) (*ErrorByID, error) {
 	out := new(ErrorByID)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/PurgeDeals", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/PurgeDeals", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -854,7 +1294,7 @@ func (c *dealManagementClient) PurgeDeals(ctx context.Context, in *DealsPurgeReq
 
 func (c *dealManagementClient) Open(ctx context.Context, in *OpenDealRequest, opts ...grpc.CallOption) (*Deal, error) {
 	out := new(Deal)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/Open", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/Open", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -863,7 +1303,7 @@ func (c *dealManagementClient) Open(ctx context.Context, in *OpenDealRequest, op
 
 func (c *dealManagementClient) ChangeRequestsList(ctx context.Context, in *BigInt, opts ...grpc.CallOption) (*DealChangeRequestsReply, error) {
 	out := new(DealChangeRequestsReply)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/ChangeRequestsList", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/ChangeRequestsList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -872,7 +1312,7 @@ func (c *dealManagementClient) ChangeRequestsList(ctx context.Context, in *BigIn
 
 func (c *dealManagementClient) CreateChangeRequest(ctx context.Context, in *DealChangeRequest, opts ...grpc.CallOption) (*BigInt, error) {
 	out := new(BigInt)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/CreateChangeRequest", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/CreateChangeRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -881,7 +1321,7 @@ func (c *dealManagementClient) CreateChangeRequest(ctx context.Context, in *Deal
 
 func (c *dealManagementClient) ApproveChangeRequest(ctx context.Context, in *BigInt, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/ApproveChangeRequest", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/ApproveChangeRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -890,7 +1330,7 @@ func (c *dealManagementClient) ApproveChangeRequest(ctx context.Context, in *Big
 
 func (c *dealManagementClient) CancelChangeRequest(ctx context.Context, in *BigInt, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/CancelChangeRequest", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/CancelChangeRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -899,15 +1339,14 @@ func (c *dealManagementClient) CancelChangeRequest(ctx context.Context, in *BigI
 
 func (c *dealManagementClient) QuickBuy(ctx context.Context, in *QuickBuyRequest, opts ...grpc.CallOption) (*DealInfoReply, error) {
 	out := new(DealInfoReply)
-	err := grpc.Invoke(ctx, "/sonm.DealManagement/QuickBuy", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.DealManagement/QuickBuy", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for DealManagement service
-
+// DealManagementServer is the server API for DealManagement service.
 type DealManagementServer interface {
 	// List produces a list of all deals made by client with given ID
 	List(context.Context, *Count) (*DealsReply, error)
@@ -1190,8 +1629,9 @@ var _DealManagement_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-// Client API for MasterManagement service
-
+// MasterManagementClient is the client API for MasterManagement service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MasterManagementClient interface {
 	// WorkersList returns worker's list for current master address.
 	// List includes already registred workers and pending unapproved requests.
@@ -1212,7 +1652,7 @@ func NewMasterManagementClient(cc *grpc.ClientConn) MasterManagementClient {
 
 func (c *masterManagementClient) WorkersList(ctx context.Context, in *EthAddress, opts ...grpc.CallOption) (*WorkerListReply, error) {
 	out := new(WorkerListReply)
-	err := grpc.Invoke(ctx, "/sonm.MasterManagement/WorkersList", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.MasterManagement/WorkersList", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1221,7 +1661,7 @@ func (c *masterManagementClient) WorkersList(ctx context.Context, in *EthAddress
 
 func (c *masterManagementClient) WorkerConfirm(ctx context.Context, in *EthAddress, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.MasterManagement/WorkerConfirm", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.MasterManagement/WorkerConfirm", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1230,15 +1670,14 @@ func (c *masterManagementClient) WorkerConfirm(ctx context.Context, in *EthAddre
 
 func (c *masterManagementClient) WorkerRemove(ctx context.Context, in *WorkerRemoveRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.MasterManagement/WorkerRemove", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.MasterManagement/WorkerRemove", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for MasterManagement service
-
+// MasterManagementServer is the server API for MasterManagement service.
 type MasterManagementServer interface {
 	// WorkersList returns worker's list for current master address.
 	// List includes already registred workers and pending unapproved requests.
@@ -1328,8 +1767,9 @@ var _MasterManagement_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-// Client API for TokenManagement service
-
+// TokenManagementClient is the client API for TokenManagement service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type TokenManagementClient interface {
 	// TestTokens increases balance for some amount of test tokens
 	// into live-chian ethereum network.
@@ -1359,7 +1799,7 @@ func NewTokenManagementClient(cc *grpc.ClientConn) TokenManagementClient {
 
 func (c *tokenManagementClient) TestTokens(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.TokenManagement/TestTokens", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TokenManagement/TestTokens", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1368,7 +1808,7 @@ func (c *tokenManagementClient) TestTokens(ctx context.Context, in *Empty, opts 
 
 func (c *tokenManagementClient) Balance(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BalanceReply, error) {
 	out := new(BalanceReply)
-	err := grpc.Invoke(ctx, "/sonm.TokenManagement/Balance", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TokenManagement/Balance", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1377,7 +1817,7 @@ func (c *tokenManagementClient) Balance(ctx context.Context, in *Empty, opts ...
 
 func (c *tokenManagementClient) BalanceOf(ctx context.Context, in *EthAddress, opts ...grpc.CallOption) (*BalanceReply, error) {
 	out := new(BalanceReply)
-	err := grpc.Invoke(ctx, "/sonm.TokenManagement/BalanceOf", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TokenManagement/BalanceOf", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1386,7 +1826,7 @@ func (c *tokenManagementClient) BalanceOf(ctx context.Context, in *EthAddress, o
 
 func (c *tokenManagementClient) Deposit(ctx context.Context, in *BigInt, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.TokenManagement/Deposit", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TokenManagement/Deposit", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1395,7 +1835,7 @@ func (c *tokenManagementClient) Deposit(ctx context.Context, in *BigInt, opts ..
 
 func (c *tokenManagementClient) Withdraw(ctx context.Context, in *BigInt, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.TokenManagement/Withdraw", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TokenManagement/Withdraw", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1404,7 +1844,7 @@ func (c *tokenManagementClient) Withdraw(ctx context.Context, in *BigInt, opts .
 
 func (c *tokenManagementClient) MarketAllowance(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BigInt, error) {
 	out := new(BigInt)
-	err := grpc.Invoke(ctx, "/sonm.TokenManagement/MarketAllowance", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TokenManagement/MarketAllowance", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1413,15 +1853,14 @@ func (c *tokenManagementClient) MarketAllowance(ctx context.Context, in *Empty, 
 
 func (c *tokenManagementClient) Transfer(ctx context.Context, in *TokenTransferRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.TokenManagement/Transfer", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.TokenManagement/Transfer", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for TokenManagement service
-
+// TokenManagementServer is the server API for TokenManagement service.
 type TokenManagementServer interface {
 	// TestTokens increases balance for some amount of test tokens
 	// into live-chian ethereum network.
@@ -1608,8 +2047,9 @@ var _TokenManagement_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-// Client API for Blacklist service
-
+// BlacklistClient is the client API for Blacklist service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type BlacklistClient interface {
 	// List addresses into given blacklist
 	List(ctx context.Context, in *EthAddress, opts ...grpc.CallOption) (*BlacklistReply, error)
@@ -1629,7 +2069,7 @@ func NewBlacklistClient(cc *grpc.ClientConn) BlacklistClient {
 
 func (c *blacklistClient) List(ctx context.Context, in *EthAddress, opts ...grpc.CallOption) (*BlacklistReply, error) {
 	out := new(BlacklistReply)
-	err := grpc.Invoke(ctx, "/sonm.Blacklist/List", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Blacklist/List", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1638,7 +2078,7 @@ func (c *blacklistClient) List(ctx context.Context, in *EthAddress, opts ...grpc
 
 func (c *blacklistClient) Remove(ctx context.Context, in *EthAddress, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.Blacklist/Remove", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Blacklist/Remove", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1647,15 +2087,14 @@ func (c *blacklistClient) Remove(ctx context.Context, in *EthAddress, opts ...gr
 
 func (c *blacklistClient) Purge(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ErrorByStringID, error) {
 	out := new(ErrorByStringID)
-	err := grpc.Invoke(ctx, "/sonm.Blacklist/Purge", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Blacklist/Purge", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Blacklist service
-
+// BlacklistServer is the server API for Blacklist service.
 type BlacklistServer interface {
 	// List addresses into given blacklist
 	List(context.Context, *EthAddress) (*BlacklistReply, error)
@@ -1744,8 +2183,9 @@ var _Blacklist_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-// Client API for Profiles service
-
+// ProfilesClient is the client API for Profiles service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ProfilesClient interface {
 	// List allows searching for profiles
 	List(ctx context.Context, in *ProfilesRequest, opts ...grpc.CallOption) (*ProfilesReply, error)
@@ -1766,7 +2206,7 @@ func NewProfilesClient(cc *grpc.ClientConn) ProfilesClient {
 
 func (c *profilesClient) List(ctx context.Context, in *ProfilesRequest, opts ...grpc.CallOption) (*ProfilesReply, error) {
 	out := new(ProfilesReply)
-	err := grpc.Invoke(ctx, "/sonm.Profiles/List", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Profiles/List", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1775,7 +2215,7 @@ func (c *profilesClient) List(ctx context.Context, in *ProfilesRequest, opts ...
 
 func (c *profilesClient) Status(ctx context.Context, in *EthID, opts ...grpc.CallOption) (*Profile, error) {
 	out := new(Profile)
-	err := grpc.Invoke(ctx, "/sonm.Profiles/Status", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Profiles/Status", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1784,15 +2224,14 @@ func (c *profilesClient) Status(ctx context.Context, in *EthID, opts ...grpc.Cal
 
 func (c *profilesClient) RemoveAttribute(ctx context.Context, in *BigInt, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.Profiles/RemoveAttribute", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Profiles/RemoveAttribute", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Profiles service
-
+// ProfilesServer is the server API for Profiles service.
 type ProfilesServer interface {
 	// List allows searching for profiles
 	List(context.Context, *ProfilesRequest) (*ProfilesReply, error)
@@ -1882,8 +2321,9 @@ var _Profiles_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-// Client API for Monitoring service
-
+// MonitoringClient is the client API for Monitoring service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MonitoringClient interface {
 	MetricsNPP(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NPPMetricsReply, error)
 }
@@ -1898,15 +2338,14 @@ func NewMonitoringClient(cc *grpc.ClientConn) MonitoringClient {
 
 func (c *monitoringClient) MetricsNPP(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NPPMetricsReply, error) {
 	out := new(NPPMetricsReply)
-	err := grpc.Invoke(ctx, "/sonm.Monitoring/MetricsNPP", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Monitoring/MetricsNPP", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Monitoring service
-
+// MonitoringServer is the server API for Monitoring service.
 type MonitoringServer interface {
 	MetricsNPP(context.Context, *Empty) (*NPPMetricsReply, error)
 }
@@ -1944,92 +2383,4 @@ var _Monitoring_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "node.proto",
-}
-
-func init() { proto.RegisterFile("node.proto", fileDescriptor10) }
-
-var fileDescriptor10 = []byte{
-	// 1312 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x57, 0x5f, 0x73, 0xdb, 0x44,
-	0x10, 0xb7, 0x1c, 0xc7, 0x71, 0xd6, 0x6e, 0x9c, 0x5e, 0x52, 0x08, 0x9a, 0xc2, 0x64, 0x04, 0x43,
-	0x5d, 0xda, 0x3a, 0x19, 0xb7, 0xd0, 0x50, 0x32, 0x0c, 0x49, 0x1c, 0x86, 0x30, 0x4d, 0x6a, 0x94,
-	0xcc, 0x84, 0x27, 0x18, 0xc5, 0xba, 0xd8, 0x37, 0x96, 0xee, 0x84, 0xee, 0x94, 0x8c, 0x3f, 0x09,
-	0xbc, 0xf1, 0xc2, 0x33, 0xcf, 0x7c, 0x12, 0xbe, 0x01, 0xdf, 0x83, 0x39, 0xdd, 0x9d, 0x2d, 0xc9,
-	0x4a, 0x0b, 0x6f, 0xd6, 0xee, 0x6f, 0xff, 0xfd, 0xf6, 0x6e, 0xf7, 0x0c, 0x40, 0x99, 0x8f, 0xbb,
-	0x51, 0xcc, 0x04, 0x43, 0x35, 0xce, 0x68, 0x68, 0xb7, 0xae, 0xc8, 0x88, 0x50, 0xa1, 0x64, 0x76,
-	0x7b, 0xc8, 0xa8, 0xf0, 0x08, 0xc5, 0xb1, 0x16, 0xac, 0xfa, 0xb7, 0x63, 0xa3, 0x23, 0x54, 0x5a,
-	0x50, 0xe2, 0x69, 0xc1, 0xfd, 0xd0, 0x8b, 0x27, 0x58, 0x44, 0x81, 0x37, 0xd4, 0x3e, 0xed, 0xd6,
-	0x2d, 0x8b, 0x27, 0x33, 0xe3, 0xdd, 0x11, 0x11, 0xe3, 0xe4, 0xaa, 0x3b, 0x64, 0xe1, 0x4e, 0x14,
-	0xb3, 0x10, 0x8b, 0x31, 0x4e, 0xf8, 0xce, 0x30, 0x20, 0x98, 0x8a, 0x9f, 0x43, 0xe6, 0xe3, 0x60,
-	0x27, 0xc4, 0x22, 0x26, 0x43, 0xae, 0x2c, 0x9c, 0x1f, 0x01, 0x7d, 0xcf, 0x08, 0x3d, 0xc3, 0x42,
-	0x3a, 0x72, 0xf1, 0x2f, 0x09, 0xe6, 0x02, 0x7d, 0x02, 0x75, 0xe1, 0xf1, 0xc9, 0x49, 0x7f, 0xcb,
-	0xda, 0xb6, 0x3a, 0xcd, 0x5e, 0xab, 0x2b, 0x13, 0xe9, 0x5e, 0xa4, 0x32, 0x57, 0xeb, 0xd0, 0x43,
-	0x58, 0xd5, 0x76, 0x27, 0xfd, 0xad, 0xea, 0xb6, 0xd5, 0x59, 0x75, 0xe7, 0x02, 0xe7, 0x25, 0xb4,
-	0x25, 0xfe, 0x35, 0xe1, 0x22, 0xe3, 0xd6, 0xc7, 0x5e, 0x50, 0x74, 0x7b, 0x48, 0x46, 0x27, 0x54,
-	0xb8, 0x5a, 0xe7, 0xdc, 0x42, 0xfb, 0x87, 0x84, 0x0c, 0x27, 0x87, 0xc9, 0xd4, 0x18, 0x3a, 0xb0,
-	0x5c, 0x92, 0x8e, 0xb6, 0x53, 0x2a, 0xf4, 0x19, 0x34, 0xfc, 0x24, 0xf6, 0x04, 0x61, 0x34, 0x4d,
-	0xa6, 0xd9, 0x5b, 0x53, 0xb0, 0xbe, 0x96, 0xba, 0x33, 0x3d, 0xda, 0x84, 0xe5, 0x6b, 0x16, 0x0f,
-	0xf1, 0xd6, 0xd2, 0xb6, 0xd5, 0x69, 0xb8, 0xea, 0xc3, 0x09, 0xe0, 0x7e, 0x1f, 0x7b, 0xc1, 0xb7,
-	0x84, 0x12, 0x3e, 0x36, 0xa1, 0x1f, 0x42, 0x95, 0xf8, 0xa5, 0x71, 0xab, 0xc4, 0x47, 0x5f, 0xc2,
-	0xbd, 0xab, 0xc0, 0x1b, 0x4e, 0x02, 0xc2, 0xc5, 0xc5, 0x34, 0xc2, 0x69, 0xe4, 0xb5, 0xde, 0x86,
-	0x06, 0x66, 0x55, 0x6e, 0x1e, 0xe9, 0x9c, 0x00, 0x92, 0xd1, 0x78, 0x3e, 0xdc, 0x73, 0x68, 0xa4,
-	0x34, 0xd0, 0x6b, 0xb6, 0x65, 0x6d, 0x2f, 0x75, 0x9a, 0xbd, 0xf7, 0x75, 0x15, 0xc5, 0xcc, 0xdc,
-	0x19, 0xd0, 0x39, 0x53, 0x89, 0xf3, 0x41, 0x12, 0x8f, 0xb0, 0xf1, 0xb4, 0x90, 0x9a, 0xf5, 0x9f,
-	0x53, 0x7b, 0x0a, 0x90, 0xfa, 0x73, 0x71, 0x14, 0x4c, 0xd1, 0x47, 0x50, 0x93, 0x91, 0x74, 0x3a,
-	0x30, 0x4f, 0xc7, 0x4d, 0xe5, 0x0e, 0x83, 0xf6, 0x9b, 0x08, 0xd3, 0x54, 0x32, 0xef, 0xd7, 0x15,
-	0xf1, 0xef, 0xea, 0x57, 0xaa, 0x9a, 0xf7, 0xb4, 0x7a, 0x77, 0x4f, 0xcb, 0xfb, 0x44, 0x60, 0xe3,
-	0x32, 0x3d, 0xf5, 0x2e, 0x0e, 0xd9, 0xcd, 0xac, 0xe0, 0x0e, 0xd4, 0x43, 0x8f, 0x0b, 0x1c, 0xeb,
-	0xa8, 0xeb, 0xca, 0xe3, 0xb1, 0x18, 0x1f, 0xf8, 0x7e, 0x8c, 0x39, 0x77, 0xb5, 0x5e, 0x22, 0xd5,
-	0xb5, 0xd1, 0xb1, 0x4b, 0x90, 0x4a, 0xef, 0xec, 0x43, 0x5b, 0x85, 0x52, 0xc7, 0x58, 0xd2, 0xf1,
-	0x18, 0x56, 0x94, 0x92, 0x6b, 0x46, 0xda, 0x9a, 0x91, 0xcb, 0xef, 0x74, 0x56, 0x46, 0xef, 0xfc,
-	0x61, 0x41, 0xeb, 0xd0, 0x0b, 0x3c, 0x3a, 0xc4, 0xca, 0xb6, 0x0b, 0xcd, 0x80, 0xdc, 0x60, 0x2d,
-	0x2b, 0x65, 0x27, 0x0b, 0x90, 0x78, 0x4e, 0xfc, 0x19, 0xbe, 0x8c, 0xa9, 0x2c, 0x00, 0xbd, 0x80,
-	0x35, 0x69, 0x7e, 0x2c, 0xc6, 0xc6, 0x64, 0xa9, 0xc4, 0xa4, 0x80, 0x71, 0x7e, 0x82, 0xcd, 0x0b,
-	0x36, 0xc1, 0xf4, 0x22, 0xf6, 0x28, 0xbf, 0x96, 0xb4, 0x2a, 0x42, 0xb7, 0xa1, 0x2a, 0xd8, 0x9d,
-	0x64, 0x56, 0x05, 0x93, 0x17, 0xda, 0x0b, 0x59, 0x42, 0x45, 0x69, 0x6a, 0x5a, 0xe7, 0xfc, 0x6e,
-	0x41, 0xfb, 0x6c, 0x30, 0x38, 0x55, 0x83, 0x47, 0x31, 0xb1, 0x0f, 0x2b, 0x7a, 0x10, 0x69, 0x16,
-	0x1d, 0x65, 0x5a, 0xc0, 0x75, 0xf5, 0xc7, 0x31, 0x15, 0xf1, 0xd4, 0x35, 0x26, 0xf6, 0x19, 0xb4,
-	0xb2, 0x0a, 0xb4, 0x0e, 0x4b, 0x13, 0x3c, 0x4d, 0x53, 0x5d, 0x75, 0xe5, 0x4f, 0xd4, 0x81, 0xe5,
-	0x1b, 0x2f, 0x48, 0x0c, 0x67, 0x48, 0x7b, 0xf7, 0x42, 0xec, 0x1b, 0xff, 0x0a, 0xf0, 0xaa, 0xba,
-	0x67, 0x39, 0x5f, 0x41, 0x2b, 0xab, 0x42, 0x4f, 0x8a, 0xd9, 0xdd, 0x5f, 0xb0, 0x9f, 0x25, 0xe3,
-	0x5c, 0x42, 0x33, 0x23, 0x47, 0x08, 0x6a, 0xd4, 0x0b, 0xb1, 0x4e, 0x26, 0xfd, 0x8d, 0x5e, 0x40,
-	0x5d, 0xa1, 0x75, 0x3a, 0x0f, 0xbb, 0x84, 0x75, 0xe7, 0x03, 0xba, 0xab, 0x06, 0xb4, 0x2e, 0xd6,
-	0xd5, 0xd8, 0xde, 0x9f, 0x4b, 0xb0, 0x26, 0x47, 0xe8, 0xa9, 0x47, 0xbd, 0x11, 0x0e, 0x31, 0x15,
-	0xe8, 0x05, 0xd4, 0xe4, 0x49, 0x44, 0x0f, 0xe6, 0x03, 0x39, 0x33, 0x60, 0xed, 0x8d, 0xa2, 0x38,
-	0x0a, 0xa6, 0x4e, 0x05, 0x3d, 0x83, 0xc6, 0x20, 0xe1, 0x63, 0x29, 0x46, 0x4d, 0x05, 0x39, 0x1a,
-	0x27, 0x74, 0x62, 0xeb, 0x09, 0x39, 0x88, 0xd9, 0x48, 0xf6, 0xd4, 0xa9, 0x74, 0xac, 0x5d, 0x0b,
-	0xbd, 0x84, 0xe5, 0x73, 0xe1, 0xc5, 0x02, 0xbd, 0xa7, 0xd4, 0xe9, 0x87, 0x34, 0x36, 0x61, 0x36,
-	0x17, 0xe4, 0x2a, 0xce, 0x3e, 0x34, 0x33, 0xcb, 0x04, 0x6d, 0x29, 0xd8, 0xe2, 0x7e, 0xb1, 0x0d,
-	0x9d, 0x4a, 0x7a, 0x1e, 0xe1, 0xa1, 0x53, 0x41, 0x3b, 0x50, 0x3f, 0x17, 0x9e, 0x48, 0x38, 0xca,
-	0xad, 0x1b, 0x3b, 0x53, 0xab, 0xd2, 0x9b, 0x70, 0x5f, 0x40, 0xed, 0x35, 0x1b, 0xf1, 0x1c, 0x19,
-	0x6c, 0xc4, 0xcb, 0xc8, 0x60, 0x23, 0x9e, 0x56, 0xec, 0x54, 0x76, 0x2d, 0xf4, 0x31, 0xd4, 0xce,
-	0x05, 0x8b, 0x0a, 0x61, 0x34, 0x31, 0xc7, 0x61, 0x24, 0xa4, 0xf3, 0x9e, 0xe4, 0x2c, 0x08, 0x52,
-	0xce, 0x74, 0x00, 0xf3, 0x6d, 0x02, 0x64, 0xa9, 0x94, 0x8e, 0x7b, 0xff, 0xd4, 0x60, 0x4d, 0x8e,
-	0xc1, 0x4c, 0xc3, 0x1e, 0xe9, 0x86, 0x19, 0xac, 0xbc, 0x10, 0xf6, 0xfa, 0x7c, 0x86, 0xf2, 0x79,
-	0x8f, 0x0a, 0xd5, 0xab, 0x4b, 0x64, 0xaa, 0xe8, 0xeb, 0x59, 0x6f, 0xe0, 0xbb, 0x50, 0x57, 0xdb,
-	0x00, 0xdd, 0xb5, 0x1f, 0x8a, 0x05, 0xbd, 0x82, 0xa6, 0xd2, 0xa7, 0x61, 0x4d, 0x73, 0x16, 0x57,
-	0x90, 0xad, 0xe7, 0xd9, 0x71, 0x1c, 0xb3, 0xf8, 0x70, 0x7a, 0xd2, 0x77, 0x2a, 0x68, 0x0f, 0x20,
-	0xdd, 0x2d, 0xca, 0x34, 0x13, 0x31, 0xb7, 0x72, 0xca, 0x2c, 0x9f, 0x40, 0x4d, 0x2e, 0x07, 0x43,
-	0x61, 0x61, 0x51, 0xd8, 0x99, 0x6d, 0xe2, 0x54, 0xd0, 0x11, 0xa0, 0xa3, 0xb1, 0x47, 0x67, 0x0e,
-	0x79, 0x4a, 0x5d, 0x9e, 0x8f, 0x0f, 0xe7, 0x16, 0x79, 0xac, 0x61, 0xe6, 0x6b, 0xd8, 0x38, 0x8a,
-	0xb1, 0x27, 0x70, 0x4e, 0x9d, 0x4d, 0x3a, 0xa7, 0xb0, 0x73, 0xee, 0x9d, 0x0a, 0x7a, 0x0e, 0x9b,
-	0x07, 0x51, 0x14, 0xb3, 0x9b, 0x82, 0x83, 0x7c, 0x1a, 0x0b, 0xa7, 0x65, 0xe3, 0x48, 0xce, 0xd2,
-	0xe0, 0x7f, 0xd8, 0xec, 0x41, 0xc3, 0xbc, 0x73, 0x0c, 0x3d, 0x85, 0x77, 0xcf, 0x1d, 0xcd, 0xef,
-	0xfd, 0x65, 0xc1, 0xfa, 0x69, 0xba, 0xca, 0x32, 0x27, 0x6d, 0x0f, 0x9a, 0x6a, 0xff, 0x28, 0xd6,
-	0x16, 0x06, 0xb6, 0xb9, 0x47, 0x85, 0x7d, 0x96, 0x9e, 0xa5, 0x7b, 0x4a, 0x78, 0xc4, 0xe8, 0x35,
-	0x89, 0xc3, 0x12, 0xdb, 0x85, 0xd4, 0x5b, 0xd9, 0x0d, 0x8c, 0x3e, 0xc8, 0xba, 0xce, 0x6d, 0xe5,
-	0x82, 0x65, 0xef, 0xef, 0x2a, 0xb4, 0xd3, 0x65, 0x93, 0xc9, 0xbc, 0x03, 0x70, 0x81, 0xb9, 0x48,
-	0xc5, 0x1c, 0x65, 0x0d, 0x8a, 0x71, 0x9f, 0xc2, 0x8a, 0x59, 0x75, 0x39, 0x98, 0x1e, 0xef, 0xd9,
-	0x5d, 0x9b, 0x76, 0x72, 0x55, 0x4b, 0xde, 0x5c, 0x97, 0xd4, 0x54, 0x6e, 0xf4, 0x29, 0xac, 0xf4,
-	0x71, 0xc4, 0x38, 0x79, 0x47, 0xf7, 0x1e, 0x41, 0xe3, 0x92, 0x88, 0xb1, 0x1f, 0x7b, 0xb7, 0x6f,
-	0x07, 0x76, 0xa1, 0x7d, 0x9a, 0x3e, 0xdb, 0x0f, 0x82, 0x80, 0xdd, 0x2e, 0xe6, 0x5e, 0x3c, 0x7f,
-	0x9f, 0x43, 0xc3, 0x2c, 0x62, 0x64, 0xeb, 0x09, 0x55, 0xb2, 0x9d, 0x8b, 0xc4, 0xfe, 0x6a, 0xc1,
-	0xea, 0xec, 0x51, 0x87, 0x76, 0xf5, 0xd8, 0x59, 0xac, 0x7a, 0xb3, 0xf0, 0xfe, 0x33, 0x75, 0x3f,
-	0x86, 0xba, 0x6e, 0xe6, 0x3b, 0xbb, 0xff, 0x0c, 0x96, 0xd3, 0x6b, 0x9f, 0xaf, 0xe3, 0x41, 0xee,
-	0xf2, 0x9f, 0x8b, 0x98, 0xd0, 0x91, 0x1c, 0x01, 0xbd, 0xdf, 0x2c, 0x68, 0x0c, 0x62, 0x76, 0x4d,
-	0x02, 0xcc, 0x8b, 0x0b, 0xcc, 0xc8, 0x0b, 0x07, 0x7e, 0x2e, 0x36, 0x4d, 0x31, 0xc3, 0xb1, 0x39,
-	0x4b, 0xee, 0xa4, 0x6f, 0xdf, 0xcb, 0xa1, 0x15, 0xd7, 0xaa, 0x88, 0x03, 0x21, 0x62, 0x72, 0x95,
-	0x08, 0xfc, 0xd6, 0xde, 0xf4, 0xbe, 0x01, 0x38, 0x65, 0x94, 0x08, 0x26, 0x93, 0x45, 0x3d, 0x00,
-	0xfd, 0x00, 0x38, 0x1b, 0x0c, 0x4a, 0x8b, 0x2b, 0xbc, 0x4e, 0x9c, 0xca, 0x55, 0x3d, 0xfd, 0x1b,
-	0xf5, 0xfc, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x85, 0xed, 0x38, 0x24, 0xe8, 0x0d, 0x00, 0x00,
 }

@@ -3,30 +3,61 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type Timestamp struct {
 	// Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z.
 	// Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.
-	Seconds int64 `protobuf:"varint,1,opt,name=seconds" json:"seconds,omitempty"`
+	Seconds int64 `protobuf:"varint,1,opt,name=seconds,proto3" json:"seconds,omitempty"`
 	// Non-negative fractions of a second at nanosecond resolution. Negative
 	// second values with fractions must still have non-negative nanos values
 	// that count forward in time. Must be from 0 to 999'999'999
 	// inclusive.
-	Nanos int32 `protobuf:"varint,2,opt,name=nanos" json:"nanos,omitempty"`
+	Nanos                int32    `protobuf:"varint,2,opt,name=nanos,proto3" json:"nanos,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Timestamp) Reset()                    { *m = Timestamp{} }
-func (m *Timestamp) String() string            { return proto.CompactTextString(m) }
-func (*Timestamp) ProtoMessage()               {}
-func (*Timestamp) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{0} }
+func (m *Timestamp) Reset()         { *m = Timestamp{} }
+func (m *Timestamp) String() string { return proto.CompactTextString(m) }
+func (*Timestamp) ProtoMessage()    {}
+func (*Timestamp) Descriptor() ([]byte, []int) {
+	return fileDescriptor_edac929d8ae1e24f, []int{0}
+}
+
+func (m *Timestamp) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Timestamp.Unmarshal(m, b)
+}
+func (m *Timestamp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Timestamp.Marshal(b, m, deterministic)
+}
+func (m *Timestamp) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Timestamp.Merge(m, src)
+}
+func (m *Timestamp) XXX_Size() int {
+	return xxx_messageInfo_Timestamp.Size(m)
+}
+func (m *Timestamp) XXX_DiscardUnknown() {
+	xxx_messageInfo_Timestamp.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Timestamp proto.InternalMessageInfo
 
 func (m *Timestamp) GetSeconds() int64 {
 	if m != nil {
@@ -46,9 +77,9 @@ func init() {
 	proto.RegisterType((*Timestamp)(nil), "sonm.Timestamp")
 }
 
-func init() { proto.RegisterFile("timestamp.proto", fileDescriptor14) }
+func init() { proto.RegisterFile("timestamp.proto", fileDescriptor_edac929d8ae1e24f) }
 
-var fileDescriptor14 = []byte{
+var fileDescriptor_edac929d8ae1e24f = []byte{
 	// 97 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2f, 0xc9, 0xcc, 0x4d,
 	0x2d, 0x2e, 0x49, 0xcc, 0x2d, 0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf,

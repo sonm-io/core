@@ -3,14 +3,22 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type GPUVendorType int32
 
@@ -27,6 +35,7 @@ var GPUVendorType_name = map[int32]string{
 	2:  "RADEON",
 	99: "FAKE",
 }
+
 var GPUVendorType_value = map[string]int32{
 	"GPU_UNKNOWN": 0,
 	"NVIDIA":      1,
@@ -37,22 +46,48 @@ var GPUVendorType_value = map[string]int32{
 func (x GPUVendorType) String() string {
 	return proto.EnumName(GPUVendorType_name, int32(x))
 }
-func (GPUVendorType) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+
+func (GPUVendorType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{0}
+}
 
 type CPUDevice struct {
 	// ModelName describes full model name.
 	// For example "Intel(R) Core(TM) i5-5257U CPU @ 2.70GHz".
-	ModelName string `protobuf:"bytes,1,opt,name=modelName" json:"modelName,omitempty"`
+	ModelName string `protobuf:"bytes,1,opt,name=modelName,proto3" json:"modelName,omitempty"`
 	// Cores describes number of cores on a CPU device.
-	Cores uint32 `protobuf:"varint,2,opt,name=cores" json:"cores,omitempty"`
+	Cores uint32 `protobuf:"varint,2,opt,name=cores,proto3" json:"cores,omitempty"`
 	// Sockets describes number of CPU sockets on a host system.
-	Sockets uint32 `protobuf:"varint,3,opt,name=sockets" json:"sockets,omitempty"`
+	Sockets              uint32   `protobuf:"varint,3,opt,name=sockets,proto3" json:"sockets,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CPUDevice) Reset()                    { *m = CPUDevice{} }
-func (m *CPUDevice) String() string            { return proto.CompactTextString(m) }
-func (*CPUDevice) ProtoMessage()               {}
-func (*CPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (m *CPUDevice) Reset()         { *m = CPUDevice{} }
+func (m *CPUDevice) String() string { return proto.CompactTextString(m) }
+func (*CPUDevice) ProtoMessage()    {}
+func (*CPUDevice) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{0}
+}
+
+func (m *CPUDevice) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CPUDevice.Unmarshal(m, b)
+}
+func (m *CPUDevice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CPUDevice.Marshal(b, m, deterministic)
+}
+func (m *CPUDevice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CPUDevice.Merge(m, src)
+}
+func (m *CPUDevice) XXX_Size() int {
+	return xxx_messageInfo_CPUDevice.Size(m)
+}
+func (m *CPUDevice) XXX_DiscardUnknown() {
+	xxx_messageInfo_CPUDevice.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CPUDevice proto.InternalMessageInfo
 
 func (m *CPUDevice) GetModelName() string {
 	if m != nil {
@@ -76,14 +111,37 @@ func (m *CPUDevice) GetSockets() uint32 {
 }
 
 type CPU struct {
-	Device     *CPUDevice            `protobuf:"bytes,1,opt,name=device" json:"device,omitempty"`
-	Benchmarks map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Device               *CPUDevice            `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Benchmarks           map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks,proto3" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *CPU) Reset()                    { *m = CPU{} }
-func (m *CPU) String() string            { return proto.CompactTextString(m) }
-func (*CPU) ProtoMessage()               {}
-func (*CPU) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
+func (m *CPU) Reset()         { *m = CPU{} }
+func (m *CPU) String() string { return proto.CompactTextString(m) }
+func (*CPU) ProtoMessage()    {}
+func (*CPU) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{1}
+}
+
+func (m *CPU) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CPU.Unmarshal(m, b)
+}
+func (m *CPU) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CPU.Marshal(b, m, deterministic)
+}
+func (m *CPU) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CPU.Merge(m, src)
+}
+func (m *CPU) XXX_Size() int {
+	return xxx_messageInfo_CPU.Size(m)
+}
+func (m *CPU) XXX_DiscardUnknown() {
+	xxx_messageInfo_CPU.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CPU proto.InternalMessageInfo
 
 func (m *CPU) GetDevice() *CPUDevice {
 	if m != nil {
@@ -100,14 +158,37 @@ func (m *CPU) GetBenchmarks() map[uint64]*Benchmark {
 }
 
 type RAMDevice struct {
-	Total     uint64 `protobuf:"varint,1,opt,name=total" json:"total,omitempty"`
-	Available uint64 `protobuf:"varint,2,opt,name=available" json:"available,omitempty"`
+	Total                uint64   `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Available            uint64   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RAMDevice) Reset()                    { *m = RAMDevice{} }
-func (m *RAMDevice) String() string            { return proto.CompactTextString(m) }
-func (*RAMDevice) ProtoMessage()               {}
-func (*RAMDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{2} }
+func (m *RAMDevice) Reset()         { *m = RAMDevice{} }
+func (m *RAMDevice) String() string { return proto.CompactTextString(m) }
+func (*RAMDevice) ProtoMessage()    {}
+func (*RAMDevice) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{2}
+}
+
+func (m *RAMDevice) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RAMDevice.Unmarshal(m, b)
+}
+func (m *RAMDevice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RAMDevice.Marshal(b, m, deterministic)
+}
+func (m *RAMDevice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RAMDevice.Merge(m, src)
+}
+func (m *RAMDevice) XXX_Size() int {
+	return xxx_messageInfo_RAMDevice.Size(m)
+}
+func (m *RAMDevice) XXX_DiscardUnknown() {
+	xxx_messageInfo_RAMDevice.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RAMDevice proto.InternalMessageInfo
 
 func (m *RAMDevice) GetTotal() uint64 {
 	if m != nil {
@@ -124,14 +205,37 @@ func (m *RAMDevice) GetAvailable() uint64 {
 }
 
 type RAM struct {
-	Device     *RAMDevice            `protobuf:"bytes,1,opt,name=device" json:"device,omitempty"`
-	Benchmarks map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Device               *RAMDevice            `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Benchmarks           map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks,proto3" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *RAM) Reset()                    { *m = RAM{} }
-func (m *RAM) String() string            { return proto.CompactTextString(m) }
-func (*RAM) ProtoMessage()               {}
-func (*RAM) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{3} }
+func (m *RAM) Reset()         { *m = RAM{} }
+func (m *RAM) String() string { return proto.CompactTextString(m) }
+func (*RAM) ProtoMessage()    {}
+func (*RAM) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{3}
+}
+
+func (m *RAM) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RAM.Unmarshal(m, b)
+}
+func (m *RAM) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RAM.Marshal(b, m, deterministic)
+}
+func (m *RAM) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RAM.Merge(m, src)
+}
+func (m *RAM) XXX_Size() int {
+	return xxx_messageInfo_RAM.Size(m)
+}
+func (m *RAM) XXX_DiscardUnknown() {
+	xxx_messageInfo_RAM.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RAM proto.InternalMessageInfo
 
 func (m *RAM) GetDevice() *RAMDevice {
 	if m != nil {
@@ -150,29 +254,52 @@ func (m *RAM) GetBenchmarks() map[uint64]*Benchmark {
 type GPUDevice struct {
 	// ID returns unique device ID on workers machine,
 	// typically PCI bus ID
-	ID string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
+	ID string `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	// VendorID returns an unique device vendor identifier
-	VendorID uint64 `protobuf:"varint,2,opt,name=vendorID" json:"vendorID,omitempty"`
+	VendorID uint64 `protobuf:"varint,2,opt,name=vendorID,proto3" json:"vendorID,omitempty"`
 	// VendorName returns GPU vendor name.
-	VendorName string `protobuf:"bytes,3,opt,name=vendorName" json:"vendorName,omitempty"`
+	VendorName string `protobuf:"bytes,3,opt,name=vendorName,proto3" json:"vendorName,omitempty"`
 	// DeviceID returns device ID (e.g.: NVidia)
-	DeviceID uint64 `protobuf:"varint,5,opt,name=deviceID" json:"deviceID,omitempty"`
+	DeviceID uint64 `protobuf:"varint,5,opt,name=deviceID,proto3" json:"deviceID,omitempty"`
 	// DeviceName returns device name, (e.g.: 1080Ti)
-	DeviceName string `protobuf:"bytes,6,opt,name=deviceName" json:"deviceName,omitempty"`
+	DeviceName string `protobuf:"bytes,6,opt,name=deviceName,proto3" json:"deviceName,omitempty"`
 	// MajorNumber returns device's major number
-	MajorNumber uint64 `protobuf:"varint,7,opt,name=majorNumber" json:"majorNumber,omitempty"`
+	MajorNumber uint64 `protobuf:"varint,7,opt,name=majorNumber,proto3" json:"majorNumber,omitempty"`
 	// MinorNumber returns device's minor number
-	MinorNumber uint64 `protobuf:"varint,8,opt,name=minorNumber" json:"minorNumber,omitempty"`
+	MinorNumber uint64 `protobuf:"varint,8,opt,name=minorNumber,proto3" json:"minorNumber,omitempty"`
 	// Memory is amount of vmem for device, in bytes
-	Memory uint64 `protobuf:"varint,9,opt,name=Memory" json:"Memory,omitempty"`
+	Memory uint64 `protobuf:"varint,9,opt,name=Memory,proto3" json:"Memory,omitempty"`
 	// Hash string built from device parameters
-	Hash string `protobuf:"bytes,10,opt,name=hash" json:"hash,omitempty"`
+	Hash                 string   `protobuf:"bytes,10,opt,name=hash,proto3" json:"hash,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GPUDevice) Reset()                    { *m = GPUDevice{} }
-func (m *GPUDevice) String() string            { return proto.CompactTextString(m) }
-func (*GPUDevice) ProtoMessage()               {}
-func (*GPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{4} }
+func (m *GPUDevice) Reset()         { *m = GPUDevice{} }
+func (m *GPUDevice) String() string { return proto.CompactTextString(m) }
+func (*GPUDevice) ProtoMessage()    {}
+func (*GPUDevice) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{4}
+}
+
+func (m *GPUDevice) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GPUDevice.Unmarshal(m, b)
+}
+func (m *GPUDevice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GPUDevice.Marshal(b, m, deterministic)
+}
+func (m *GPUDevice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GPUDevice.Merge(m, src)
+}
+func (m *GPUDevice) XXX_Size() int {
+	return xxx_messageInfo_GPUDevice.Size(m)
+}
+func (m *GPUDevice) XXX_DiscardUnknown() {
+	xxx_messageInfo_GPUDevice.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GPUDevice proto.InternalMessageInfo
 
 func (m *GPUDevice) GetID() string {
 	if m != nil {
@@ -238,14 +365,37 @@ func (m *GPUDevice) GetHash() string {
 }
 
 type GPU struct {
-	Device     *GPUDevice            `protobuf:"bytes,1,opt,name=device" json:"device,omitempty"`
-	Benchmarks map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Device               *GPUDevice            `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Benchmarks           map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks,proto3" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *GPU) Reset()                    { *m = GPU{} }
-func (m *GPU) String() string            { return proto.CompactTextString(m) }
-func (*GPU) ProtoMessage()               {}
-func (*GPU) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{5} }
+func (m *GPU) Reset()         { *m = GPU{} }
+func (m *GPU) String() string { return proto.CompactTextString(m) }
+func (*GPU) ProtoMessage()    {}
+func (*GPU) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{5}
+}
+
+func (m *GPU) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GPU.Unmarshal(m, b)
+}
+func (m *GPU) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GPU.Marshal(b, m, deterministic)
+}
+func (m *GPU) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GPU.Merge(m, src)
+}
+func (m *GPU) XXX_Size() int {
+	return xxx_messageInfo_GPU.Size(m)
+}
+func (m *GPU) XXX_DiscardUnknown() {
+	xxx_messageInfo_GPU.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GPU proto.InternalMessageInfo
 
 func (m *GPU) GetDevice() *GPUDevice {
 	if m != nil {
@@ -262,13 +412,36 @@ func (m *GPU) GetBenchmarks() map[uint64]*Benchmark {
 }
 
 type NetFlags struct {
-	Flags uint64 `protobuf:"varint,1,opt,name=flags" json:"flags,omitempty"`
+	Flags                uint64   `protobuf:"varint,1,opt,name=flags,proto3" json:"flags,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *NetFlags) Reset()                    { *m = NetFlags{} }
-func (m *NetFlags) String() string            { return proto.CompactTextString(m) }
-func (*NetFlags) ProtoMessage()               {}
-func (*NetFlags) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{6} }
+func (m *NetFlags) Reset()         { *m = NetFlags{} }
+func (m *NetFlags) String() string { return proto.CompactTextString(m) }
+func (*NetFlags) ProtoMessage()    {}
+func (*NetFlags) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{6}
+}
+
+func (m *NetFlags) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NetFlags.Unmarshal(m, b)
+}
+func (m *NetFlags) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NetFlags.Marshal(b, m, deterministic)
+}
+func (m *NetFlags) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NetFlags.Merge(m, src)
+}
+func (m *NetFlags) XXX_Size() int {
+	return xxx_messageInfo_NetFlags.Size(m)
+}
+func (m *NetFlags) XXX_DiscardUnknown() {
+	xxx_messageInfo_NetFlags.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NetFlags proto.InternalMessageInfo
 
 func (m *NetFlags) GetFlags() uint64 {
 	if m != nil {
@@ -278,17 +451,40 @@ func (m *NetFlags) GetFlags() uint64 {
 }
 
 type Network struct {
-	In            uint64                `protobuf:"varint,1,opt,name=in" json:"in,omitempty"`
-	Out           uint64                `protobuf:"varint,2,opt,name=out" json:"out,omitempty"`
-	NetFlags      *NetFlags             `protobuf:"bytes,3,opt,name=netFlags" json:"netFlags,omitempty"`
-	BenchmarksIn  map[uint64]*Benchmark `protobuf:"bytes,4,rep,name=benchmarksIn" json:"benchmarksIn,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	BenchmarksOut map[uint64]*Benchmark `protobuf:"bytes,5,rep,name=benchmarksOut" json:"benchmarksOut,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	In                   uint64                `protobuf:"varint,1,opt,name=in,proto3" json:"in,omitempty"`
+	Out                  uint64                `protobuf:"varint,2,opt,name=out,proto3" json:"out,omitempty"`
+	NetFlags             *NetFlags             `protobuf:"bytes,3,opt,name=netFlags,proto3" json:"netFlags,omitempty"`
+	BenchmarksIn         map[uint64]*Benchmark `protobuf:"bytes,4,rep,name=benchmarksIn,proto3" json:"benchmarksIn,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	BenchmarksOut        map[uint64]*Benchmark `protobuf:"bytes,5,rep,name=benchmarksOut,proto3" json:"benchmarksOut,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *Network) Reset()                    { *m = Network{} }
-func (m *Network) String() string            { return proto.CompactTextString(m) }
-func (*Network) ProtoMessage()               {}
-func (*Network) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{7} }
+func (m *Network) Reset()         { *m = Network{} }
+func (m *Network) String() string { return proto.CompactTextString(m) }
+func (*Network) ProtoMessage()    {}
+func (*Network) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{7}
+}
+
+func (m *Network) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Network.Unmarshal(m, b)
+}
+func (m *Network) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Network.Marshal(b, m, deterministic)
+}
+func (m *Network) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Network.Merge(m, src)
+}
+func (m *Network) XXX_Size() int {
+	return xxx_messageInfo_Network.Size(m)
+}
+func (m *Network) XXX_DiscardUnknown() {
+	xxx_messageInfo_Network.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Network proto.InternalMessageInfo
 
 func (m *Network) GetIn() uint64 {
 	if m != nil {
@@ -326,13 +522,36 @@ func (m *Network) GetBenchmarksOut() map[uint64]*Benchmark {
 }
 
 type StorageDevice struct {
-	BytesAvailable uint64 `protobuf:"varint,1,opt,name=bytesAvailable" json:"bytesAvailable,omitempty"`
+	BytesAvailable       uint64   `protobuf:"varint,1,opt,name=bytesAvailable,proto3" json:"bytesAvailable,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *StorageDevice) Reset()                    { *m = StorageDevice{} }
-func (m *StorageDevice) String() string            { return proto.CompactTextString(m) }
-func (*StorageDevice) ProtoMessage()               {}
-func (*StorageDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{8} }
+func (m *StorageDevice) Reset()         { *m = StorageDevice{} }
+func (m *StorageDevice) String() string { return proto.CompactTextString(m) }
+func (*StorageDevice) ProtoMessage()    {}
+func (*StorageDevice) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{8}
+}
+
+func (m *StorageDevice) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StorageDevice.Unmarshal(m, b)
+}
+func (m *StorageDevice) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StorageDevice.Marshal(b, m, deterministic)
+}
+func (m *StorageDevice) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StorageDevice.Merge(m, src)
+}
+func (m *StorageDevice) XXX_Size() int {
+	return xxx_messageInfo_StorageDevice.Size(m)
+}
+func (m *StorageDevice) XXX_DiscardUnknown() {
+	xxx_messageInfo_StorageDevice.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StorageDevice proto.InternalMessageInfo
 
 func (m *StorageDevice) GetBytesAvailable() uint64 {
 	if m != nil {
@@ -342,14 +561,37 @@ func (m *StorageDevice) GetBytesAvailable() uint64 {
 }
 
 type Storage struct {
-	Device     *StorageDevice        `protobuf:"bytes,1,opt,name=device" json:"device,omitempty"`
-	Benchmarks map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Device               *StorageDevice        `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Benchmarks           map[uint64]*Benchmark `protobuf:"bytes,2,rep,name=benchmarks,proto3" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *Storage) Reset()                    { *m = Storage{} }
-func (m *Storage) String() string            { return proto.CompactTextString(m) }
-func (*Storage) ProtoMessage()               {}
-func (*Storage) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{9} }
+func (m *Storage) Reset()         { *m = Storage{} }
+func (m *Storage) String() string { return proto.CompactTextString(m) }
+func (*Storage) ProtoMessage()    {}
+func (*Storage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fe675a14405c9f77, []int{9}
+}
+
+func (m *Storage) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Storage.Unmarshal(m, b)
+}
+func (m *Storage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Storage.Marshal(b, m, deterministic)
+}
+func (m *Storage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Storage.Merge(m, src)
+}
+func (m *Storage) XXX_Size() int {
+	return xxx_messageInfo_Storage.Size(m)
+}
+func (m *Storage) XXX_DiscardUnknown() {
+	xxx_messageInfo_Storage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Storage proto.InternalMessageInfo
 
 func (m *Storage) GetDevice() *StorageDevice {
 	if m != nil {
@@ -366,22 +608,28 @@ func (m *Storage) GetBenchmarks() map[uint64]*Benchmark {
 }
 
 func init() {
+	proto.RegisterEnum("sonm.GPUVendorType", GPUVendorType_name, GPUVendorType_value)
 	proto.RegisterType((*CPUDevice)(nil), "sonm.CPUDevice")
 	proto.RegisterType((*CPU)(nil), "sonm.CPU")
+	proto.RegisterMapType((map[uint64]*Benchmark)(nil), "sonm.CPU.BenchmarksEntry")
 	proto.RegisterType((*RAMDevice)(nil), "sonm.RAMDevice")
 	proto.RegisterType((*RAM)(nil), "sonm.RAM")
+	proto.RegisterMapType((map[uint64]*Benchmark)(nil), "sonm.RAM.BenchmarksEntry")
 	proto.RegisterType((*GPUDevice)(nil), "sonm.GPUDevice")
 	proto.RegisterType((*GPU)(nil), "sonm.GPU")
+	proto.RegisterMapType((map[uint64]*Benchmark)(nil), "sonm.GPU.BenchmarksEntry")
 	proto.RegisterType((*NetFlags)(nil), "sonm.NetFlags")
 	proto.RegisterType((*Network)(nil), "sonm.Network")
+	proto.RegisterMapType((map[uint64]*Benchmark)(nil), "sonm.Network.BenchmarksInEntry")
+	proto.RegisterMapType((map[uint64]*Benchmark)(nil), "sonm.Network.BenchmarksOutEntry")
 	proto.RegisterType((*StorageDevice)(nil), "sonm.StorageDevice")
 	proto.RegisterType((*Storage)(nil), "sonm.Storage")
-	proto.RegisterEnum("sonm.GPUVendorType", GPUVendorType_name, GPUVendorType_value)
+	proto.RegisterMapType((map[uint64]*Benchmark)(nil), "sonm.Storage.BenchmarksEntry")
 }
 
-func init() { proto.RegisterFile("capabilities.proto", fileDescriptor3) }
+func init() { proto.RegisterFile("capabilities.proto", fileDescriptor_fe675a14405c9f77) }
 
-var fileDescriptor3 = []byte{
+var fileDescriptor_fe675a14405c9f77 = []byte{
 	// 645 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0x4b, 0x6f, 0xd3, 0x40,
 	0x10, 0xc6, 0xce, 0x7b, 0x42, 0xda, 0xb0, 0x54, 0xc8, 0x44, 0x3c, 0xa2, 0x48, 0x40, 0x55, 0xa4,

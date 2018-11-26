@@ -3,25 +3,56 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 // BigInt represents multi-precision value stored as a big integer.
 type BigInt struct {
-	Neg bool   `protobuf:"varint,1,opt,name=neg" json:"neg,omitempty"`
-	Abs []byte `protobuf:"bytes,2,opt,name=abs,proto3" json:"abs,omitempty"`
+	Neg                  bool     `protobuf:"varint,1,opt,name=neg,proto3" json:"neg,omitempty"`
+	Abs                  []byte   `protobuf:"bytes,2,opt,name=abs,proto3" json:"abs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *BigInt) Reset()                    { *m = BigInt{} }
-func (m *BigInt) String() string            { return proto.CompactTextString(m) }
-func (*BigInt) ProtoMessage()               {}
-func (*BigInt) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (m *BigInt) Reset()         { *m = BigInt{} }
+func (m *BigInt) String() string { return proto.CompactTextString(m) }
+func (*BigInt) ProtoMessage()    {}
+func (*BigInt) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3372f1e8d0b5e70, []int{0}
+}
+
+func (m *BigInt) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BigInt.Unmarshal(m, b)
+}
+func (m *BigInt) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BigInt.Marshal(b, m, deterministic)
+}
+func (m *BigInt) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BigInt.Merge(m, src)
+}
+func (m *BigInt) XXX_Size() int {
+	return xxx_messageInfo_BigInt.Size(m)
+}
+func (m *BigInt) XXX_DiscardUnknown() {
+	xxx_messageInfo_BigInt.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BigInt proto.InternalMessageInfo
 
 func (m *BigInt) GetNeg() bool {
 	if m != nil {
@@ -41,9 +72,9 @@ func init() {
 	proto.RegisterType((*BigInt)(nil), "sonm.BigInt")
 }
 
-func init() { proto.RegisterFile("bigint.proto", fileDescriptor2) }
+func init() { proto.RegisterFile("bigint.proto", fileDescriptor_f3372f1e8d0b5e70) }
 
-var fileDescriptor2 = []byte{
+var fileDescriptor_f3372f1e8d0b5e70 = []byte{
 	// 88 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x49, 0xca, 0x4c, 0xcf,
 	0xcc, 0x2b, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x55, 0xd2,

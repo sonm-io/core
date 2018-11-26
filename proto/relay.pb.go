@@ -3,19 +3,24 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type PeerType int32
 
@@ -30,6 +35,7 @@ var PeerType_name = map[int32]string{
 	1: "CLIENT",
 	2: "DISCOVER",
 }
+
 var PeerType_value = map[string]int32{
 	"SERVER":   0,
 	"CLIENT":   1,
@@ -39,11 +45,14 @@ var PeerType_value = map[string]int32{
 func (x PeerType) String() string {
 	return proto.EnumName(PeerType_name, int32(x))
 }
-func (PeerType) EnumDescriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
+
+func (PeerType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{0}
+}
 
 type HandshakeRequest struct {
 	// PeerType describes a peer's source.
-	PeerType PeerType `protobuf:"varint,1,opt,name=peerType,enum=sonm.PeerType" json:"peerType,omitempty"`
+	PeerType PeerType `protobuf:"varint,1,opt,name=peerType,proto3,enum=sonm.PeerType" json:"peerType,omitempty"`
 	// Addr represents a common Ethereum address both peers are connecting
 	// around.
 	// In case of servers it's their own id. Must be signed. In case of
@@ -61,16 +70,39 @@ type HandshakeRequest struct {
 	// It is used when a client wants to connect to a specific server avoiding
 	// random select.
 	// Should be empty for servers.
-	UUID string `protobuf:"bytes,4,opt,name=UUID" json:"UUID,omitempty"`
+	UUID string `protobuf:"bytes,4,opt,name=UUID,proto3" json:"UUID,omitempty"`
 	// Protocol describes the network protocol the peer wants to publish or to
 	// resolve.
-	Protocol string `protobuf:"bytes,5,opt,name=protocol" json:"protocol,omitempty"`
+	Protocol             string   `protobuf:"bytes,5,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *HandshakeRequest) Reset()                    { *m = HandshakeRequest{} }
-func (m *HandshakeRequest) String() string            { return proto.CompactTextString(m) }
-func (*HandshakeRequest) ProtoMessage()               {}
-func (*HandshakeRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
+func (m *HandshakeRequest) Reset()         { *m = HandshakeRequest{} }
+func (m *HandshakeRequest) String() string { return proto.CompactTextString(m) }
+func (*HandshakeRequest) ProtoMessage()    {}
+func (*HandshakeRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{0}
+}
+
+func (m *HandshakeRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HandshakeRequest.Unmarshal(m, b)
+}
+func (m *HandshakeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HandshakeRequest.Marshal(b, m, deterministic)
+}
+func (m *HandshakeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HandshakeRequest.Merge(m, src)
+}
+func (m *HandshakeRequest) XXX_Size() int {
+	return xxx_messageInfo_HandshakeRequest.Size(m)
+}
+func (m *HandshakeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_HandshakeRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HandshakeRequest proto.InternalMessageInfo
 
 func (m *HandshakeRequest) GetPeerType() PeerType {
 	if m != nil {
@@ -109,13 +141,36 @@ func (m *HandshakeRequest) GetProtocol() string {
 
 type DiscoverResponse struct {
 	// Addr represents network address in form "host:port".
-	Addr string `protobuf:"bytes,1,opt,name=addr" json:"addr,omitempty"`
+	Addr                 string   `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DiscoverResponse) Reset()                    { *m = DiscoverResponse{} }
-func (m *DiscoverResponse) String() string            { return proto.CompactTextString(m) }
-func (*DiscoverResponse) ProtoMessage()               {}
-func (*DiscoverResponse) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{1} }
+func (m *DiscoverResponse) Reset()         { *m = DiscoverResponse{} }
+func (m *DiscoverResponse) String() string { return proto.CompactTextString(m) }
+func (*DiscoverResponse) ProtoMessage()    {}
+func (*DiscoverResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{1}
+}
+
+func (m *DiscoverResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DiscoverResponse.Unmarshal(m, b)
+}
+func (m *DiscoverResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DiscoverResponse.Marshal(b, m, deterministic)
+}
+func (m *DiscoverResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DiscoverResponse.Merge(m, src)
+}
+func (m *DiscoverResponse) XXX_Size() int {
+	return xxx_messageInfo_DiscoverResponse.Size(m)
+}
+func (m *DiscoverResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DiscoverResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DiscoverResponse proto.InternalMessageInfo
 
 func (m *DiscoverResponse) GetAddr() string {
 	if m != nil {
@@ -127,15 +182,38 @@ func (m *DiscoverResponse) GetAddr() string {
 type HandshakeResponse struct {
 	// Error describes an error number.
 	// Zero value means that there is no error.
-	Error int32 `protobuf:"varint,1,opt,name=error" json:"error,omitempty"`
+	Error int32 `protobuf:"varint,1,opt,name=error,proto3" json:"error,omitempty"`
 	// Description describes an error above.
-	Description string `protobuf:"bytes,2,opt,name=description" json:"description,omitempty"`
+	Description          string   `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *HandshakeResponse) Reset()                    { *m = HandshakeResponse{} }
-func (m *HandshakeResponse) String() string            { return proto.CompactTextString(m) }
-func (*HandshakeResponse) ProtoMessage()               {}
-func (*HandshakeResponse) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{2} }
+func (m *HandshakeResponse) Reset()         { *m = HandshakeResponse{} }
+func (m *HandshakeResponse) String() string { return proto.CompactTextString(m) }
+func (*HandshakeResponse) ProtoMessage()    {}
+func (*HandshakeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{2}
+}
+
+func (m *HandshakeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HandshakeResponse.Unmarshal(m, b)
+}
+func (m *HandshakeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HandshakeResponse.Marshal(b, m, deterministic)
+}
+func (m *HandshakeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HandshakeResponse.Merge(m, src)
+}
+func (m *HandshakeResponse) XXX_Size() int {
+	return xxx_messageInfo_HandshakeResponse.Size(m)
+}
+func (m *HandshakeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_HandshakeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HandshakeResponse proto.InternalMessageInfo
 
 func (m *HandshakeResponse) GetError() int32 {
 	if m != nil {
@@ -152,13 +230,36 @@ func (m *HandshakeResponse) GetDescription() string {
 }
 
 type RelayClusterReply struct {
-	Members []string `protobuf:"bytes,1,rep,name=members" json:"members,omitempty"`
+	Members              []string `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RelayClusterReply) Reset()                    { *m = RelayClusterReply{} }
-func (m *RelayClusterReply) String() string            { return proto.CompactTextString(m) }
-func (*RelayClusterReply) ProtoMessage()               {}
-func (*RelayClusterReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{3} }
+func (m *RelayClusterReply) Reset()         { *m = RelayClusterReply{} }
+func (m *RelayClusterReply) String() string { return proto.CompactTextString(m) }
+func (*RelayClusterReply) ProtoMessage()    {}
+func (*RelayClusterReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{3}
+}
+
+func (m *RelayClusterReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RelayClusterReply.Unmarshal(m, b)
+}
+func (m *RelayClusterReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RelayClusterReply.Marshal(b, m, deterministic)
+}
+func (m *RelayClusterReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RelayClusterReply.Merge(m, src)
+}
+func (m *RelayClusterReply) XXX_Size() int {
+	return xxx_messageInfo_RelayClusterReply.Size(m)
+}
+func (m *RelayClusterReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_RelayClusterReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RelayClusterReply proto.InternalMessageInfo
 
 func (m *RelayClusterReply) GetMembers() []string {
 	if m != nil {
@@ -168,15 +269,38 @@ func (m *RelayClusterReply) GetMembers() []string {
 }
 
 type RelayMetrics struct {
-	ConnCurrent uint64                 `protobuf:"varint,1,opt,name=connCurrent" json:"connCurrent,omitempty"`
-	Net         map[string]*NetMetrics `protobuf:"bytes,2,rep,name=net" json:"net,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Uptime      uint64                 `protobuf:"varint,3,opt,name=uptime" json:"uptime,omitempty"`
+	ConnCurrent          uint64                 `protobuf:"varint,1,opt,name=connCurrent,proto3" json:"connCurrent,omitempty"`
+	Net                  map[string]*NetMetrics `protobuf:"bytes,2,rep,name=net,proto3" json:"net,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Uptime               uint64                 `protobuf:"varint,3,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-func (m *RelayMetrics) Reset()                    { *m = RelayMetrics{} }
-func (m *RelayMetrics) String() string            { return proto.CompactTextString(m) }
-func (*RelayMetrics) ProtoMessage()               {}
-func (*RelayMetrics) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{4} }
+func (m *RelayMetrics) Reset()         { *m = RelayMetrics{} }
+func (m *RelayMetrics) String() string { return proto.CompactTextString(m) }
+func (*RelayMetrics) ProtoMessage()    {}
+func (*RelayMetrics) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{4}
+}
+
+func (m *RelayMetrics) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RelayMetrics.Unmarshal(m, b)
+}
+func (m *RelayMetrics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RelayMetrics.Marshal(b, m, deterministic)
+}
+func (m *RelayMetrics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RelayMetrics.Merge(m, src)
+}
+func (m *RelayMetrics) XXX_Size() int {
+	return xxx_messageInfo_RelayMetrics.Size(m)
+}
+func (m *RelayMetrics) XXX_DiscardUnknown() {
+	xxx_messageInfo_RelayMetrics.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RelayMetrics proto.InternalMessageInfo
 
 func (m *RelayMetrics) GetConnCurrent() uint64 {
 	if m != nil {
@@ -200,14 +324,37 @@ func (m *RelayMetrics) GetUptime() uint64 {
 }
 
 type NetMetrics struct {
-	TxBytes uint64 `protobuf:"varint,1,opt,name=txBytes" json:"txBytes,omitempty"`
-	RxBytes uint64 `protobuf:"varint,2,opt,name=rxBytes" json:"rxBytes,omitempty"`
+	TxBytes              uint64   `protobuf:"varint,1,opt,name=txBytes,proto3" json:"txBytes,omitempty"`
+	RxBytes              uint64   `protobuf:"varint,2,opt,name=rxBytes,proto3" json:"rxBytes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *NetMetrics) Reset()                    { *m = NetMetrics{} }
-func (m *NetMetrics) String() string            { return proto.CompactTextString(m) }
-func (*NetMetrics) ProtoMessage()               {}
-func (*NetMetrics) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{5} }
+func (m *NetMetrics) Reset()         { *m = NetMetrics{} }
+func (m *NetMetrics) String() string { return proto.CompactTextString(m) }
+func (*NetMetrics) ProtoMessage()    {}
+func (*NetMetrics) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{5}
+}
+
+func (m *NetMetrics) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NetMetrics.Unmarshal(m, b)
+}
+func (m *NetMetrics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NetMetrics.Marshal(b, m, deterministic)
+}
+func (m *NetMetrics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NetMetrics.Merge(m, src)
+}
+func (m *NetMetrics) XXX_Size() int {
+	return xxx_messageInfo_NetMetrics.Size(m)
+}
+func (m *NetMetrics) XXX_DiscardUnknown() {
+	xxx_messageInfo_NetMetrics.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NetMetrics proto.InternalMessageInfo
 
 func (m *NetMetrics) GetTxBytes() uint64 {
 	if m != nil {
@@ -225,13 +372,36 @@ func (m *NetMetrics) GetRxBytes() uint64 {
 
 // RelayInfo is a response returned from Info handle.
 type RelayInfo struct {
-	State map[string]*RelayMeeting `protobuf:"bytes,1,rep,name=state" json:"state,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	State                map[string]*RelayMeeting `protobuf:"bytes,1,rep,name=state,proto3" json:"state,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
 }
 
-func (m *RelayInfo) Reset()                    { *m = RelayInfo{} }
-func (m *RelayInfo) String() string            { return proto.CompactTextString(m) }
-func (*RelayInfo) ProtoMessage()               {}
-func (*RelayInfo) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{6} }
+func (m *RelayInfo) Reset()         { *m = RelayInfo{} }
+func (m *RelayInfo) String() string { return proto.CompactTextString(m) }
+func (*RelayInfo) ProtoMessage()    {}
+func (*RelayInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{6}
+}
+
+func (m *RelayInfo) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RelayInfo.Unmarshal(m, b)
+}
+func (m *RelayInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RelayInfo.Marshal(b, m, deterministic)
+}
+func (m *RelayInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RelayInfo.Merge(m, src)
+}
+func (m *RelayInfo) XXX_Size() int {
+	return xxx_messageInfo_RelayInfo.Size(m)
+}
+func (m *RelayInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_RelayInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RelayInfo proto.InternalMessageInfo
 
 func (m *RelayInfo) GetState() map[string]*RelayMeeting {
 	if m != nil {
@@ -242,13 +412,36 @@ func (m *RelayInfo) GetState() map[string]*RelayMeeting {
 
 // RelayMeeting represents relay point.
 type RelayMeeting struct {
-	Servers map[string]*Addr `protobuf:"bytes,2,rep,name=servers" json:"servers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Servers              map[string]*Addr `protobuf:"bytes,2,rep,name=servers,proto3" json:"servers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
 }
 
-func (m *RelayMeeting) Reset()                    { *m = RelayMeeting{} }
-func (m *RelayMeeting) String() string            { return proto.CompactTextString(m) }
-func (*RelayMeeting) ProtoMessage()               {}
-func (*RelayMeeting) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{7} }
+func (m *RelayMeeting) Reset()         { *m = RelayMeeting{} }
+func (m *RelayMeeting) String() string { return proto.CompactTextString(m) }
+func (*RelayMeeting) ProtoMessage()    {}
+func (*RelayMeeting) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9f69a7d5a802d584, []int{7}
+}
+
+func (m *RelayMeeting) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RelayMeeting.Unmarshal(m, b)
+}
+func (m *RelayMeeting) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RelayMeeting.Marshal(b, m, deterministic)
+}
+func (m *RelayMeeting) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RelayMeeting.Merge(m, src)
+}
+func (m *RelayMeeting) XXX_Size() int {
+	return xxx_messageInfo_RelayMeeting.Size(m)
+}
+func (m *RelayMeeting) XXX_DiscardUnknown() {
+	xxx_messageInfo_RelayMeeting.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RelayMeeting proto.InternalMessageInfo
 
 func (m *RelayMeeting) GetServers() map[string]*Addr {
 	if m != nil {
@@ -258,15 +451,61 @@ func (m *RelayMeeting) GetServers() map[string]*Addr {
 }
 
 func init() {
+	proto.RegisterEnum("sonm.PeerType", PeerType_name, PeerType_value)
 	proto.RegisterType((*HandshakeRequest)(nil), "sonm.HandshakeRequest")
 	proto.RegisterType((*DiscoverResponse)(nil), "sonm.DiscoverResponse")
 	proto.RegisterType((*HandshakeResponse)(nil), "sonm.HandshakeResponse")
 	proto.RegisterType((*RelayClusterReply)(nil), "sonm.RelayClusterReply")
 	proto.RegisterType((*RelayMetrics)(nil), "sonm.RelayMetrics")
+	proto.RegisterMapType((map[string]*NetMetrics)(nil), "sonm.RelayMetrics.NetEntry")
 	proto.RegisterType((*NetMetrics)(nil), "sonm.NetMetrics")
 	proto.RegisterType((*RelayInfo)(nil), "sonm.RelayInfo")
+	proto.RegisterMapType((map[string]*RelayMeeting)(nil), "sonm.RelayInfo.StateEntry")
 	proto.RegisterType((*RelayMeeting)(nil), "sonm.RelayMeeting")
-	proto.RegisterEnum("sonm.PeerType", PeerType_name, PeerType_value)
+	proto.RegisterMapType((map[string]*Addr)(nil), "sonm.RelayMeeting.ServersEntry")
+}
+
+func init() { proto.RegisterFile("relay.proto", fileDescriptor_9f69a7d5a802d584) }
+
+var fileDescriptor_9f69a7d5a802d584 = []byte{
+	// 582 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x53, 0x4f, 0x6f, 0xd3, 0x4e,
+	0x10, 0xcd, 0xe6, 0x4f, 0x93, 0x8c, 0xa3, 0xd6, 0x5d, 0xfd, 0xf4, 0xc3, 0x32, 0x07, 0x2c, 0x1f,
+	0x2a, 0xab, 0xa2, 0x56, 0x09, 0x17, 0xe0, 0x04, 0xa4, 0x41, 0x8d, 0x28, 0x05, 0x6d, 0x5a, 0xee,
+	0x6e, 0x3c, 0x14, 0xab, 0xc9, 0xda, 0xec, 0x6e, 0x2a, 0xfc, 0x19, 0xb8, 0xc0, 0x85, 0xef, 0xc3,
+	0x37, 0x43, 0xbb, 0x6b, 0x37, 0x0e, 0xed, 0x29, 0x33, 0xf3, 0x5e, 0x66, 0xde, 0x9b, 0x59, 0x83,
+	0x23, 0x70, 0x99, 0x94, 0x71, 0x21, 0x72, 0x95, 0xd3, 0xae, 0xcc, 0xf9, 0xca, 0xdf, 0xcb, 0xb8,
+	0xfe, 0xe5, 0x59, 0x62, 0xcb, 0xfe, 0x90, 0xa3, 0xb2, 0x61, 0xf8, 0x9b, 0x80, 0x7b, 0x9a, 0xf0,
+	0x54, 0x7e, 0x4d, 0x6e, 0x90, 0xe1, 0xb7, 0x35, 0x4a, 0x45, 0x0f, 0x61, 0x50, 0x20, 0x8a, 0x8b,
+	0xb2, 0x40, 0x8f, 0x04, 0x24, 0xda, 0x1d, 0xef, 0xc6, 0xba, 0x43, 0xfc, 0xa9, 0xaa, 0xb2, 0x3b,
+	0x9c, 0x52, 0xe8, 0x26, 0x69, 0x2a, 0xbc, 0x76, 0x40, 0xa2, 0x11, 0x33, 0xb1, 0xae, 0xc9, 0xec,
+	0x9a, 0x7b, 0x1d, 0x5b, 0xd3, 0xb1, 0xae, 0x5d, 0x5e, 0xce, 0x4e, 0xbc, 0x6e, 0x40, 0xa2, 0x21,
+	0x33, 0x31, 0xf5, 0x61, 0x60, 0x54, 0x2c, 0xf2, 0xa5, 0xd7, 0x33, 0xf5, 0xbb, 0x3c, 0x3c, 0x00,
+	0xf7, 0x24, 0x93, 0x8b, 0xfc, 0x16, 0x05, 0x43, 0x59, 0xe4, 0x5c, 0x6e, 0x66, 0x11, 0xdb, 0x43,
+	0xc7, 0xe1, 0x7b, 0xd8, 0x6f, 0xe8, 0xaf, 0x88, 0xff, 0x41, 0x0f, 0x85, 0xc8, 0x2d, 0xb3, 0xc7,
+	0x6c, 0x42, 0x03, 0x70, 0x52, 0x94, 0x0b, 0x91, 0x15, 0x2a, 0xcb, 0xb9, 0x51, 0x3c, 0x64, 0xcd,
+	0x52, 0x78, 0x04, 0xfb, 0x4c, 0xaf, 0x6f, 0xb2, 0x5c, 0x4b, 0xa5, 0x07, 0x17, 0xcb, 0x92, 0x7a,
+	0xd0, 0x5f, 0xe1, 0xea, 0x0a, 0x85, 0xf4, 0x48, 0xd0, 0x89, 0x86, 0xac, 0x4e, 0xc3, 0x3f, 0x04,
+	0x46, 0x86, 0xff, 0x01, 0x95, 0xc8, 0x16, 0x52, 0x4f, 0x58, 0xe4, 0x9c, 0x4f, 0xd6, 0x42, 0x20,
+	0x57, 0x66, 0x7a, 0x97, 0x35, 0x4b, 0xf4, 0x08, 0x3a, 0x1c, 0x95, 0xd7, 0x0e, 0x3a, 0x91, 0x33,
+	0x7e, 0x6c, 0xb7, 0xda, 0x6c, 0x11, 0x9f, 0xa3, 0x9a, 0x72, 0x25, 0x4a, 0xa6, 0x79, 0xf4, 0x7f,
+	0xd8, 0x59, 0x17, 0x2a, 0x5b, 0xa1, 0xd9, 0x65, 0x97, 0x55, 0x99, 0x7f, 0x0a, 0x83, 0x9a, 0x48,
+	0x5d, 0xe8, 0xdc, 0x60, 0x59, 0x2d, 0x45, 0x87, 0xf4, 0x00, 0x7a, 0xb7, 0xc9, 0x72, 0x8d, 0xc6,
+	0xa2, 0x33, 0x76, 0xed, 0x98, 0x73, 0x54, 0xd5, 0x10, 0x66, 0xe1, 0x57, 0xed, 0x17, 0x24, 0x7c,
+	0x0d, 0xb0, 0x01, 0xb4, 0x57, 0xf5, 0xfd, 0x6d, 0xa9, 0x50, 0x56, 0xe2, 0xeb, 0x54, 0x23, 0xa2,
+	0x42, 0xda, 0x16, 0xa9, 0xd2, 0xf0, 0x07, 0x81, 0xa1, 0xb1, 0x30, 0xe3, 0x5f, 0x72, 0x7a, 0x0c,
+	0x3d, 0xa9, 0x12, 0x85, 0x66, 0x57, 0xce, 0xd8, 0x6f, 0x58, 0xd4, 0x78, 0x3c, 0xd7, 0xa0, 0x75,
+	0x68, 0x89, 0xfe, 0x19, 0xc0, 0xa6, 0xf8, 0x80, 0x9b, 0x68, 0xdb, 0x0d, 0xdd, 0x5a, 0x1a, 0xaa,
+	0x8c, 0x5f, 0x37, 0xfd, 0xfc, 0xda, 0xdc, 0xc4, 0x60, 0xf4, 0x25, 0xf4, 0x25, 0x8a, 0x5b, 0x7d,
+	0x3e, 0xbb, 0xf5, 0x27, 0xf7, 0x1b, 0xc4, 0x73, 0xcb, 0xb0, 0xba, 0x6a, 0xbe, 0xff, 0x0e, 0x46,
+	0x4d, 0xe0, 0x01, 0x6d, 0xc1, 0xb6, 0x36, 0xb0, 0xad, 0xdf, 0xa4, 0xa9, 0x68, 0x68, 0x3a, 0x3c,
+	0x86, 0x41, 0xfd, 0xe5, 0x50, 0x80, 0x9d, 0xf9, 0x94, 0x7d, 0x9e, 0x32, 0xb7, 0xa5, 0xe3, 0xc9,
+	0xd9, 0x6c, 0x7a, 0x7e, 0xe1, 0x12, 0x3a, 0x82, 0xc1, 0xc9, 0x6c, 0x3e, 0xf9, 0xa8, 0x91, 0xf6,
+	0xf8, 0x27, 0x81, 0x9e, 0x11, 0x48, 0x9f, 0x41, 0xbf, 0x7a, 0x8d, 0xd4, 0xb1, 0xdd, 0xa7, 0xab,
+	0x42, 0x95, 0xfe, 0xa3, 0x86, 0x8b, 0xe6, 0x73, 0x0d, 0x5b, 0xf4, 0x29, 0xf4, 0xeb, 0x7b, 0x6e,
+	0xfd, 0x85, 0xde, 0x7f, 0x6e, 0x61, 0x8b, 0x1e, 0x40, 0xd7, 0x1c, 0x6e, 0x8b, 0xba, 0xf7, 0xcf,
+	0xd9, 0xc2, 0xd6, 0xd5, 0x8e, 0xf9, 0x34, 0x9f, 0xff, 0x0d, 0x00, 0x00, 0xff, 0xff, 0x0c, 0xd5,
+	0x39, 0x15, 0x61, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -277,8 +516,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for Relay service
-
+// RelayClient is the client API for Relay service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RelayClient interface {
 	Cluster(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RelayClusterReply, error)
 	Metrics(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RelayMetrics, error)
@@ -295,7 +535,7 @@ func NewRelayClient(cc *grpc.ClientConn) RelayClient {
 
 func (c *relayClient) Cluster(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RelayClusterReply, error) {
 	out := new(RelayClusterReply)
-	err := grpc.Invoke(ctx, "/sonm.Relay/Cluster", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Relay/Cluster", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +544,7 @@ func (c *relayClient) Cluster(ctx context.Context, in *Empty, opts ...grpc.CallO
 
 func (c *relayClient) Metrics(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RelayMetrics, error) {
 	out := new(RelayMetrics)
-	err := grpc.Invoke(ctx, "/sonm.Relay/Metrics", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Relay/Metrics", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -313,15 +553,14 @@ func (c *relayClient) Metrics(ctx context.Context, in *Empty, opts ...grpc.CallO
 
 func (c *relayClient) Info(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RelayInfo, error) {
 	out := new(RelayInfo)
-	err := grpc.Invoke(ctx, "/sonm.Relay/Info", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/sonm.Relay/Info", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Relay service
-
+// RelayServer is the server API for Relay service.
 type RelayServer interface {
 	Cluster(context.Context, *Empty) (*RelayClusterReply, error)
 	Metrics(context.Context, *Empty) (*RelayMetrics, error)
@@ -405,47 +644,4 @@ var _Relay_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "relay.proto",
-}
-
-func init() { proto.RegisterFile("relay.proto", fileDescriptor12) }
-
-var fileDescriptor12 = []byte{
-	// 582 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x53, 0x4f, 0x6f, 0xd3, 0x4e,
-	0x10, 0xcd, 0xe6, 0x4f, 0x93, 0x8c, 0xa3, 0xd6, 0x5d, 0xfd, 0xf4, 0xc3, 0x32, 0x07, 0x2c, 0x1f,
-	0x2a, 0xab, 0xa2, 0x56, 0x09, 0x17, 0xe0, 0x04, 0xa4, 0x41, 0x8d, 0x28, 0x05, 0x6d, 0x5a, 0xee,
-	0x6e, 0x3c, 0x14, 0xab, 0xc9, 0xda, 0xec, 0x6e, 0x2a, 0xfc, 0x19, 0xb8, 0xc0, 0x85, 0xef, 0xc3,
-	0x37, 0x43, 0xbb, 0x6b, 0x37, 0x0e, 0xed, 0x29, 0x33, 0xf3, 0x5e, 0x66, 0xde, 0x9b, 0x59, 0x83,
-	0x23, 0x70, 0x99, 0x94, 0x71, 0x21, 0x72, 0x95, 0xd3, 0xae, 0xcc, 0xf9, 0xca, 0xdf, 0xcb, 0xb8,
-	0xfe, 0xe5, 0x59, 0x62, 0xcb, 0xfe, 0x90, 0xa3, 0xb2, 0x61, 0xf8, 0x9b, 0x80, 0x7b, 0x9a, 0xf0,
-	0x54, 0x7e, 0x4d, 0x6e, 0x90, 0xe1, 0xb7, 0x35, 0x4a, 0x45, 0x0f, 0x61, 0x50, 0x20, 0x8a, 0x8b,
-	0xb2, 0x40, 0x8f, 0x04, 0x24, 0xda, 0x1d, 0xef, 0xc6, 0xba, 0x43, 0xfc, 0xa9, 0xaa, 0xb2, 0x3b,
-	0x9c, 0x52, 0xe8, 0x26, 0x69, 0x2a, 0xbc, 0x76, 0x40, 0xa2, 0x11, 0x33, 0xb1, 0xae, 0xc9, 0xec,
-	0x9a, 0x7b, 0x1d, 0x5b, 0xd3, 0xb1, 0xae, 0x5d, 0x5e, 0xce, 0x4e, 0xbc, 0x6e, 0x40, 0xa2, 0x21,
-	0x33, 0x31, 0xf5, 0x61, 0x60, 0x54, 0x2c, 0xf2, 0xa5, 0xd7, 0x33, 0xf5, 0xbb, 0x3c, 0x3c, 0x00,
-	0xf7, 0x24, 0x93, 0x8b, 0xfc, 0x16, 0x05, 0x43, 0x59, 0xe4, 0x5c, 0x6e, 0x66, 0x11, 0xdb, 0x43,
-	0xc7, 0xe1, 0x7b, 0xd8, 0x6f, 0xe8, 0xaf, 0x88, 0xff, 0x41, 0x0f, 0x85, 0xc8, 0x2d, 0xb3, 0xc7,
-	0x6c, 0x42, 0x03, 0x70, 0x52, 0x94, 0x0b, 0x91, 0x15, 0x2a, 0xcb, 0xb9, 0x51, 0x3c, 0x64, 0xcd,
-	0x52, 0x78, 0x04, 0xfb, 0x4c, 0xaf, 0x6f, 0xb2, 0x5c, 0x4b, 0xa5, 0x07, 0x17, 0xcb, 0x92, 0x7a,
-	0xd0, 0x5f, 0xe1, 0xea, 0x0a, 0x85, 0xf4, 0x48, 0xd0, 0x89, 0x86, 0xac, 0x4e, 0xc3, 0x3f, 0x04,
-	0x46, 0x86, 0xff, 0x01, 0x95, 0xc8, 0x16, 0x52, 0x4f, 0x58, 0xe4, 0x9c, 0x4f, 0xd6, 0x42, 0x20,
-	0x57, 0x66, 0x7a, 0x97, 0x35, 0x4b, 0xf4, 0x08, 0x3a, 0x1c, 0x95, 0xd7, 0x0e, 0x3a, 0x91, 0x33,
-	0x7e, 0x6c, 0xb7, 0xda, 0x6c, 0x11, 0x9f, 0xa3, 0x9a, 0x72, 0x25, 0x4a, 0xa6, 0x79, 0xf4, 0x7f,
-	0xd8, 0x59, 0x17, 0x2a, 0x5b, 0xa1, 0xd9, 0x65, 0x97, 0x55, 0x99, 0x7f, 0x0a, 0x83, 0x9a, 0x48,
-	0x5d, 0xe8, 0xdc, 0x60, 0x59, 0x2d, 0x45, 0x87, 0xf4, 0x00, 0x7a, 0xb7, 0xc9, 0x72, 0x8d, 0xc6,
-	0xa2, 0x33, 0x76, 0xed, 0x98, 0x73, 0x54, 0xd5, 0x10, 0x66, 0xe1, 0x57, 0xed, 0x17, 0x24, 0x7c,
-	0x0d, 0xb0, 0x01, 0xb4, 0x57, 0xf5, 0xfd, 0x6d, 0xa9, 0x50, 0x56, 0xe2, 0xeb, 0x54, 0x23, 0xa2,
-	0x42, 0xda, 0x16, 0xa9, 0xd2, 0xf0, 0x07, 0x81, 0xa1, 0xb1, 0x30, 0xe3, 0x5f, 0x72, 0x7a, 0x0c,
-	0x3d, 0xa9, 0x12, 0x85, 0x66, 0x57, 0xce, 0xd8, 0x6f, 0x58, 0xd4, 0x78, 0x3c, 0xd7, 0xa0, 0x75,
-	0x68, 0x89, 0xfe, 0x19, 0xc0, 0xa6, 0xf8, 0x80, 0x9b, 0x68, 0xdb, 0x0d, 0xdd, 0x5a, 0x1a, 0xaa,
-	0x8c, 0x5f, 0x37, 0xfd, 0xfc, 0xda, 0xdc, 0xc4, 0x60, 0xf4, 0x25, 0xf4, 0x25, 0x8a, 0x5b, 0x7d,
-	0x3e, 0xbb, 0xf5, 0x27, 0xf7, 0x1b, 0xc4, 0x73, 0xcb, 0xb0, 0xba, 0x6a, 0xbe, 0xff, 0x0e, 0x46,
-	0x4d, 0xe0, 0x01, 0x6d, 0xc1, 0xb6, 0x36, 0xb0, 0xad, 0xdf, 0xa4, 0xa9, 0x68, 0x68, 0x3a, 0x3c,
-	0x86, 0x41, 0xfd, 0xe5, 0x50, 0x80, 0x9d, 0xf9, 0x94, 0x7d, 0x9e, 0x32, 0xb7, 0xa5, 0xe3, 0xc9,
-	0xd9, 0x6c, 0x7a, 0x7e, 0xe1, 0x12, 0x3a, 0x82, 0xc1, 0xc9, 0x6c, 0x3e, 0xf9, 0xa8, 0x91, 0xf6,
-	0xf8, 0x27, 0x81, 0x9e, 0x11, 0x48, 0x9f, 0x41, 0xbf, 0x7a, 0x8d, 0xd4, 0xb1, 0xdd, 0xa7, 0xab,
-	0x42, 0x95, 0xfe, 0xa3, 0x86, 0x8b, 0xe6, 0x73, 0x0d, 0x5b, 0xf4, 0x29, 0xf4, 0xeb, 0x7b, 0x6e,
-	0xfd, 0x85, 0xde, 0x7f, 0x6e, 0x61, 0x8b, 0x1e, 0x40, 0xd7, 0x1c, 0x6e, 0x8b, 0xba, 0xf7, 0xcf,
-	0xd9, 0xc2, 0xd6, 0xd5, 0x8e, 0xf9, 0x34, 0x9f, 0xff, 0x0d, 0x00, 0x00, 0xff, 0xff, 0x0c, 0xd5,
-	0x39, 0x15, 0x61, 0x04, 0x00, 0x00,
 }

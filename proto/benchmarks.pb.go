@@ -3,14 +3,22 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 // BenchmarkType describes hardware group for which this benchmark is applicable
 type DeviceType int32
@@ -34,6 +42,7 @@ var DeviceType_name = map[int32]string{
 	5: "DEV_NETWORK_IN",
 	6: "DEV_NETWORK_OUT",
 }
+
 var DeviceType_value = map[string]int32{
 	"DEV_UNKNOWN":     0,
 	"DEV_CPU":         1,
@@ -47,7 +56,10 @@ var DeviceType_value = map[string]int32{
 func (x DeviceType) String() string {
 	return proto.EnumName(DeviceType_name, int32(x))
 }
-func (DeviceType) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+
+func (DeviceType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_b9c613bf1264d8e1, []int{0}
+}
 
 // SplittingAlgorithm describes how a benchmark is mapped to a device.
 type SplittingAlgorithm int32
@@ -65,6 +77,7 @@ var SplittingAlgorithm_name = map[int32]string{
 	2: "MIN",
 	3: "MAX",
 }
+
 var SplittingAlgorithm_value = map[string]int32{
 	"NONE":         0,
 	"PROPORTIONAL": 1,
@@ -75,23 +88,49 @@ var SplittingAlgorithm_value = map[string]int32{
 func (x SplittingAlgorithm) String() string {
 	return proto.EnumName(SplittingAlgorithm_name, int32(x))
 }
-func (SplittingAlgorithm) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+
+func (SplittingAlgorithm) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_b9c613bf1264d8e1, []int{1}
+}
 
 // Benchmark describes a way to measure hardware performance
 type Benchmark struct {
-	ID                 uint64             `protobuf:"varint,1,opt,name=ID" json:"ID,omitempty"`
-	Code               string             `protobuf:"bytes,2,opt,name=code" json:"code,omitempty"`
-	Type               DeviceType         `protobuf:"varint,3,opt,name=type,enum=sonm.DeviceType" json:"type,omitempty"`
-	Description        string             `protobuf:"bytes,4,opt,name=description" json:"description,omitempty"`
-	Image              string             `protobuf:"bytes,5,opt,name=image" json:"image,omitempty"`
-	Result             uint64             `protobuf:"varint,6,opt,name=result" json:"result,omitempty"`
-	SplittingAlgorithm SplittingAlgorithm `protobuf:"varint,7,opt,name=splittingAlgorithm,enum=sonm.SplittingAlgorithm" json:"splittingAlgorithm,omitempty"`
+	ID                   uint64             `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Code                 string             `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Type                 DeviceType         `protobuf:"varint,3,opt,name=type,proto3,enum=sonm.DeviceType" json:"type,omitempty"`
+	Description          string             `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Image                string             `protobuf:"bytes,5,opt,name=image,proto3" json:"image,omitempty"`
+	Result               uint64             `protobuf:"varint,6,opt,name=result,proto3" json:"result,omitempty"`
+	SplittingAlgorithm   SplittingAlgorithm `protobuf:"varint,7,opt,name=splittingAlgorithm,proto3,enum=sonm.SplittingAlgorithm" json:"splittingAlgorithm,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
-func (m *Benchmark) Reset()                    { *m = Benchmark{} }
-func (m *Benchmark) String() string            { return proto.CompactTextString(m) }
-func (*Benchmark) ProtoMessage()               {}
-func (*Benchmark) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (m *Benchmark) Reset()         { *m = Benchmark{} }
+func (m *Benchmark) String() string { return proto.CompactTextString(m) }
+func (*Benchmark) ProtoMessage()    {}
+func (*Benchmark) Descriptor() ([]byte, []int) {
+	return fileDescriptor_b9c613bf1264d8e1, []int{0}
+}
+
+func (m *Benchmark) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Benchmark.Unmarshal(m, b)
+}
+func (m *Benchmark) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Benchmark.Marshal(b, m, deterministic)
+}
+func (m *Benchmark) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Benchmark.Merge(m, src)
+}
+func (m *Benchmark) XXX_Size() int {
+	return xxx_messageInfo_Benchmark.Size(m)
+}
+func (m *Benchmark) XXX_DiscardUnknown() {
+	xxx_messageInfo_Benchmark.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Benchmark proto.InternalMessageInfo
 
 func (m *Benchmark) GetID() uint64 {
 	if m != nil {
@@ -143,14 +182,14 @@ func (m *Benchmark) GetSplittingAlgorithm() SplittingAlgorithm {
 }
 
 func init() {
-	proto.RegisterType((*Benchmark)(nil), "sonm.Benchmark")
 	proto.RegisterEnum("sonm.DeviceType", DeviceType_name, DeviceType_value)
 	proto.RegisterEnum("sonm.SplittingAlgorithm", SplittingAlgorithm_name, SplittingAlgorithm_value)
+	proto.RegisterType((*Benchmark)(nil), "sonm.Benchmark")
 }
 
-func init() { proto.RegisterFile("benchmarks.proto", fileDescriptor1) }
+func init() { proto.RegisterFile("benchmarks.proto", fileDescriptor_b9c613bf1264d8e1) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor_b9c613bf1264d8e1 = []byte{
 	// 330 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0x4d, 0x6b, 0xea, 0x40,
 	0x14, 0x86, 0xcd, 0x87, 0xf1, 0x7a, 0xbc, 0xe8, 0x70, 0xee, 0xe5, 0x32, 0xcb, 0x70, 0xe9, 0x42,

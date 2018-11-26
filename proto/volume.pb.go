@@ -3,27 +3,58 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 // Volume describes volume settings.
 type Volume struct {
 	// Type describes a volume driver.
-	Type string `protobuf:"bytes,1,opt,name=type" json:"type,omitempty"`
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
 	// Options describes a place for your volume settings.
-	Options map[string]string `protobuf:"bytes,2,rep,name=options" json:"options,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Options              map[string]string `protobuf:"bytes,2,rep,name=options,proto3" json:"options,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *Volume) Reset()                    { *m = Volume{} }
-func (m *Volume) String() string            { return proto.CompactTextString(m) }
-func (*Volume) ProtoMessage()               {}
-func (*Volume) Descriptor() ([]byte, []int) { return fileDescriptor15, []int{0} }
+func (m *Volume) Reset()         { *m = Volume{} }
+func (m *Volume) String() string { return proto.CompactTextString(m) }
+func (*Volume) ProtoMessage()    {}
+func (*Volume) Descriptor() ([]byte, []int) {
+	return fileDescriptor_498b213ad3bcd5ad, []int{0}
+}
+
+func (m *Volume) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Volume.Unmarshal(m, b)
+}
+func (m *Volume) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Volume.Marshal(b, m, deterministic)
+}
+func (m *Volume) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Volume.Merge(m, src)
+}
+func (m *Volume) XXX_Size() int {
+	return xxx_messageInfo_Volume.Size(m)
+}
+func (m *Volume) XXX_DiscardUnknown() {
+	xxx_messageInfo_Volume.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Volume proto.InternalMessageInfo
 
 func (m *Volume) GetType() string {
 	if m != nil {
@@ -41,11 +72,12 @@ func (m *Volume) GetOptions() map[string]string {
 
 func init() {
 	proto.RegisterType((*Volume)(nil), "sonm.Volume")
+	proto.RegisterMapType((map[string]string)(nil), "sonm.Volume.OptionsEntry")
 }
 
-func init() { proto.RegisterFile("volume.proto", fileDescriptor15) }
+func init() { proto.RegisterFile("volume.proto", fileDescriptor_498b213ad3bcd5ad) }
 
-var fileDescriptor15 = []byte{
+var fileDescriptor_498b213ad3bcd5ad = []byte{
 	// 146 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x29, 0xcb, 0xcf, 0x29,
 	0xcd, 0x4d, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x55, 0xea,

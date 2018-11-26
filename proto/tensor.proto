@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "bigint.proto";
+import "insonmnia.proto";
+
+package sonm;
+
+service Tensor {
+    rpc GetJupyterNode(JupyterNodeRequest) returns (JupyterNodeResponse) {}
+}
+
+message JupyterNodeRequest {
+    BigInt dealID = 1;
+    EthAddress supplierID = 2;
+}
+
+message JupyterNodeResponse {
+
+}

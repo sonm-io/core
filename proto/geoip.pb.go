@@ -3,23 +3,54 @@
 
 package sonm
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type GeoIPCountry struct {
-	IsoCode string `protobuf:"bytes,1,opt,name=IsoCode" json:"IsoCode,omitempty"`
+	IsoCode              string   `protobuf:"bytes,1,opt,name=IsoCode,proto3" json:"IsoCode,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GeoIPCountry) Reset()                    { *m = GeoIPCountry{} }
-func (m *GeoIPCountry) String() string            { return proto.CompactTextString(m) }
-func (*GeoIPCountry) ProtoMessage()               {}
-func (*GeoIPCountry) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
+func (m *GeoIPCountry) Reset()         { *m = GeoIPCountry{} }
+func (m *GeoIPCountry) String() string { return proto.CompactTextString(m) }
+func (*GeoIPCountry) ProtoMessage()    {}
+func (*GeoIPCountry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9a5b7ee991490f54, []int{0}
+}
+
+func (m *GeoIPCountry) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GeoIPCountry.Unmarshal(m, b)
+}
+func (m *GeoIPCountry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GeoIPCountry.Marshal(b, m, deterministic)
+}
+func (m *GeoIPCountry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GeoIPCountry.Merge(m, src)
+}
+func (m *GeoIPCountry) XXX_Size() int {
+	return xxx_messageInfo_GeoIPCountry.Size(m)
+}
+func (m *GeoIPCountry) XXX_DiscardUnknown() {
+	xxx_messageInfo_GeoIPCountry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GeoIPCountry proto.InternalMessageInfo
 
 func (m *GeoIPCountry) GetIsoCode() string {
 	if m != nil {
@@ -29,13 +60,36 @@ func (m *GeoIPCountry) GetIsoCode() string {
 }
 
 type GeoIP struct {
-	Country *GeoIPCountry `protobuf:"bytes,1,opt,name=country" json:"country,omitempty"`
+	Country              *GeoIPCountry `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
 }
 
-func (m *GeoIP) Reset()                    { *m = GeoIP{} }
-func (m *GeoIP) String() string            { return proto.CompactTextString(m) }
-func (*GeoIP) ProtoMessage()               {}
-func (*GeoIP) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
+func (m *GeoIP) Reset()         { *m = GeoIP{} }
+func (m *GeoIP) String() string { return proto.CompactTextString(m) }
+func (*GeoIP) ProtoMessage()    {}
+func (*GeoIP) Descriptor() ([]byte, []int) {
+	return fileDescriptor_9a5b7ee991490f54, []int{1}
+}
+
+func (m *GeoIP) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GeoIP.Unmarshal(m, b)
+}
+func (m *GeoIP) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GeoIP.Marshal(b, m, deterministic)
+}
+func (m *GeoIP) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GeoIP.Merge(m, src)
+}
+func (m *GeoIP) XXX_Size() int {
+	return xxx_messageInfo_GeoIP.Size(m)
+}
+func (m *GeoIP) XXX_DiscardUnknown() {
+	xxx_messageInfo_GeoIP.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GeoIP proto.InternalMessageInfo
 
 func (m *GeoIP) GetCountry() *GeoIPCountry {
 	if m != nil {
@@ -49,9 +103,9 @@ func init() {
 	proto.RegisterType((*GeoIP)(nil), "sonm.GeoIP")
 }
 
-func init() { proto.RegisterFile("geoip.proto", fileDescriptor6) }
+func init() { proto.RegisterFile("geoip.proto", fileDescriptor_9a5b7ee991490f54) }
 
-var fileDescriptor6 = []byte{
+var fileDescriptor_9a5b7ee991490f54 = []byte{
 	// 111 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4e, 0x4f, 0xcd, 0xcf,
 	0x2c, 0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x55, 0xd2, 0xe0,
