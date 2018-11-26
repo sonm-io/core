@@ -29,6 +29,10 @@ const (
 	detailsFlag       = "detailed"
 	prependStreamFlag = "source"
 	defaultNodeAddr   = "localhost:15030"
+
+	// flag defaults
+	defaultListLimit   = 100
+	defaultConnTimeout = 60 * time.Second
 )
 
 var (
@@ -45,10 +49,11 @@ var (
 	// deprecated: should be replaced with outputModeJSON
 	outputModeFlag string
 	outputModeJSON bool
-	timeoutFlag    = 60 * time.Second
+	timeoutFlag    time.Duration
 	insecureFlag   bool
 	keystoreFlag   string
 	configFlag     string
+	listLimitFlag  uint64
 
 	// logging flag vars
 	logType       string
@@ -102,7 +107,7 @@ func init() {
 	})
 
 	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "", "node endpoint")
-	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
+	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", defaultConnTimeout, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json (DEPRECATED)")
 	rootCmd.PersistentFlags().BoolVar(&outputModeJSON, "json", false, "Show command output in JSON format")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
