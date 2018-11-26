@@ -398,10 +398,14 @@ func dealsExpensesPerHour(addr common.Address, deals []*sonm.DWHDeal) (*sonm.Big
 }
 
 func dealType(deal *sonm.Deal, addr common.Address) string {
-	if deal.GetSupplierID().Unwrap() == addr || deal.GetMasterID().Unwrap() == addr {
+	isSell := deal.GetSupplierID().Unwrap() == addr || deal.GetMasterID().Unwrap() == addr
+	isBuy := deal.GetConsumerID().Unwrap() == addr
+
+	if isSell && isBuy {
+		return "BOTH"
+	} else if isSell {
 		return "SELL"
-	}
-	if deal.GetConsumerID().Unwrap() == addr {
+	} else if isBuy {
 		return "BUY"
 	}
 	return ""
