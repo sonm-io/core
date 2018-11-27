@@ -58,8 +58,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type deleter func()
-
 type peerCandidate struct {
 	Peer
 	C chan<- Peer
@@ -70,7 +68,7 @@ type meeting struct {
 	// We allow multiple clients to be waited for servers.
 	clients map[PeerID]peerCandidate
 	// Also we allow the opposite: multiple servers can be registered for
-	// fault tolerance.
+	// fault tolerance, but it is unlikely.
 	servers map[PeerID]peerCandidate
 }
 
@@ -81,23 +79,46 @@ func newMeeting() *meeting {
 	}
 }
 
-func (m *meeting) addServer(peer Peer, c chan<- Peer) {
+func (m *meeting) AddServer(peer Peer, c chan<- Peer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.servers[peer.ID] = peerCandidate{Peer: peer, C: c}
 }
 
-func (m *meeting) addClient(peer Peer, c chan<- Peer) {
+func (m *meeting) RemoveServer(id PeerID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.servers, id)
+}
+
+func (m *meeting) AddClient(peer Peer, c chan<- Peer) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.clients[peer.ID] = peerCandidate{Peer: peer, C: c}
 }
 
-func (m *meeting) randomServer() *peerCandidate {
-	return randomPeerCandidate(m.servers)
+func (m *meeting) RemoveClient(id PeerID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.clients, id)
 }
 
-func (m *meeting) randomClient() *peerCandidate {
-	return randomPeerCandidate(m.clients)
+func (m *meeting) PopRandomServer() *peerCandidate {
+	return m.popRandomPeerCandidate(m.servers)
 }
 
-func randomPeerCandidate(candidates map[PeerID]peerCandidate) *peerCandidate {
+func (m *meeting) PopRandomClient() *peerCandidate {
+	return m.popRandomPeerCandidate(m.clients)
+}
+
+func (m *meeting) popRandomPeerCandidate(candidates map[PeerID]peerCandidate) *peerCandidate {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -106,7 +127,9 @@ func randomPeerCandidate(candidates map[PeerID]peerCandidate) *peerCandidate {
 		keys = append(keys, key)
 	}
 
-	v := candidates[keys[rand.Intn(len(keys))]]
+	k := keys[rand.Intn(len(keys))]
+	v := candidates[k]
+	delete(candidates, k)
 	return &v
 }
 
@@ -191,8 +214,8 @@ func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*so
 
 	peerHandle := NewPeer(*peerInfo, request.PrivateAddrs)
 
-	c, deleter := m.addServerWatch(id, peerHandle)
-	defer deleter()
+	c := m.addServerWatch(id, peerHandle)
+	defer m.removeServerWatch(id, peerHandle)
 
 	select {
 	case <-ctx.Done():
@@ -232,26 +255,21 @@ func (m *Server) ResolveAll(ctx context.Context, request *sonm.ID) (*sonm.Resolv
 func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*sonm.RendezvousReply, error) {
 	log := logging.WithTrace(ctx, m.log)
 
-	peerInfo, ok := peer.FromContext(ctx)
-	if !ok {
-		return nil, errNoPeerInfo()
-	}
-
-	ethAddr, err := auth.ExtractWalletFromContext(ctx)
+	peerInfo, err := auth.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	id := nppc.ResourceID{
 		Protocol: request.Protocol,
-		Addr:     *ethAddr,
+		Addr:     peerInfo.Addr,
 	}
 	log.Info("publishing remote peer", zap.String("id", id.String()))
 
-	peerHandle := NewPeer(*peerInfo, request.PrivateAddrs)
+	peerHandle := NewPeer(*peerInfo.Peer, request.PrivateAddrs)
 
-	c, deleter := m.newClientWatch(id, peerHandle)
-	defer deleter()
+	c := m.addClientWatch(id, peerHandle)
+	defer m.removeClientWatch(id, peerHandle)
 
 	select {
 	case <-ctx.Done():
@@ -266,7 +284,7 @@ func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*so
 	}
 }
 
-func (m *Server) addServerWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, deleter) {
+func (m *Server) addServerWatch(id nppc.ResourceID, peer Peer) <-chan Peer {
 	c := make(chan Peer, 2)
 
 	m.mu.Lock()
@@ -275,22 +293,22 @@ func (m *Server) addServerWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, del
 	meeting, ok := m.rv[id]
 	if ok {
 		// Notify both sides immediately if there is match between candidates.
-		if server := meeting.randomServer(); server != nil {
+		if server := meeting.PopRandomServer(); server != nil {
 			c <- server.Peer
 			server.C <- peer
 		} else {
-			meeting.addClient(peer, c)
+			meeting.AddClient(peer, c)
 		}
 	} else {
 		meeting := newMeeting()
-		meeting.addClient(peer, c)
+		meeting.AddClient(peer, c)
 		m.rv[id] = meeting
 	}
 
-	return c, func() { m.removeServerWatch(id, peer) }
+	return c
 }
 
-func (m *Server) newClientWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, deleter) {
+func (m *Server) addClientWatch(id nppc.ResourceID, peer Peer) <-chan Peer {
 	c := make(chan Peer, 2)
 
 	m.mu.Lock()
@@ -298,19 +316,19 @@ func (m *Server) newClientWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, del
 
 	meeting, ok := m.rv[id]
 	if ok {
-		if client := meeting.randomClient(); client != nil {
+		if client := meeting.PopRandomClient(); client != nil {
 			c <- client.Peer
 			client.C <- peer
 		} else {
-			meeting.addServer(peer, c)
+			meeting.AddServer(peer, c)
 		}
 	} else {
 		meeting := newMeeting()
-		meeting.addServer(peer, c)
+		meeting.AddServer(peer, c)
 		m.rv[id] = meeting
 	}
 
-	return c, func() { m.removeClientWatch(id, peer) }
+	return c
 }
 
 func (m *Server) removeClientWatch(id nppc.ResourceID, peer Peer) {
@@ -319,7 +337,7 @@ func (m *Server) removeClientWatch(id nppc.ResourceID, peer Peer) {
 
 	candidates, ok := m.rv[id]
 	if ok {
-		delete(candidates.servers, peer.ID)
+		candidates.RemoveServer(peer.ID)
 	}
 
 	m.maybeCleanMeeting(id, candidates)
@@ -331,7 +349,7 @@ func (m *Server) removeServerWatch(id nppc.ResourceID, peer Peer) {
 
 	candidates, ok := m.rv[id]
 	if ok {
-		delete(candidates.clients, peer.ID)
+		candidates.RemoveClient(peer.ID)
 	}
 
 	m.maybeCleanMeeting(id, candidates)
