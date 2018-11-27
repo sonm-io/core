@@ -16,6 +16,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20180319081651-7d2e70ef918f
 	github.com/beorn7/perks v0.0.0-20160804104726-4c0e84591b9a
 	github.com/bifurcation/mint v0.0.0-20181105071958-a14404e9a861 // indirect
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/boltdb/bolt v1.3.1
 	github.com/btcsuite/btcd v0.0.0-20171023093315-c7588cbf7690
 	github.com/c2h5oh/datasize v0.0.0-20171227191756-4eba002a5eae

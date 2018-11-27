@@ -8,6 +8,7 @@ import (
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
+	"github.com/sonm-io/core/insonmnia/version"
 	"github.com/sonm-io/core/util/metrics"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,6 +29,7 @@ func run(app cmd.AppContext) error {
 	}
 
 	ctx := ctxlog.WithLogger(context.Background(), log)
+	version.ValidateVersion(ctx, version.NewLogObserver(log.Sugar()))
 
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
