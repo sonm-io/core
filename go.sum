@@ -251,6 +251,8 @@ github.com/shirou/gopsutil v0.0.0-20170804030934-3aa2ffab12a1 h1:0/REQJS76PbyuU7
 github.com/shirou/gopsutil v0.0.0-20170804030934-3aa2ffab12a1/go.mod h1:5b4v6he4MtMOwMlS0TUMTu2PcXUg8+E1lC7eC3UO/RA=
 github.com/sirupsen/logrus v1.1.0 h1:65VZabgUiV9ktjGM5nTq0+YurgTyX+YI2lSSfDjI+qU=
 github.com/sirupsen/logrus v1.1.0/go.mod h1:zrgwTnHtNr00buQ1vSptGe8m1f/BbgsPukg8qsT7A+A=
+github.com/sonm-io/go-ethereum v1.8.18 h1:1aH+2sWBEzHJXXtmYBonnZmlGYoYGhla8nm5RJI8Y3g=
+github.com/sonm-io/go-ethereum v1.8.18/go.mod h1:JODTQ6nm6G3PI7F05KRgRJOuIrWQTV/ODxQI8qFFPXo=
 github.com/spf13/afero v1.1.0 h1:bopulORc2JeYaxfHLvJa5NzxviA9PoWhpiiJkru7Ji4=
 github.com/spf13/afero v1.1.0/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.2.0 h1:HHl1DSRbEQN2i8tJmtS6ViPyHx35+p51amrdsiTCrkg=

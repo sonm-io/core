@@ -7,11 +7,10 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
-type ericConfig struct {
-}
+type ericConfig struct{}
 
 type Config struct {
-	Eric       ericConfig         `yaml:"eric"`
+	Eric       ericConfig         `yaml:"eric" required:"false"`
 	Log        logging.Config     `yaml:"log"`
 	Blockchain *blockchain.Config `yaml:"blockchain"`
 	Eth        accounts.EthConfig `yaml:"ethereum" required:"false"`

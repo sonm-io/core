@@ -224,3 +224,9 @@ func (s *AutoPayoutSetting) ParseFromLog(log types.Log) error {
 
 	return nil
 }
+
+type TransferData struct {
+	From  common.Address
+	To    common.Address
+	Value *big.Int
+}

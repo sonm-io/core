@@ -47,6 +47,7 @@ OPTIMUS    := ${TARGETDIR}/sonmoptimus_$(OS_ARCH)
 LSGPU      := ${TARGETDIR}/lsgpu_$(OS_ARCH)
 PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
 ORACLE     := ${TARGETDIR}/sonmoracle_$(OS_ARCH)
+ERIC       := ${TARGETDIR}/sonmeric_$(OS_ARCH)
 CONNOR     := ${TARGETDIR}/sonmconnor_$(OS_ARCH)
 SONMMON    := ${TARGETDIR}/sonmmon_$(OS_ARCH)
 
@@ -129,6 +130,10 @@ build/oracle:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${ORACLE} ${GOCMD}/oracle
 
+build/eric:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${ERIC} ${GOCMD}/eric
+
 build/connor:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${CONNOR} ${GOCMD}/connor
@@ -143,7 +148,7 @@ endif
 
 build/insomnia: build/worker build/cli build/node
 
-build/aux: build/relay build/rv build/dwh build/pandora build/optimus build/oracle build/connor build/sonmmon
+build/aux: build/relay build/rv build/dwh build/pandora build/optimus build/oracle build/connor build/sonmmon build/eric
 
 build: build/insomnia build/aux
 

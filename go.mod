@@ -128,6 +128,7 @@ require (
 	github.com/serialx/hashring v0.0.0-20170811022404-6a9381c5a83e
 	github.com/sevlyar/retag v0.0.0-20171212084444-de3f0096c81e
 	github.com/shirou/gopsutil v0.0.0-20170804030934-3aa2ffab12a1
+	github.com/sonm-io/go-ethereum v1.8.18
 	github.com/spf13/afero v1.1.0
 	github.com/spf13/cast v1.2.0
 	github.com/spf13/cobra v0.0.0-20170731170427-b26b538f6930

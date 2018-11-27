@@ -192,7 +192,7 @@ type AutoPayoutAPI interface {
 	SetAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, limit *big.Int, address common.Address) error
 	DoAutoPayout(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error
 	GetPayoutSetting(ctx context.Context, address common.Address) (*AutoPayoutSetting, error)
-	GetPayoutSettings(ctx context.Context, fromBlock, toBlock *big.Int) ([]*AutoPayoutSetting, error)
+	GetPayoutSettings(ctx context.Context, toBlock *big.Int) ([]*AutoPayoutSetting, error)
 }
 
 type BasicAPI struct {
@@ -1772,6 +1772,27 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- 
 			return
 		}
 		sendData(&OwnerAdditionData{Owner: sender})
+	case AutoPayoutChangedTopic:
+		s := &AutoPayoutSetting{}
+		err := s.ParseFromLog(log)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(s)
+	case TransferTopic:
+		from, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		to, err := extractAddress(log.Topics, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		value := common.HexToHash(common.Bytes2Hex(log.Data)).Big()
+		sendData(&TransferData{From: from, To: to, Value: value})
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},
@@ -2143,33 +2164,48 @@ func (api *BasicAutoPayoutAPI) GetPayoutSetting(ctx context.Context, address com
 	}, nil
 }
 
-func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context, fromBlock, toBlock *big.Int) ([]*AutoPayoutSetting, error) {
+func (api *BasicAutoPayoutAPI) GetPayoutSettings(ctx context.Context, toBlock *big.Int) ([]*AutoPayoutSetting, error) {
 	var (
-		settings   []*AutoPayoutSetting
 		topics     [][]common.Hash
 		eventTopic = []common.Hash{
 			AutoPayoutChangedTopic,
 		}
 	)
 	topics = append(topics, eventTopic)
-
 	logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{api.address},
 		Topics:    topics,
-		FromBlock: fromBlock,
 		ToBlock:   toBlock,
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	return api.filterActualSettings(logs)
+}
+
+func (api *BasicAutoPayoutAPI) filterActualSettings(logs []types.Log) ([]*AutoPayoutSetting, error) {
+	type s struct {
+		setting   *AutoPayoutSetting
+		lastBlock uint64
+	}
+	sets := make(map[string]s)
 	for _, l := range logs {
 		set := &AutoPayoutSetting{}
 		err := set.ParseFromLog(l)
 		if err != nil {
 			return nil, err
 		}
-		settings = append(settings, set)
+		if sets[set.Master.String()].lastBlock < l.BlockNumber {
+			sets[set.Master.String()].setting.Master = set.Master
+			sets[set.Master.String()].setting.Target = set.Target
+			sets[set.Master.String()].setting.LowLimit = set.LowLimit
+		}
+	}
+
+	var settings []*AutoPayoutSetting
+	for _, s := range sets {
+		settings = append(settings, s.setting)
 	}
 	return settings, nil
 }
