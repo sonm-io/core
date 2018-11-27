@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/sonm-io/core/insonmnia/npp/relay"
@@ -77,8 +78,9 @@ type Listener struct {
 	puncherQUIC    NATPuncher
 	puncherNewQUIC func(ctx context.Context) (NATPuncher, error)
 
-	relayListener *relay.Listener
-	relayChannel  chan connTuple
+	relayListener    *relay.Listener
+	relayChannel     chan connTuple
+	relayConcurrency uint8
 
 	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
@@ -118,8 +120,9 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 		puncherQUIC:    nil,
 		puncherNewQUIC: opts.puncherNewQUIC,
 
-		relayListener: opts.relayListener,
-		relayChannel:  make(chan connTuple, opts.nppBacklog),
+		relayListener:    opts.relayListener,
+		relayChannel:     make(chan connTuple, opts.nppBacklog),
+		relayConcurrency: opts.RelayConcurrency,
 
 		minBackoffInterval: opts.nppMinBackoffInterval,
 		maxBackoffInterval: opts.nppMaxBackoffInterval,
@@ -128,7 +131,7 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 	go m.listen(ctx)
 	go m.listenQUIC(ctx)
 	go m.listenPuncher(ctx)
-	go m.listenRelay(ctx)
+	m.runRelayListeners(ctx)
 
 	return m, nil
 }
@@ -247,11 +250,20 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 	}
 }
 
+func (m *Listener) runRelayListeners(ctx context.Context) error {
+	for i := uint8(0); i < m.relayConcurrency; i++ {
+		go m.listenRelay(ctx)
+	}
+
+	return nil
+}
+
 func (m *Listener) listenRelay(ctx context.Context) error {
 	if m.relayListener == nil {
 		return nil
 	}
 
+	m.log.Sugar().Infof("listening Relay on [%s]", strings.Join(m.relayListener.Addrs, ", "))
 	defer m.log.Info("finished listening Relay")
 
 	timeout := m.minBackoffInterval
@@ -266,7 +278,7 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 		case <-timer.C:
 		}
 
-		m.log.Debug("connecting using relay")
+		m.log.Debug("announcing using relay")
 
 		conn, err := m.relayListener.Accept()
 		if err != nil {
