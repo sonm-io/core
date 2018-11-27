@@ -63,4 +63,6 @@ module.exports = {
         },
     },
     mocha: mochaConfig,
+    // eslint-disable-next-line camelcase
+    contracts_directory: './contracts',
 };
