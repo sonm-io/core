@@ -616,7 +616,7 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 }
 
 func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
-	log.S(o.ctx).Debugf("overseer cleaning up %s on deal finish", containerID)
+	log.S(ctx).Debugf("overseer cleaning up %s on deal finish", containerID)
 	var isRunning bool
 	if info, err := o.client.ContainerInspect(ctx, containerID); err != nil {
 		return fmt.Errorf("failed to inspect container %s: %v", containerID, err)

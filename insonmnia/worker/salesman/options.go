@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"errors"
 
+	"context"
+
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
@@ -16,7 +18,7 @@ import (
 )
 
 type DealDestroyer interface {
-	CancelDealTasks(dealID *sonm.BigInt) error
+	CancelDealTasks(ctx context.Context, dealID *sonm.BigInt) error
 }
 
 type options struct {
