@@ -123,32 +123,6 @@ func (m *meeting) putClient(id ConnID, conn net.Conn, tx chan<- error) {
 	}
 }
 
-func (m *meeting) popServer(id ConnID) *peerCandidate {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	v, ok := m.servers[id]
-	if ok {
-		delete(m.servers, id)
-		return v
-	}
-
-	return nil
-}
-
-func (m *meeting) popClient(id ConnID) *peerCandidate {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	v, ok := m.clients[id]
-	if ok {
-		delete(m.clients, id)
-		return v
-	}
-
-	return nil
-}
-
 func (m *meeting) popRandomServer() *peerCandidate {
 	return m.randomPeerCandidate(m.servers)
 }
