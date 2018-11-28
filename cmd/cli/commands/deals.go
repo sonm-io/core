@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	dealsSearchCount  uint64
 	blacklistTypeStr  string
 	crNewDurationFlag string
 	crNewPriceFlag    string
@@ -22,7 +21,7 @@ var (
 )
 
 func init() {
-	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
+	dealListCmd.PersistentFlags().Uint64Var(&listLimitFlag, "limit", defaultListLimit, "Deals count to show")
 	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "nobody", "Whom to add to blacklist: `worker`, `master` or `nobody`")
 
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewDurationFlag, "new-duration", "", "Propose new duration for a deal")
@@ -75,7 +74,7 @@ var dealListCmd = &cobra.Command{
 		}
 		req := &sonm.DealsRequest{
 			AnyUserID: sonm.NewEthAddress(addr),
-			Limit:     dealsSearchCount,
+			Limit:     listLimitFlag,
 			Status:    sonm.DealStatus_DEAL_ACCEPTED,
 			Sortings: []*sonm.SortingOption{{
 				Field: "StartTime",

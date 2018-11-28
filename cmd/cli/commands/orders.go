@@ -8,12 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	ordersSearchLimit uint64 = 0
-)
-
 func init() {
-	orderListCmd.PersistentFlags().Uint64Var(&ordersSearchLimit, "limit", 10, "Orders count to show")
+	orderListCmd.PersistentFlags().Uint64Var(&listLimitFlag, "limit", defaultListLimit, "Orders count to show")
 
 	orderRootCmd.AddCommand(
 		orderListCmd,
@@ -42,7 +38,7 @@ var orderListCmd = &cobra.Command{
 			return fmt.Errorf("сannot create client connection: %v", err)
 		}
 
-		req := &sonm.Count{Count: ordersSearchLimit}
+		req := &sonm.Count{Count: listLimitFlag}
 		reply, err := market.GetOrders(ctx, req)
 		if err != nil {
 			return fmt.Errorf("cannot receive orders from marketplace: %v", err)
