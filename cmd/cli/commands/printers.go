@@ -397,6 +397,20 @@ func dealsExpensesPerHour(addr common.Address, deals []*sonm.DWHDeal) (*sonm.Big
 	return sonm.NewBigInt(inAsks), sonm.NewBigInt(inBids)
 }
 
+func dealType(deal *sonm.Deal, addr common.Address) string {
+	isSell := deal.GetSupplierID().Unwrap() == addr || deal.GetMasterID().Unwrap() == addr
+	isBuy := deal.GetConsumerID().Unwrap() == addr
+
+	if isSell && isBuy {
+		return "BOTH"
+	} else if isSell {
+		return "SELL"
+	} else if isBuy {
+		return "BUY"
+	}
+	return ""
+}
+
 func printDealsList(cmd *cobra.Command, addr common.Address, deals []*sonm.DWHDeal) {
 	asks, bids := dealsExpensesPerHour(addr, deals)
 
@@ -407,7 +421,7 @@ func printDealsList(cmd *cobra.Command, addr common.Address, deals []*sonm.DWHDe
 		}
 
 		w := tablewriter.NewWriter(cmd.OutOrStdout())
-		w.SetHeader([]string{"ID", "price", "started at", "duration", "counterparty"})
+		w.SetHeader([]string{"ID", "type", "price", "started at", "duration", "counterparty"})
 		w.SetCaption(true, fmt.Sprintf("count: %d  ASKs: %s USD/h  BIDs: %s USD/h",
 			len(deals), asks.ToPriceString(), bids.ToPriceString()))
 		w.SetBorder(false)
@@ -424,6 +438,7 @@ func printDealsList(cmd *cobra.Command, addr common.Address, deals []*sonm.DWHDe
 
 			w.Append([]string{
 				deal.GetId().Unwrap().String(),
+				dealType(d.GetDeal(), addr),
 				deal.PricePerHour(),
 				deal.StartTime.Unix().Format(time.RFC3339),
 				duration,
