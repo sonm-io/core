@@ -1,3 +1,11 @@
+sonm-core (0.4.18) unstable; urgency=low
+
+  * Fixed: properly remove ask plans in Optimus (#1762).
+    This hotfix restores Optimus's ability to remove plans without immediate
+    exiting.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 28 Nov 2018 18:42:00 +0300
+
 sonm-core (0.4.17) unstable; urgency=low
 
   * Added: experimental QUIC protocol support (#1724).
