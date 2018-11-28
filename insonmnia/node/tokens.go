@@ -14,11 +14,7 @@ type tokenAPI struct {
 }
 
 func (t *tokenAPI) TestTokens(ctx context.Context, _ *sonm.Empty) (*sonm.Empty, error) {
-	if _, err := t.remotes.eth.TestToken().GetTokens(ctx, t.remotes.key); err != nil {
-		return nil, err
-	}
-
-	return &sonm.Empty{}, nil
+	return nil, fmt.Errorf("getting test tokens is not supported")
 }
 
 // Balance shows balance on node's address

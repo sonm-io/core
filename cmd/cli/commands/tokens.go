@@ -17,7 +17,6 @@ var (
 
 func init() {
 	tokenRootCmd.AddCommand(
-		// tokenGetCmd,
 		tokenBalanceCmd,
 		tokenDepositCmd,
 		tokenWithdrawCmd,
@@ -32,27 +31,6 @@ var tokenRootCmd = &cobra.Command{
 	Use:               "token",
 	Short:             "Manage tokens",
 	PersistentPreRunE: loadKeyStoreWrapper,
-}
-
-var tokenGetCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Get SONM test tokens (ERC20)",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
-
-		token, err := newTokenManagementClient(ctx)
-		if err != nil {
-			return fmt.Errorf("cannot create client connection: %v", err)
-		}
-
-		if _, err := token.TestTokens(ctx, &sonm.Empty{}); err != nil {
-			return fmt.Errorf("cannot get tokens: %v", err)
-		}
-
-		showOk(cmd)
-		return nil
-	},
 }
 
 var tokenBalanceCmd = &cobra.Command{
