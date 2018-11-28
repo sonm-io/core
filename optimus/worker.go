@@ -104,11 +104,11 @@ func (m *workerManagementClientExt) RemoveAskPlans(ctx context.Context, ids []st
 
 	// Concurrently remove all required ask-plans. The wait-group here always
 	// returns nil.
-	wg, ctx := errgroup.WithContext(ctx)
+	wg, ctxRemove := errgroup.WithContext(ctx)
 	for _, id := range ids {
 		id := id
 		wg.Go(func() error {
-			if _, err := m.RemoveAskPlan(ctx, &sonm.ID{Id: id}); err != nil {
+			if _, err := m.RemoveAskPlan(ctxRemove, &sonm.ID{Id: id}); err != nil {
 				errs.Set(id, err)
 			}
 
