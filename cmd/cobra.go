@@ -7,16 +7,16 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/sonm-io/core/insonmnia/version"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 var (
-	AppVersion string
-	app        = AppContext{
+	app = AppContext{
 		Name:    path.Base(os.Args[0]),
-		Version: AppVersion,
+		Version: version.Version,
 	}
 	showVersion bool
 )

@@ -68,7 +68,7 @@ ifeq ($(WITH_NL),true)
     NL_TAGS := nl
 endif
 
-LDFLAGS = -X github.com/sonm-io/core/cmd.AppVersion=$(FULL_VERSION)
+LDFLAGS = -X github.com/sonm-io/core/insonmnia/version.Version=$(FULL_VERSION)
 
 .PHONY: fmt vet test
 
@@ -190,6 +190,7 @@ mock: build_mockgen
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package sonm -destination proto/dwh_mock.go  -source proto/dwh.pb.go
 	mockgen -package node -destination insonmnia/node/server_mock.go -source insonmnia/node/server.go
+	mockgen -package version -destination insonmnia/version/version_mock.go -source insonmnia/version/version.go
 
 clean:
 	rm -f ${WORKER} ${CLI} ${NODE} ${AUTOCLI} ${RENDEZVOUS}

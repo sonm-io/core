@@ -6,6 +6,7 @@ import (
 
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
+	"github.com/sonm-io/core/insonmnia/version"
 	"github.com/sonm-io/core/optimus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -45,6 +46,7 @@ func run(app cmd.AppContext) error {
 	}
 
 	ctx := ctxlog.WithLogger(context.Background(), log)
+	version.ValidateVersion(ctx, version.NewLogObserver(log.Sugar()))
 	bot, err := optimus.NewOptimus(cfg, optimus.WithVersion(app.Version), optimus.WithLog(log.Sugar()))
 	if err != nil {
 		return fmt.Errorf("failed to create Optimus: %v", err)

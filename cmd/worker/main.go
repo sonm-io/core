@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/version"
 	"github.com/sonm-io/core/insonmnia/worker"
 	"github.com/sonm-io/core/util/metrics"
 	"go.uber.org/zap"
@@ -34,6 +35,7 @@ func run(app cmd.AppContext) error {
 		return fmt.Errorf("failed to build logger instance: %s", err)
 	}
 	ctx = log.WithLogger(ctx, logger)
+	version.ValidateVersion(ctx, version.NewLogObserver(logger.Sugar()))
 
 	storage, err := state.NewState(ctx, &cfg.Storage)
 	if err != nil {
