@@ -1,3 +1,92 @@
+sonm-core (0.4.17) unstable; urgency=low
+
+  * Added: experimental QUIC protocol support (#1724).
+    Tread lightly. What is it now? Speak, fool. At last. No one orders me around!
+    Introducing QUIC protocol support in most of the components. QUIC is
+    an experimental transport layer network protocol, which we use as an
+    alternative to TCP to achieve reliable communication between our
+    components.
+    The main reason to include this is to increase connection establishing
+    stability between any 2 peers, which are located under private networks.
+    QUIC is designed at top of UDP, which is more predictable and
+    investigated for NAT penetration, unlike we do for TCP in a hacky way.
+    Since QUIC allows to multiplex many connections into a single socket
+    there is no need to penetrate NAT for the same client-server pair
+    multiple times. After the first successful attempt, the punched hole will
+    be reused.
+    The Rendezvous server has been updated to support UDP hole punching using
+    QUIC protocol. It additionally exposes its gRPC server on the same UDP
+    port as for TCP, since it is possible to reuse ports in case of different
+    network protocols used. The wire-level left the same - gRPC.
+    Affected components: Worker, Node, Rendezvous. Both Node and Worker now
+    expose its gRPC services on both TCP and UDP sockets, the port number is
+    the same.
+    At last, Windows users now can utilize our NAT punching feature, since
+    multiplexed UDP communication does not require SO_REUSEPORT flag. So
+    relaying now isn't the only single option for Windows.
+    Note, that this feature is currently in an experimental stage. You can
+    try it by specifying "SONM_ENABLE_QUIC=true" environment while starting
+    Node server.
+  * Added: version checking for core components (#1756).
+    Currently we often have a situation when our clients (both suppliers and
+    customers) don't know whether a new version of the platform has been released.
+    To avoid this we've done a simple console notification as a warning about
+    whether it's time to update.
+  * Added: metrics collection addr and ACL for worker (#1752).
+    We must provide metrics collection address to properly set ACLs in worker
+    and also be able to collect metrics from whole SONM network.
+  * Added: show deal type in deal list cmd (#1749).
+    This commit adds the "type" field into the "sonmcli deal list" command.
+    The type indicates that the current user is selling or buying resources in
+    that deal.
+    Closes #1445.
+  * Added: announce in the Relay concurrently (#1745).
+    Currently, we have a time window where after accepting a relayed connection
+    clients are forced to wait until a server publishes itself again. This window
+    can be reduced by announcing itself with several connections concurrently. By
+    default, the concurrency is set to 2, but it can be increased up to 4 in the
+    config.
+  * Added: log Worker's ETH address during start up (#1740).
+  * Added: background metrics collector for worker (#1715).
+    This PR Introduces hardware metrics of the worker, consists of the following
+    parts:
+    - MetricsHandler plugin bound to worker's instance, it's responsible for
+    handling hardware-specific metrics providers (currently for GPUs only),
+    updating the whole set of metrics by the timer, return last known state.
+    - GRPC method for WorkerManagement API, can be used to retrieve metrics by the
+    master or admin address.
+  * Fixed: proper ask-plan removal on startup (#1750).
+    This PR fixes error during removal of ask-plan on startup due to resource
+    change.
+  * Fixed: add timeout in Optimus while removing plans (#1755).
+  * Fixed: stable smart contract compilation (#1741).
+  * Fixed: show master and worker IDs in deal status (#1746).
+    Closes #1735.
+  * Fixed: replace TCP KA with HTTP2 pings to Rendezvous (#1751).
+    Previously we tried to set up TCP keepalive option to ensure that even
+    if the NAT closes the connection we're still able to detect it properly.
+    However, the library we use to configure SO_REUSEPORT option just
+    ignores any keepalive specifications. So we set it, but nothing worked
+    properly. All this results in a situation when sometimes during either
+    network instability or NAT conntrack configurations the Rendezvous
+    server properly detected whether a Worker is disconnected, but the
+    Worker itself - was not, otherwise it would try to reconnect.
+    This change replaces TCP keepalives with HTTP/2 ping frames, which
+    are more portable and works in userland.
+  * Fixed: master (#1748).
+  * Fixed: deadlock in Rendezvous server (#1739).
+    There is a situation where a client no longer awaits the resolution result,
+    while there is actually alive server who is ready to establish the connection.
+    In this case the communication channel becomes overflowed (because of its
+    capacity of 1), which leads to a deadlock.
+    This PR fixes that by increasing the capacity to 2. Not the best solution, but
+    for now at least it fixes deadlocking.
+  * Fixed: rebuild contracts with new locked npm deps (#1737).
+  * Fixed: lock npm deps (#1736).
+    This PR locks all npm deps resulting in a more stable behaviour.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 28 Nov 2018 15:51:51 +0300
+
 sonm-core (0.4.16) unstable; urgency=low
 
   * Added: collect power consumption for GPUs (#1722).
