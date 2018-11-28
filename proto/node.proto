@@ -125,6 +125,7 @@ message WorkerListReply {
 service TokenManagement {
     // TestTokens increases balance for some amount of test tokens
     // into live-chian ethereum network.
+    // Deprecated: currently we do not use custom token with this possibility
     rpc TestTokens(Empty) returns (Empty) {}
     // Balance provide account balance for live- and side- chains.
     // Deprecated: use BalanceOf method instead.

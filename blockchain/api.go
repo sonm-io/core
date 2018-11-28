@@ -36,7 +36,6 @@ type API interface {
 	Blacklist() BlacklistAPI
 	MasterchainToken() TokenAPI
 	SidechainToken() TokenAPI
-	TestToken() TestTokenAPI
 	OracleUSD() OracleAPI
 	MasterchainGate() SimpleGatekeeperAPI
 	SidechainGate() SimpleGatekeeperAPI
@@ -138,12 +137,6 @@ type TokenAPI interface {
 	DecreaseApproval(ctx context.Context, key *ecdsa.PrivateKey, spender common.Address, value *big.Int) error
 }
 
-type TestTokenAPI interface {
-	// GetTokens - send 100 SNMT token for message caller
-	// this function added for MVP purposes and has been deleted later
-	GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
-}
-
 // OracleAPI manage price relation between some currency and SNM token
 type OracleAPI interface {
 	// SetCurrentPrice sets current price relation between some currency and SONM token
@@ -197,7 +190,6 @@ type BasicAPI struct {
 	contractRegistry ContractRegistry
 	masterchainToken TokenAPI
 	sidechainToken   TokenAPI
-	testToken        TestTokenAPI
 	blacklist        BlacklistAPI
 	market           MarketAPI
 	profileRegistry  ProfileRegistryAPI
@@ -220,7 +212,6 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 		api.setupContractRegistry,
 		api.setupMasterchainToken,
 		api.setupSidechainToken,
-		api.setupTestToken,
 		api.setupBlacklist,
 		api.setupMarket,
 		api.setupProfileRegistry,
@@ -267,16 +258,6 @@ func (api *BasicAPI) setupSidechainToken(ctx context.Context) error {
 	}
 	api.sidechainToken = sidechainToken
 
-	return nil
-}
-
-func (api *BasicAPI) setupTestToken(ctx context.Context) error {
-	masterchainTokenAddr := api.contractRegistry.MasterchainSNMAddress()
-	testToken, err := NewTestToken(masterchainTokenAddr, api.options.masterchain)
-	if err != nil {
-		return fmt.Errorf("failed to setup test token: %s", err)
-	}
-	api.testToken = testToken
 	return nil
 }
 
@@ -376,10 +357,6 @@ func (api *BasicAPI) MasterchainToken() TokenAPI {
 
 func (api *BasicAPI) SidechainToken() TokenAPI {
 	return api.sidechainToken
-}
-
-func (api *BasicAPI) TestToken() TestTokenAPI {
-	return api.testToken
 }
 
 func (api *BasicAPI) Blacklist() BlacklistAPI {
@@ -1273,35 +1250,6 @@ func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.Privat
 
 func (api *StandardTokenApi) TotalSupply(ctx context.Context) (*big.Int, error) {
 	return api.tokenContract.TotalSupply(getCallOptions(ctx))
-}
-
-type TestTokenApi struct {
-	client        CustomEthereumClient
-	tokenContract *marketAPI.SNMTToken
-	opts          *chainOpts
-}
-
-func NewTestToken(address common.Address, opts *chainOpts) (TestTokenAPI, error) {
-	client, err := opts.getClient()
-	if err != nil {
-		return nil, err
-	}
-
-	tokenContract, err := marketAPI.NewSNMTToken(address, client)
-	if err != nil {
-		return nil, err
-	}
-
-	return &TestTokenApi{
-		client:        client,
-		tokenContract: tokenContract,
-		opts:          opts,
-	}, nil
-}
-
-func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, getTokensGasLimit)
-	return api.tokenContract.GetTokens(opts)
 }
 
 type BasicEventsAPI struct {
