@@ -99,9 +99,12 @@ func (m *workerManagementClientExt) RemoveAskPlans(ctx context.Context, ids []st
 		idSet[id] = struct{}{}
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
 	// Concurrently remove all required ask-plans. The wait-group here always
 	// returns nil.
-	wg := errgroup.Group{}
+	wg, ctx := errgroup.WithContext(ctx)
 	for _, id := range ids {
 		id := id
 		wg.Go(func() error {
