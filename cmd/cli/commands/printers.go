@@ -686,7 +686,7 @@ func printBlacklist(cmd *cobra.Command, list *sonm.BlacklistReply) {
 			return
 		}
 
-		cmd.Println("Blacklisted addresses:")
+		cmd.Printf("Blacklisted addresses (%d):\r\n", len(list.GetAddresses()))
 		for _, addr := range list.GetAddresses() {
 			cmd.Printf("  %s\n", addr)
 		}
