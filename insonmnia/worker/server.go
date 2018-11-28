@@ -93,7 +93,6 @@ var (
 		workerAPIPrefix + "DebugState",
 		workerAPIPrefix + "RemoveBenchmark",
 		workerAPIPrefix + "PurgeBenchmarks",
-		workerAPIPrefix + "Metrics",
 	}
 
 	leakedInsecureKey = common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd")
@@ -722,6 +721,12 @@ func (m *Worker) setupAuthorization() error {
 
 	managementAuth := newAnyOfAuth(managementAuthOptions...)
 
+	// master, admin, and metrics collector service is allowed to obtain metrics
+	metricsCollectorAuth := managementAuthOptions
+	if m.cfg.MetricsCollector != nil {
+		metricsCollectorAuth = append(metricsCollectorAuth, auth.NewTransportAuthorization(*m.cfg.MetricsCollector))
+	}
+
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),
 		// Note: need to refactor auth router to support multiple prefixes for methods.
@@ -751,6 +756,7 @@ func (m *Worker) setupAuthorization() error {
 		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (*sonm.BigInt, error) {
 			return sonm.NewBigIntFromString(request.(*sonm.ID).GetId())
 		}))),
+		auth.Allow(workerAPIPrefix+"Metrics").With(newAnyOfAuth(metricsCollectorAuth...)),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 

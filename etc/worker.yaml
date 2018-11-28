@@ -15,6 +15,14 @@ endpoint: ":15010"
 # This option is required.
 # master: 0x0000000000000000000000000000000000000001
 
+# Metrics collector key is a key that have access to Metrics handle.
+# This key should be set to grant access to metrics aggregation and
+# notification service. Such service is collecting worker metrics
+# once a minute and notify worker's owner if something went wrong
+# (no free space on disks, GPU is overheat, worker goes offline, etc).
+# Optional parameter.
+metrics_collector: 0xc5e20a52e67ef65f7d73728bcfaa0f53b00220b9
+
 # NAT punching settings.
 npp: &npp
   rendezvous:
