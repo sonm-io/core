@@ -17,6 +17,7 @@ import (
 	netDriver "github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +34,7 @@ func NewL2TPTuner(ctx context.Context, cfg *L2TPConfig) (*L2TPTuner, error) {
 		return nil, err
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := xdocker.NewClient()
 	if err != nil {
 		return nil, err
 	}

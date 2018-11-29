@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"syscall"
 
-	"github.com/docker/docker/client"
+	"github.com/sonm-io/core/util/xdocker"
 )
 
 type Info struct {
@@ -15,11 +15,10 @@ type Info struct {
 
 // FreeDiskSpace returns free bytes for docker root path.
 func FreeDiskSpace(ctx context.Context) (*Info, error) {
-	cli, err := client.NewEnvClient()
+	cli, err := xdocker.NewClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not get docker client: %s", err)
 	}
-	defer cli.Close()
 
 	info, err := cli.Info(ctx)
 	if err != nil {

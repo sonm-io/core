@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/sonm-io/core/insonmnia/worker/network/tc"
 	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
 )
 
@@ -139,7 +140,7 @@ func NewNetworkManager() (*NetworkManager, error) {
 func NewNetworkManagerWithConfig(cfg NetworkManagerConfig) (*NetworkManager, error) {
 	var err error
 	if cfg.DockerClient == nil {
-		cfg.DockerClient, err = client.NewEnvClient()
+		cfg.DockerClient, err = xdocker.NewClient()
 		if err != nil {
 			return nil, err
 		}

@@ -22,6 +22,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	bch "github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xdocker"
 )
 
 var (
@@ -122,14 +123,13 @@ func tearDownTests(ctx context.Context, containerID string, cli *client.Client) 
 }
 
 func startPostgresContainer(ctx context.Context) (cli *client.Client, containerID string, err error) {
-	cli, err = client.NewEnvClient()
+	cli, err = xdocker.NewClient()
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to setup Docker client: %s", err)
 	}
 
 	reader, err := cli.ImagePull(ctx, "docker.io/library/postgres", types.ImagePullOptions{})
 	if err != nil {
-		cli.Close()
 		return nil, "", fmt.Errorf("failed to pull postgres image: %s", err)
 	}
 	io.Copy(os.Stdout, reader)
@@ -145,12 +145,10 @@ func startPostgresContainer(ctx context.Context) (cli *client.Client, containerI
 	}
 	resp, err := cli.ContainerCreate(ctx, containerCfg, hostCfg, nil, "dwh-postgres-test")
 	if err != nil {
-		cli.Close()
 		return nil, "", fmt.Errorf("failed to create container: %s", err)
 	}
 
 	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-		cli.Close()
 		return nil, "", fmt.Errorf("failed to start container: %s", err)
 	}
 

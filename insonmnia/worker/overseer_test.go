@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/gliderlabs/ssh"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -55,9 +54,8 @@ EXPOSE 20000
 EXPOSE 20001/udp
 ENTRYPOINT /usr/bin/worker.sh
 	`
-	cl, err := client.NewEnvClient()
+	cl, err := xdocker.NewClient()
 	assert.NoError(err)
-	defer cl.Close()
 
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
@@ -108,9 +106,8 @@ ENTRYPOINT /usr/bin/worker.sh
 func TestOvsSpawn(t *testing.T) {
 	assrt := assert.New(t)
 	buildTestImage(t)
-	cl, err := client.NewEnvClient()
+	cl, err := xdocker.NewClient()
 	assrt.NoError(err)
-	defer cl.Close()
 	ctx := context.Background()
 	ovs, err := NewOverseer(ctx, plugin.EmptyRepository())
 	require.NoError(t, err)
@@ -149,9 +146,8 @@ func TestOvsSpawn(t *testing.T) {
 func TestOvsAttach(t *testing.T) {
 	assrt := assert.New(t)
 	buildTestImage(t)
-	cl, err := client.NewEnvClient()
+	cl, err := xdocker.NewClient()
 	assrt.NoError(err)
-	defer cl.Close()
 	ctx := context.Background()
 	ovs, err := NewOverseer(ctx, plugin.EmptyRepository())
 	require.NoError(t, err)

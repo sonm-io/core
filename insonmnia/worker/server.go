@@ -23,7 +23,6 @@ import (
 	"github.com/cnf/structhash"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -1452,12 +1451,10 @@ func (m *Worker) setupSalesman() error {
 }
 
 func (m *Worker) setupRunningContainers() error {
-	dockerClient, err := client.NewEnvClient()
+	dockerClient, err := xdocker.NewClient()
 	if err != nil {
 		return err
 	}
-	// Overseer maintains it's own instance of docker.Client
-	defer dockerClient.Close()
 
 	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{All: true})
 	if err != nil {

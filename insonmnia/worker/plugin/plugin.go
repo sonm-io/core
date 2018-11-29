@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -16,6 +15,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/storage"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
 )
 
@@ -136,11 +136,10 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 
 	if storage.PlatformSupportsQuota {
 		// NOTE: not sure it's safe to do it here. Please, suggest better place
-		docker, err := client.NewEnvClient()
+		docker, err := xdocker.NewClient()
 		if err != nil {
 			return nil, nil
 		}
-		defer docker.Close()
 
 		info, err := docker.Info(ctx)
 		if err != nil {

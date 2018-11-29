@@ -17,6 +17,7 @@ import (
 	netdriver "github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
 )
 
@@ -33,10 +34,11 @@ type TincCleaner struct {
 }
 
 func NewTincTuner(ctx context.Context, config *TincNetworkConfig) (*TincTuner, error) {
-	cli, err := client.NewEnvClient()
+	cli, err := xdocker.NewClient()
 	if err != nil {
 		return nil, err
 	}
+
 	netDriver, ipamDriver, err := NewTinc(ctx, cli, config)
 	if err != nil {
 		return nil, err

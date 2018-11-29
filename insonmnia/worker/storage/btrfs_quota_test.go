@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/sonm-io/core/util/xdocker"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,9 +23,8 @@ func TestBTRFSQuota(t *testing.T) {
 
 	ctx := context.Background()
 	require := require.New(t)
-	dclient, err := client.NewEnvClient()
+	dclient, err := xdocker.NewClient()
 	require.NoError(err)
-	defer dclient.Close()
 
 	info, err := dclient.Info(ctx)
 	require.NoError(err)
