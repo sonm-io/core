@@ -19,6 +19,7 @@ func FreeDiskSpace(ctx context.Context) (*Info, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get docker client: %s", err)
 	}
+	defer cli.Close()
 
 	info, err := cli.Info(ctx)
 	if err != nil {
