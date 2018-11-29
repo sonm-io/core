@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -23,10 +24,36 @@ func (e EthAuthInfo) AuthType() string {
 	return "ETH+" + e.TLS.AuthType()
 }
 
+type Peer struct {
+	*peer.Peer
+	Addr common.Address
+}
+
+func FromContext(ctx context.Context) (*Peer, error) {
+	peerInfo, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errNoPeerInfo()
+	}
+
+	addr, err := ExtractWalletFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Peer{
+		Peer: peerInfo,
+		Addr: *addr,
+	}, nil
+}
+
+func errNoPeerInfo() error {
+	return errors.New("no peer info provided")
+}
+
 func ExtractWalletFromContext(ctx context.Context) (*common.Address, error) {
 	peerInfo, ok := peer.FromContext(ctx)
 	if !ok {
-		return nil, fmt.Errorf("no peer info")
+		return nil, errNoPeerInfo()
 	}
 
 	switch auth := peerInfo.AuthInfo.(type) {

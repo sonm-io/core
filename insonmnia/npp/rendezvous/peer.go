@@ -22,7 +22,6 @@ func NewPeer(peerInfo peer.Peer, privateAddrs []*sonm.Addr) Peer {
 // This id is used for cleaning resources when a request is finished. Note,
 // that we cannot use peer's Ethereum address as an id, because it can be
 // shared across multiple servers/clients.
-// It's also intentionally that
 type PeerID string
 
 // NewPeerID constructs and returns a new unique id used for internal
