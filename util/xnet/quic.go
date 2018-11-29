@@ -5,7 +5,30 @@ import (
 	"net"
 
 	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/qerr"
 )
+
+type quicError struct {
+	error
+}
+
+func newQUICError(err error) *quicError {
+	return &quicError{
+		error: err,
+	}
+}
+
+func (m *quicError) Timeout() bool {
+	if err := qerr.ToQuicError(m.error); err != nil {
+		return err.Timeout()
+	}
+
+	return false
+}
+
+func (m *quicError) Temporary() bool {
+	return m.Timeout()
+}
 
 func DefaultQUICConfig() *quic.Config {
 	return &quic.Config{
@@ -66,12 +89,12 @@ type QUICListener struct {
 func (m *QUICListener) Accept() (net.Conn, error) {
 	session, err := m.Listener.Accept()
 	if err != nil {
-		return nil, err
+		return nil, newQUICError(err)
 	}
 
 	stream, err := session.AcceptStream()
 	if err != nil {
-		return nil, err
+		return nil, newQUICError(err)
 	}
 
 	conn := &QUICConn{
