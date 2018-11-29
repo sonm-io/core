@@ -1,12 +1,20 @@
 package xdocker
 
 import (
+	"sync"
+
 	"github.com/docker/docker/client"
 )
 
-var clientInstance *client.Client
+var (
+	mu             sync.Mutex
+	clientInstance *client.Client
+)
 
 func NewClient() (*client.Client, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	if clientInstance == nil {
 		cl, err := client.NewEnvClient()
 		if err != nil {
