@@ -42,9 +42,6 @@ metrics/config_test.json
 # truffle installs OpenZeppelin contracts here
 blockchain/node_modules
 
-# truffle stores build artifacts here
-# blockchain/build
-
 vendor/github.com/golang/mock/mockgen/mockgen
 
 token.txt
