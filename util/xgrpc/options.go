@@ -22,6 +22,7 @@ import (
 	"github.com/rcrowley/go-metrics"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -108,6 +109,8 @@ func newOptions(logger *zap.Logger, extraOpts ...ServerOption) *options {
 	// These must be set before other interceptors to avoid losing logs
 	// because of improper interceptor implementation.
 	if logger != nil {
+		logger = zap.New(logger.Core(), zap.AddStacktrace(zapcore.FatalLevel))
+
 		opts.interceptors.u = append(opts.interceptors.u, grpc_zap.UnaryServerInterceptor(logger))
 		opts.interceptors.s = append(opts.interceptors.s, grpc_zap.StreamServerInterceptor(logger))
 	}
