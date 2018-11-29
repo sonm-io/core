@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
