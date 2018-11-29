@@ -1,3 +1,26 @@
+sonm-core (0.4.19) unstable; urgency=low
+
+  * Fixed: random rendezvous hanging (#1758).
+  * Fixed: proper close docker client (#1766).
+    Without this fix Workers will probably become unreachable, because
+    of file descriptors leaking.
+  * Fixed: reduce noise while logging RPC calls (#1765).
+    Currently we print stacktraces for any error that is logged. This is
+    actually useful, but there are cases where it's more annoying than
+    useful. For example - messages after RPC calls, where stacktraces are
+    the same and completely useless.
+    After this change we should no longer print those stacktraces in audit
+    logs.
+  * Fixed: do not stop gRPC servers on temporary QUIC errors (#1764).
+    Right now all gRPC servers are stopped when they receive a non-temporary error
+    from the acceptor socket. Unfortunately, after introducing QUIC we forgot to
+    check whether this invariant is true, and now we suffer from servers
+    termination on any QUIC timeout etc.
+    This patch should fix random server stopping during some kind of temporary
+    network problems.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 29 Nov 2018 19:01:17 +0300
+
 sonm-core (0.4.18) unstable; urgency=low
 
   * Fixed: properly remove ask plans in Optimus (#1762).
