@@ -566,6 +566,23 @@ func (m *Worker) setupOverseer() error {
 	return nil
 }
 
+func (m *Worker) devicesUpdateRoutine(ctx context.Context) error {
+	defaultTTL, err := m.eth.DeviceStorage().DefaultTTL(ctx)
+	if err != nil {
+		return err
+	}
+	tk := util.NewImmediateTicker(time.Duration(defaultTTL) / 2)
+	for {
+		select {
+		case <-tk.C:
+			m.eth.DeviceStorage().StoreOrUpdate(ctx, m.key, m.hardware)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+}
+
 // Serve starts handling incoming API gRPC requests
 func (m *Worker) Serve() error {
 	m.startTime = time.Now()
@@ -588,6 +605,9 @@ func (m *Worker) Serve() error {
 		defer log.S(m.ctx).Infof("finished listening for gRPC API connections on %s", m.listener.Addr())
 
 		return m.externalGrpc.Serve(m.listener)
+	})
+	wg.Go(func() error {
+		return m.devicesUpdateRoutine(ctx)
 	})
 
 	<-ctx.Done()

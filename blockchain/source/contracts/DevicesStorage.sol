@@ -12,21 +12,22 @@ contract DevicesStorage is Ownable {
 
     mapping (address => Record) devicesMap;
 
-    uint public ttl = 1 days;
+    uint public defaultTTL = 1 days;
+
+    bytes32 constant emptyStringHash = keccak256("");
 
     // EVENTS
     event DevicesHasSet(address indexed owner);
     event DevicesUpdated(address indexed owner);
     event DevicesTimestampUpdated(address indexed owner);
 
-    // CONTSTRUCTOR
     constructor() public {
         owner = msg.sender;
     }
 
     // SETTERS
     function SetDevices(bytes _deviceList) public {
-        if (keccak256(devicesMap[msg.sender].devices) != keccak256("")) {
+        if (keccak256(abi.encodePacked(devicesMap[msg.sender].devices)) != emptyStringHash) {
             emit DevicesUpdated(msg.sender);
         } else {
             emit DevicesHasSet(msg.sender);
@@ -36,23 +37,34 @@ contract DevicesStorage is Ownable {
         devicesMap[msg.sender].timestamp = block.timestamp;
     }
 
-    function UpdateDevicesByHash(bytes32 _hash) public returns(bool) {
+    function UpdateTTL(bytes32 _hash) public returns(bool) {
         bytes32 recordHash = keccak256(abi.encodePacked(devicesMap[msg.sender].devices));
-        if (recordHash == _hash && recordHash != keccak256("")) {
+        if (recordHash == _hash && recordHash != emptyStringHash) {
             devicesMap[msg.sender].timestamp = block.timestamp;
-            DevicesTimestampUpdated(msg.sender);
+            emit DevicesTimestampUpdated(msg.sender);
             return true;
         }
         revert();
     }
 
-    function SetTTL(uint _new) public onlyOwner {
-        ttl = _new;
+    function SetDefaultTTL(uint _new) public onlyOwner {
+        defaultTTL = _new;
     }
 
     // GETTERS
+    function TTL(address _owner) public view returns (uint) {
+        if (block.timestamp > devicesMap[_owner].timestamp + defaultTTL) {
+            return 0;
+        }
+        return devicesMap[_owner].timestamp + defaultTTL - block.timestamp ;
+    }
+
+    function Hash(address _owner) public view returns(bytes32) {
+        return keccak256(abi.encodePacked(devicesMap[_owner].devices));
+    }
+
     function GetDevices(address _owner) public view returns (bytes devices) {
-        if (devicesMap[_owner].timestamp + ttl > block.timestamp) {
+        if (devicesMap[_owner].timestamp + defaultTTL > block.timestamp) {
             return devicesMap[_owner].devices;
         }
         return "";

@@ -21,9 +21,25 @@ contract('DevicesStora1ge', (accounts) => {
             await eventInTransaction(tx, 'DevicesHasSet');
         });
 
-        it('should update devices by hash', async () => {
+        it('should return current TTL for devices', async () => {
+            let ttl = await devicesStorage.TTL(worker);
+            assert.equal(ttl.toNumber(), 86400);
+            await increaseTime(86000);
+            ttl = await devicesStorage.TTL(worker);
+            assert.equal(ttl.toNumber(), 400);
+            await increaseTime(86000);
+            ttl = await devicesStorage.TTL(worker);
+            assert.equal(ttl.toNumber(), 0);
+        });
+
+        it('should return proper hash for devices', async () => {
+            let curHash = await devicesStorage.Hash(worker);
+            assert.equal(curHash, hash);
+        });
+
+        it('should update devices ttl by hash', async () => {
             await increaseTime(86400);
-            let tx = await devicesStorage.UpdateDevicesByHash(hash, { from: worker });
+            let tx = await devicesStorage.UpdateTTL(hash, { from: worker });
             increaseTime(86000);
             let returnedDevices = await devicesStorage.GetDevices(worker);
             await eventInTransaction(tx, 'DevicesTimestampUpdated');
@@ -32,7 +48,7 @@ contract('DevicesStora1ge', (accounts) => {
 
         it('should do not update devices by hash, revert', async () => {
             await increaseTime(1);
-            await assertRevert(devicesStorage.UpdateDevicesByHash('0x1', { from: worker }));
+            await assertRevert(devicesStorage.UpdateTTL('0x1', { from: worker }));
         });
 
         it('should return Devices same as written', async () => {
