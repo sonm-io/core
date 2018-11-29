@@ -43,7 +43,7 @@ metrics/config_test.json
 blockchain/node_modules
 
 # truffle stores build artifacts here
-blockchain/build
+# blockchain/build
 
 vendor/github.com/golang/mock/mockgen/mockgen
 
