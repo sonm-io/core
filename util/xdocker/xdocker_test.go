@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +34,7 @@ func TestImagePullFromMock(t *testing.T) {
 }
 
 func TestImagePull(t *testing.T) {
-	dockclient, err := client.NewEnvClient()
+	dockclient, err := NewClient()
 	if err != nil {
 		log.Fatal(err)
 	}
