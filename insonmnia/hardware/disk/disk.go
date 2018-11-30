@@ -9,8 +9,8 @@ import (
 )
 
 type Info struct {
-	AvailableBytes uint64
-	FreeBytes      uint64
+	TotalBytes uint64
+	FreeBytes  uint64
 }
 
 // FreeDiskSpace returns free bytes for docker root path.
@@ -37,7 +37,7 @@ func FreeDiskSpace(ctx context.Context) (*Info, error) {
 
 	// blocks * size per block = total size in bytes
 	return &Info{
-		AvailableBytes: stat.Bavail * uint64(stat.Bsize),
-		FreeBytes:      stat.Bfree * uint64(stat.Bsize),
+		TotalBytes: stat.Blocks * uint64(stat.Bsize),
+		FreeBytes:  stat.Bavail * uint64(stat.Bsize),
 	}, nil
 }

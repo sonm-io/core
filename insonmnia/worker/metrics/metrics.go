@@ -154,7 +154,7 @@ func (m *Handler) updateDiskMetrics(ctx context.Context) (map[string]float64, er
 	}
 
 	metrics := map[string]float64{
-		sonm.MetricsKeyDiskTotal: float64(info.AvailableBytes),
+		sonm.MetricsKeyDiskTotal: float64(info.TotalBytes),
 		sonm.MetricsKeyDiskFree:  float64(info.FreeBytes),
 	}
 
