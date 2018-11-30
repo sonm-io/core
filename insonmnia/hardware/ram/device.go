@@ -15,5 +15,5 @@ func NewRAMDevice() (*sonm.RAMDevice, error) {
 		Total:     m.Total,
 		Available: m.Total,
 		Used:      m.Used,
-	}, err
+	}, nil
 }
