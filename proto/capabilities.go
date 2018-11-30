@@ -109,6 +109,10 @@ func (m *RAMDevice) HardwareHash() string {
 	return ""
 }
 
+func (m *RAMDevice) GetFree() uint64 {
+	return m.GetTotal() - m.GetUsed()
+}
+
 func (m *Network) HardwareHash() string {
 	return ""
 }

@@ -13,6 +13,8 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type Addr struct {
+	// Protocol describes the underlying transport protocol, for example "tcp"
+	// or "udp".
 	Protocol string      `protobuf:"bytes,1,opt,name=protocol" json:"protocol,omitempty"`
 	Addr     *SocketAddr `protobuf:"bytes,2,opt,name=addr" json:"addr,omitempty"`
 }

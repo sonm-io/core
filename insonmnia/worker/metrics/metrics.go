@@ -169,7 +169,7 @@ func (m *Handler) updateRAMMetrics() (map[string]float64, error) {
 
 	metrics := map[string]float64{
 		sonm.MetricsKeyRAMTotal: float64(meme.GetTotal()),
-		sonm.MetricsKeyRAMFree:  float64(meme.GetAvailable()),
+		sonm.MetricsKeyRAMFree:  float64(meme.GetFree()),
 	}
 
 	return metrics, nil
