@@ -224,5 +224,5 @@ func (m *quicPuncher) RemoteAddr() net.Addr {
 }
 
 func (m *quicPuncher) Close() error {
-	return m.rendezvousClient.conn.Close()
+	return m.rendezvousClient.Close()
 }
