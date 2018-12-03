@@ -19,6 +19,7 @@ const (
 	defaultLogParsePeriod             = time.Second
 	defaultMasterchainGasLimit        = 500000
 	defaultSidechainGasLimit          = 2000000
+	defaultBlockBatchSize             = 1
 )
 
 // chainOpts describes common options
@@ -78,6 +79,7 @@ func defaultOptions() *options {
 			blockConfirmations: defaultBlockConfirmations,
 		},
 		contractRegistry: common.HexToAddress(defaultContractRegistryAddr),
+		blocksBatchSize:  defaultBlockBatchSize,
 	}
 }
 

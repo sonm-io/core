@@ -1274,6 +1274,10 @@ func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSi
 		return nil, err
 	}
 
+	if blocksBatchSize == 0 {
+		return nil, fmt.Errorf("blockBatchSize must be greater than 0")
+	}
+
 	return &BasicEventsAPI{
 		parent:          parent,
 		options:         opts,
