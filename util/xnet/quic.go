@@ -6,6 +6,7 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/qerr"
+	"github.com/sonm-io/core/util/multierror"
 )
 
 type quicError struct {
@@ -66,6 +67,18 @@ func (m *QUICConn) LocalAddr() net.Addr {
 
 func (m *QUICConn) RemoteAddr() net.Addr {
 	return m.session.RemoteAddr()
+}
+
+func (m *QUICConn) Close() error {
+	errs := multierror.NewMultiError()
+	if err := m.Stream.Close(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+	if err := m.session.Close(); err != nil {
+		errs = multierror.Append(errs, err)
+	}
+
+	return errs.ErrorOrNil()
 }
 
 func ListenQUIC(network, address string, tlsConfig *tls.Config, config *quic.Config) (*QUICListener, error) {
