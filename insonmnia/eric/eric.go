@@ -21,8 +21,7 @@ type Eric struct {
 	cfg    *Config
 
 	payoutSettings map[string]*struct {
-		mu             sync.Mutex
-		currentBalance *big.Int
+		mu sync.Mutex
 		*blockchain.AutoPayoutSetting
 	}
 }
@@ -44,6 +43,7 @@ func NewEric(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Eric, er
 
 func (e *Eric) Start(ctx context.Context) error {
 	// load configs
+	e.logger.Info("starting eric")
 
 	lastBlock, err := e.bch.Events().GetLastBlock(ctx)
 	if err != nil {
@@ -55,17 +55,21 @@ func (e *Eric) Start(ctx context.Context) error {
 		return err
 	}
 
+	e.logger.Debug("config loaded",
+		zap.Int("configs amount", len(settings)),
+		zap.Uint64("last processed block", lastBlock))
+
 	for _, s := range settings {
 		e.setConfigs(s)
+		// e.doPayout(ctx, s.Master)
 	}
 
 	// listen routine
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	errGroup := errgroup.Group{}
 	errGroup.Go(func() error {
-		err := e.eventsRoutine(ctx)
+		err := e.eventsRoutine(ctx, lastBlock)
 		if err != nil {
 			e.logger.Error("event watching routine failed", zap.Error(err))
 			cancel()
@@ -75,9 +79,9 @@ func (e *Eric) Start(ctx context.Context) error {
 	return errGroup.Wait()
 }
 
-func (e *Eric) eventsRoutine(ctx context.Context) error {
-	events, err := e.bch.Events().GetEvents(ctx, e.bch.Events().GetMultiSigFilter(
-		[]common.Address{e.bch.ContractRegistry().OracleMultiSig()}, big.NewInt(0)))
+func (e *Eric) eventsRoutine(ctx context.Context, fromBlock uint64) error {
+	e.logger.Debug("start event routine")
+	events, err := e.bch.Events().GetEvents(ctx, e.bch.Events().GetAutoPayoutFilter(big.NewInt(0).SetUint64(fromBlock)))
 	if err != nil {
 		return err
 	}
@@ -99,7 +103,7 @@ func (e *Eric) eventsRoutine(ctx context.Context) error {
 				if _, ok := e.payoutSettings[data.To.String()]; !ok {
 					return fmt.Errorf("address not found")
 				}
-				err := e.doPayout(ctx, data.To)
+				// err := e.doPayout(ctx, data.To)
 				return err
 			}
 
