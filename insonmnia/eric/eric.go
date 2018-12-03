@@ -8,7 +8,6 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"math/big"
 	"sync"
 	"time"
@@ -69,17 +68,12 @@ func (e *Eric) Start(ctx context.Context) error {
 
 	// listen routine
 	ctx, cancel := context.WithCancel(ctx)
-
-	errGroup := errgroup.Group{}
-	errGroup.Go(func() error {
-		err := e.eventsRoutine(ctx, lastBlock)
-		if err != nil {
-			e.logger.Error("event watching routine failed", zap.Error(err))
-			cancel()
-		}
-		return err
-	})
-	return errGroup.Wait()
+	err = e.eventsRoutine(ctx, lastBlock)
+	if err != nil {
+		e.logger.Error("event watching routine failed", zap.Error(err))
+		cancel()
+	}
+	return err
 }
 
 func (e *Eric) eventsRoutine(ctx context.Context, fromBlock uint64) error {
@@ -108,7 +102,9 @@ func (e *Eric) eventsRoutine(ctx context.Context, fromBlock uint64) error {
 					continue
 				}
 				err := e.doPayout(ctx, data.To)
-				return err
+				if err != nil {
+					return err
+				}
 			}
 
 		}
