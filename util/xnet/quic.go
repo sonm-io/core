@@ -71,9 +71,11 @@ func (m *QUICConn) RemoteAddr() net.Addr {
 
 func (m *QUICConn) Close() error {
 	errs := multierror.NewMultiError()
+
 	if err := m.Stream.Close(); err != nil {
 		errs = multierror.Append(errs, err)
 	}
+
 	if err := m.session.Close(); err != nil {
 		errs = multierror.Append(errs, err)
 	}
