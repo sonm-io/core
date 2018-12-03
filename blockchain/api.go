@@ -1493,7 +1493,7 @@ func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilte
 	ctxlog.S(ctx).Debugf("fetching events from %d till %d", filter.FromBlock, tillBlock)
 	for {
 		// we substract one, because of range inclusivity in FilterLogs call
-		filter.ToBlock = filter.FromBlock + api.blocksBatchSize - 1
+		filter.ToBlock = filter.ToBlock + api.blocksBatchSize - 1
 		if filter.ToBlock > tillBlock {
 			filter.ToBlock = tillBlock
 		}
