@@ -9,7 +9,6 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"go.uber.org/zap"
 	"math/big"
-	"sync"
 	"time"
 )
 
@@ -19,10 +18,7 @@ type Eric struct {
 	bch    blockchain.API
 	cfg    *Config
 
-	payoutSettings map[string]*struct {
-		mu sync.Mutex
-		*blockchain.AutoPayoutSetting
-	}
+	payoutSettings map[string]*blockchain.AutoPayoutSetting
 }
 
 func NewEric(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Eric, error) {
@@ -67,16 +63,15 @@ func (e *Eric) Start(ctx context.Context) error {
 	}
 
 	// listen routine
-	ctx, cancel := context.WithCancel(ctx)
-	err = e.eventsRoutine(ctx, lastBlock)
+	err = e.startEventProcessing(ctx, lastBlock)
 	if err != nil {
 		e.logger.Error("event watching routine failed", zap.Error(err))
-		cancel()
+		return err
 	}
-	return err
+	return nil
 }
 
-func (e *Eric) eventsRoutine(ctx context.Context, fromBlock uint64) error {
+func (e *Eric) startEventProcessing(ctx context.Context, fromBlock uint64) error {
 	e.logger.Debug("start event routine")
 	events, err := e.bch.Events().GetEvents(ctx, e.bch.Events().GetAutoPayoutFilter(big.NewInt(0).SetUint64(fromBlock)))
 	if err != nil {
@@ -112,12 +107,11 @@ func (e *Eric) eventsRoutine(ctx context.Context, fromBlock uint64) error {
 }
 
 func (e *Eric) setConfigs(s *blockchain.AutoPayoutSetting) {
-	e.payoutSettings[s.Master.String()].mu.Lock()
-	e.payoutSettings[s.Master.String()].AutoPayoutSetting = s
-	e.payoutSettings[s.Master.String()].mu.Unlock()
+	e.payoutSettings[s.Master.String()] = s
 }
 
 func (e *Eric) doPayout(ctx context.Context, master common.Address) error {
+
 	balance, err := e.bch.SidechainToken().BalanceOf(ctx, master)
 	if err != nil {
 		return err
