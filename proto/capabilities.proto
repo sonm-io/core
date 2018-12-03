@@ -27,8 +27,12 @@ message CPU {
 }
 
 message RAMDevice {
+    // Total amount of RAM on machine
     uint64 total = 1;
+    // Available amount of RAM for task scheduling
     uint64 available = 2;
+    // Used amount of RAM on machine
+    uint64 used = 3;
 }
 
 message RAM {
