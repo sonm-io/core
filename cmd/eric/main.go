@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/sonm-io/core/insonmnia/eric"
+	"golang.org/x/sync/errgroup"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
@@ -27,17 +28,24 @@ func run(app cmd.AppContext) error {
 
 	ctx := log.WithLogger(context.Background(), logger)
 
-	key, err := cfg.Eth.LoadKey()
-	if err != nil {
-		return fmt.Errorf("failed to load Ethereum keys: %s", err)
-	}
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return cmd.WaitInterrupted(ctx)
+	})
+	wg.Go(func() error {
+		e, err := eric.NewEric(ctx, cfg)
+		if err != nil {
+			return fmt.Errorf("failed to build Eric instance: %s", err)
+		}
 
-	e, err := eric.NewEric(ctx, key, cfg)
-	if err != nil {
-		return fmt.Errorf("failed to build Oracle instance: %s", err)
-	}
+		err = e.Start(ctx)
+		if err != nil {
+			return fmt.Errorf("eric execution failed: %s", err)
+		}
+		return nil
+	})
 
-	if err := e.Start(ctx); err != nil {
+	if err := wg.Wait(); err != nil {
 		return fmt.Errorf("termination: %s", err)
 	}
 
