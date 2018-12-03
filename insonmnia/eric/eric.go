@@ -50,6 +50,9 @@ func (e *Eric) Start(ctx context.Context) error {
 		return err
 	}
 
+	// TODO: make blockConfirmations configurable and rewrite this part
+	lastBlock = lastBlock - 5
+
 	settings, err := e.bch.AutoPayout().GetPayoutSettings(ctx, big.NewInt(0).SetUint64(lastBlock))
 	if err != nil {
 		return err
@@ -101,9 +104,10 @@ func (e *Eric) eventsRoutine(ctx context.Context, fromBlock uint64) error {
 			case *blockchain.TransferData:
 				e.logger.Debug("new transfer found", zap.Any("event", event))
 				if _, ok := e.payoutSettings[data.To.String()]; !ok {
-					return fmt.Errorf("address not found")
+					e.logger.Debug("address not found", zap.String("address", data.To.String()))
+					continue
 				}
-				// err := e.doPayout(ctx, data.To)
+				err := e.doPayout(ctx, data.To)
 				return err
 			}
 
@@ -128,5 +132,9 @@ func (e *Eric) doPayout(ctx context.Context, master common.Address) error {
 		return fmt.Errorf("currentBalance lower than low limit")
 	}
 
+	e.logger.Info("start new payout",
+		zap.String("address", master.String()),
+		zap.String("lowLimit", e.payoutSettings[master.String()].LowLimit.String()),
+		zap.String("balance", balance.SNM.String()))
 	return e.bch.AutoPayout().DoAutoPayout(ctx, e.key, master)
 }
