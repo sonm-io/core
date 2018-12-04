@@ -17,12 +17,12 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-// ConnectRequest describres a connection request to a remote target, possibly
+// ConnectRequest describes a connection request to a remote target, possibly
 // located under the NAT.
 type ConnectRequest struct {
 	// ID describes an unique ID of a target. Mainly it's an ETH address.
 	ID []byte `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	// Protocol describes network protocol the peer wants to resolve.
+	// Protocol describes the application protocol the peer wants to resolve.
 	Protocol string `protobuf:"bytes,2,opt,name=protocol" json:"protocol,omitempty"`
 	// PrivateAddrs describes source private addresses.
 	PrivateAddrs []*Addr `protobuf:"bytes,3,rep,name=privateAddrs" json:"privateAddrs,omitempty"`
@@ -55,7 +55,7 @@ func (m *ConnectRequest) GetPrivateAddrs() []*Addr {
 }
 
 type PublishRequest struct {
-	// Protocol describes network protocol the peer wants to publish.
+	// Protocol describes the application protocol the peer wants to publish.
 	Protocol string `protobuf:"bytes,1,opt,name=protocol" json:"protocol,omitempty"`
 	// PrivateAddrs describes source private addresses.
 	PrivateAddrs []*Addr `protobuf:"bytes,2,rep,name=privateAddrs" json:"privateAddrs,omitempty"`

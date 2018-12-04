@@ -1333,6 +1333,7 @@ var _MasterManagement_serviceDesc = grpc.ServiceDesc{
 type TokenManagementClient interface {
 	// TestTokens increases balance for some amount of test tokens
 	// into live-chian ethereum network.
+	// Deprecated: currently we do not use custom token with this possibility
 	TestTokens(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	// Balance provide account balance for live- and side- chains.
 	// Deprecated: use BalanceOf method instead.
@@ -1425,6 +1426,7 @@ func (c *tokenManagementClient) Transfer(ctx context.Context, in *TokenTransferR
 type TokenManagementServer interface {
 	// TestTokens increases balance for some amount of test tokens
 	// into live-chian ethereum network.
+	// Deprecated: currently we do not use custom token with this possibility
 	TestTokens(context.Context, *Empty) (*Empty, error)
 	// Balance provide account balance for live- and side- chains.
 	// Deprecated: use BalanceOf method instead.

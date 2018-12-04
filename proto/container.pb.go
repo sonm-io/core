@@ -126,6 +126,10 @@ type Container struct {
 	// ContainerRestartPolicy describes the restart policies of the container.
 	RestartPolicy *ContainerRestartPolicy `protobuf:"bytes,8,opt,name=restartPolicy" json:"restartPolicy,omitempty"`
 	// Expose controls how container ports are exposed.
+	// Format is "public_ip:public_port:private_port/protocol"
+	// Protocol can be "tcp", "udp", "sctp".
+	// If the "protocol" parameter is ommited "tcp" is implied.
+	// If the "public_ip" parameter is ommited then the port is being exposed on all available ips.
 	Expose []string `protobuf:"bytes,10,rep,name=expose" json:"expose,omitempty"`
 	// Push the committed image to remote repository (works only if CommitOnStop is set to `true`).
 	PushOnStop bool `protobuf:"varint,11,opt,name=pushOnStop" json:"pushOnStop,omitempty"`
