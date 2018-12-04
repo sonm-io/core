@@ -128,7 +128,8 @@ func (o *Oracle) Serve(ctx context.Context) error {
 		zap.String("account", crypto.PubkeyToAddress(o.key.PublicKey).String()),
 		zap.String("price update period:", o.cfg.Oracle.PriceUpdatePeriod.String()),
 		zap.String("contract update period", o.cfg.Oracle.ContractUpdatePeriod.String()),
-		zap.Float64("deviation percent", o.cfg.Oracle.Percent))
+		zap.Float64("deviation percent", o.cfg.Oracle.Percent),
+		zap.Bool("from now", o.cfg.Oracle.FromNow))
 
 	ctx, cancel := context.WithCancel(ctx)
 
