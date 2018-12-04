@@ -7,11 +7,11 @@ TESTRPC=./node_modules/ethereumjs-testrpc/build/cli.node.js
 SOLIUM=./node_modules/solium/bin/solium.js
 ESLINT=./node_modules/.bin/eslint
 
-.PHONY: all test clean node_modules coverage api
+.PHONY: all test node_modules coverage api
 
 all: node_modules lint compile test
 
-compile: clean
+compile:
 	@echo "+ $@"
 	@${TRUFFLE} compile
 
@@ -57,10 +57,7 @@ liveSideDeploy:
 	mv migrations live-deploy-scripts
 	mv tmp_dir migrations
 
-clean:
-	@rm -rf build
-
-generate_api: clean compile
+generate_api: compile
 	${GO} build utils/generate_api.go
 	./generate_api
 	rm generate_api
