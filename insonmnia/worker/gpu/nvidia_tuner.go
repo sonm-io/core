@@ -8,9 +8,11 @@ import (
 	"net"
 	"os"
 	"sync"
+	"syscall"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
@@ -223,14 +225,14 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	log.G(ctx).Info("provisioning volumes",
 		zap.String("at", ovs.options.VolumePath),
 		zap.String("version", ovs.options.DriverVersion))
+
 	volumes, err := nvidia.LookupVolumes(ovs.options.VolumePath, ovs.options.DriverVersion, volInfo)
 	if err != nil {
 		return nil, err
 	}
 
 	ovs.handler = volume.NewHandler(NewPlugin(volumes))
-	ovs.listener, err = net.Listen("unix", ovs.options.SocketPath)
-
+	ovs.listener, err = sockets.NewUnixSocket(ovs.options.SocketPath, syscall.Getgid())
 	if err != nil {
 		log.G(ctx).Error("failed to create listening socket for to communicate with Docker as plugin",
 			zap.String("path", ovs.options.SocketPath), zap.Error(err))
