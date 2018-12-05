@@ -118,7 +118,7 @@ func (m *Handler) updateGPUMetrics() (map[string]float64, error) {
 	for _, h := range m.GPUs {
 		metrics, err := h.GetMetrics()
 		if err != nil {
-			return nil, fmt.Errorf("failed to update GPU metrics: %v", err)
+			return nil, err
 		}
 
 		for k, v := range metrics {
