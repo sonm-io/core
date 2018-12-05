@@ -25,9 +25,15 @@ if (process.env.BUILD_TYPE === 'CI') {
 
 module.exports = {
     networks: {
-        development: {
+        dev_side: {
             host: 'localhost',
             port: 8535,
+            network_id: '8535', // eslint-disable-line camelcase
+            main_network_id: '8545',
+        },
+        dev_main: {
+            host: 'localhost',
+            port: 8545,
             network_id: '*', // eslint-disable-line camelcase
         },
         coverage: {
@@ -50,10 +56,12 @@ module.exports = {
         privateLive: {
             provider: () => new PrivateKeyProvider(privateKey, sidechainEndpoint),
             network_id: '444', // eslint-disable-line camelcase
+            main_network_id: '1',
         },
         private: {
             provider: () => new PrivateKeyProvider(privateKey, sidechainDevEndpoint),
-            network_id: '444', // eslint-disable-line camelcase
+            network_id: '4444', // eslint-disable-line camelcase
+            main_network_id: '4',
         },
     },
     solc: {

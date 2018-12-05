@@ -34,7 +34,7 @@ lint_js:
 	@${ESLINT} .
 
 migrate:
-	${TRUFFLE} migrate
+	${TRUFFLE} migrate --network=$(NETWORK)
 
 coverage:
 	scripts/test_coverage.sh
