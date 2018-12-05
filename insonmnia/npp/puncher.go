@@ -15,7 +15,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
-	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 	"gopkg.in/oleiade/lane.v1"
 )
@@ -172,7 +171,7 @@ func (m *natPuncher) resolve(ctx context.Context, addr common.Address) (*sonm.Re
 		ID:           addr.Bytes(),
 	}
 
-	request.PrivateAddrs, err = convertAddrs(privateAddrs)
+	request.PrivateAddrs, err = sonm.TransformNetAddrs(privateAddrs)
 	if err != nil {
 		return nil, err
 	}
@@ -191,32 +190,12 @@ func (m *natPuncher) publish(ctx context.Context) (*sonm.RendezvousReply, error)
 		PrivateAddrs: []*sonm.Addr{},
 	}
 
-	request.PrivateAddrs, err = convertAddrs(privateAddrs)
+	request.PrivateAddrs, err = sonm.TransformNetAddrs(privateAddrs)
 	if err != nil {
 		return nil, err
 	}
 
 	return m.client.Publish(ctx, request)
-}
-
-func convertAddrs(addrs []net.Addr) ([]*sonm.Addr, error) {
-	var result []*sonm.Addr
-	for _, addr := range addrs {
-		host, port, err := netutil.SplitHostPort(addr.String())
-		if err != nil {
-			return nil, err
-		}
-
-		result = append(result, &sonm.Addr{
-			Protocol: protocol,
-			Addr: &sonm.SocketAddr{
-				Addr: host.String(),
-				Port: uint32(port),
-			},
-		})
-	}
-
-	return result, nil
 }
 
 func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply, watcher connectionWatcher) (net.Conn, error) {

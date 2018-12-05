@@ -3,7 +3,6 @@ package sonm
 import (
 	"fmt"
 	"net"
-	"strconv"
 
 	"github.com/sonm-io/core/util/netutil"
 )
@@ -18,6 +17,21 @@ func NewAddr(addr net.Addr) (*Addr, error) {
 		Protocol: addr.Network(),
 		Addr:     socketAddr,
 	}, nil
+}
+
+func TransformNetAddrs(addrs []net.Addr) ([]*Addr, error) {
+	transformed := make([]*Addr, 0, len(addrs))
+
+	for _, addr := range addrs {
+		transformedAddr, err := NewAddr(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		transformed = append(transformed, transformedAddr)
+	}
+
+	return transformed, nil
 }
 
 func (m *Addr) IsValid() bool {
@@ -41,16 +55,13 @@ func (m *Addr) IsPrivate() bool {
 }
 
 func NewSocketAddr(endpoint string) (*SocketAddr, error) {
-	host, portString, err := net.SplitHostPort(endpoint)
+	host, port, err := netutil.SplitHostPort(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	port, err := strconv.ParseUint(portString, 10, 16)
-	if err != nil {
-		return nil, err
-	}
+
 	return &SocketAddr{
-		Addr: host,
+		Addr: host.String(),
 		Port: uint32(port),
 	}, nil
 }
