@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"golang.org/x/sync/errgroup"
 
-	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/oracle"
@@ -26,18 +25,21 @@ func run(app cmd.AppContext) error {
 		return fmt.Errorf("failed to build logger insance: %s", err)
 	}
 
-	ctx := log.WithLogger(context.Background(), logger)
+	// ctx := log.WithLogger(context.Background(), logger)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	o, err := oracle.NewOracle(ctx, logger, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to build Oracle instance: %s", err)
+	}
 
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
 		return cmd.WaitInterrupted(ctx)
 	})
-	wg.Go(func() error {
-		o, err := oracle.NewOracle(ctx, cfg)
-		if err != nil {
-			return fmt.Errorf("failed to build Oracle instance: %s", err)
-		}
 
+	wg.Go(func() error {
 		return o.Serve(ctx)
 	})
 

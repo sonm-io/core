@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -27,7 +27,7 @@ type Oracle struct {
 	mu           sync.Mutex
 }
 
-func NewOracle(ctx context.Context, cfg *Config) (*Oracle, error) {
+func NewOracle(ctx context.Context, log *zap.Logger, cfg *Config) (*Oracle, error) {
 	bch, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func NewOracle(ctx context.Context, cfg *Config) (*Oracle, error) {
 	}
 
 	return &Oracle{
-		logger:       ctxlog.GetLogger(ctx),
+		logger:       log,
 		key:          key,
 		cfg:          cfg,
 		bch:          bch,
@@ -92,16 +92,25 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 	}
 
 	var lastBlock uint64 = 0
+	var err error
+
 	if o.cfg.Oracle.FromNow {
-		var err error
-		lastBlock, err = o.bch.Events().GetLastBlock(ctx)
+		lastBlock, err = func() (uint64, error) {
+			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+
+			return o.bch.Events().GetLastBlock(reqCtx)
+		}()
 		if err != nil {
 			return err
 		}
 	}
 
-	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter(
-		[]common.Address{o.bch.ContractRegistry().OracleMultiSig()}, big.NewInt(0).SetUint64(lastBlock)))
+	filter := o.bch.Events().GetMultiSigFilter(
+		[]common.Address{o.bch.ContractRegistry().OracleMultiSig()},
+		big.NewInt(0).SetUint64(lastBlock))
+
+	events, err := o.bch.Events().GetEvents(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -116,12 +125,14 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 			}
 			switch value := event.Data.(type) {
 			case *blockchain.SubmissionData:
-				o.logger.Debug("new submission found", zap.Any("event", event))
-				if o.transactionValid(ctx, value.TransactionId) {
-					o.confirmChanging(ctx, value.TransactionId)
-				} else {
-					o.logger.Info("failed to confirm transaction, transaction invalid ")
+				o.logger.Debug("new submission found", zap.Any("event", *event))
+
+				if !o.transactionValid(ctx, value.TransactionId) {
+					o.logger.Info("failed to confirm transaction, transaction invalid",
+						zap.Stringer("transaction_id", value.TransactionId))
+					continue
 				}
+				o.confirmChanging(ctx, value.TransactionId)
 			}
 		}
 	}
@@ -136,34 +147,32 @@ func (o *Oracle) Serve(ctx context.Context) error {
 		zap.Float64("deviation percent", o.cfg.Oracle.Percent),
 		zap.Bool("from now", o.cfg.Oracle.FromNow))
 
-	ctx, cancel := context.WithCancel(ctx)
-
-	errGroup := errgroup.Group{}
-	errGroup.Go(func() error {
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
 		err := o.watchPriceRoutine(ctx)
 		if err != nil {
 			o.logger.Error("price watching routine failed", zap.Error(err))
-			cancel()
 		}
 		return err
 	})
-	errGroup.Go(func() error {
+
+	wg.Go(func() error {
 		err := o.submitPriceRoutine(ctx)
 		if err != nil {
 			o.logger.Error("price submission routine failed", zap.Error(err))
-			cancel()
 		}
 		return err
 	})
-	errGroup.Go(func() error {
+
+	wg.Go(func() error {
 		err := o.listenEventsRoutine(ctx)
 		if err != nil {
 			o.logger.Error("event listening routine failed", zap.Error(err))
-			cancel()
 		}
 		return err
 	})
-	return errGroup.Wait()
+
+	return wg.Wait()
 }
 
 func (o *Oracle) getPriceForSubmit() (*big.Int, error) {
