@@ -17,7 +17,7 @@ compile:
 
 node_modules:
 	@echo "+ $@"
-	@npm install
+	@npm ci
 
 test:
 	@echo "+ $@"
