@@ -27,10 +27,15 @@ type Oracle struct {
 	mu           sync.Mutex
 }
 
-func NewOracle(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Oracle, error) {
+func NewOracle(ctx context.Context, cfg *Config) (*Oracle, error) {
 	bch, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
+	}
+
+	key, err := cfg.Eth.LoadKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load Ethereum keys: %s", err)
 	}
 
 	return &Oracle{

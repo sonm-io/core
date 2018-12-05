@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
@@ -27,17 +28,20 @@ func run(app cmd.AppContext) error {
 
 	ctx := log.WithLogger(context.Background(), logger)
 
-	key, err := cfg.Eth.LoadKey()
-	if err != nil {
-		return fmt.Errorf("failed to load Ethereum keys: %s", err)
-	}
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return cmd.WaitInterrupted(ctx)
+	})
+	wg.Go(func() error {
+		o, err := oracle.NewOracle(ctx, cfg)
+		if err != nil {
+			return fmt.Errorf("failed to build Oracle instance: %s", err)
+		}
 
-	o, err := oracle.NewOracle(ctx, key, cfg)
-	if err != nil {
-		return fmt.Errorf("failed to build Oracle instance: %s", err)
-	}
+		return o.Serve(ctx)
+	})
 
-	if err := o.Serve(ctx); err != nil {
+	if err := wg.Wait(); err != nil {
 		return fmt.Errorf("termination: %s", err)
 	}
 
