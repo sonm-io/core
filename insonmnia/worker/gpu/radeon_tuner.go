@@ -20,22 +20,14 @@ type radeonTuner struct {
 	devMap map[GPUID]DRICard
 }
 
-func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
-	options := radeonDefaultOptions()
-	for _, f := range opts {
-		f(options)
-	}
-
-	tun := radeonTuner{
-		devMap: make(map[GPUID]DRICard),
-	}
-
-	clDevices, err := gpu.GetGPUDevices()
+// collectDRICardsWithOpenCL collects DRI devices and match it with openCL.
+func collectDRICardsWithOpenCL() ([]DRICard, error) {
+	openclDevices, err := gpu.GetGPUDevices()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := hasGPUWithVendor(sonm.GPUVendorType_RADEON, clDevices); err != nil {
+	if err := hasGPUWithVendor(sonm.GPUVendorType_RADEON, openclDevices); err != nil {
 		return nil, err
 	}
 
@@ -46,34 +38,56 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 
 	// filter CL devices by known vendor IDs
 	var radeonDevices []*sonm.GPUDevice
-	for _, dev := range clDevices {
+	for _, dev := range openclDevices {
 		if dev.VendorType() == sonm.GPUVendorType_RADEON {
 			radeonDevices = append(radeonDevices, dev)
 		}
 	}
 
 	// match DRI and CL devices by vendor ID
-	var driRadeonDevices []DRICard
+	var driDevices []DRICard
 	for _, dev := range cards {
 		for _, rid := range sonm.Radeons {
 			if dev.VendorID == rid {
-				driRadeonDevices = append(driRadeonDevices, dev)
+				driDevices = append(driDevices, dev)
 			}
 		}
 	}
 
 	// wow, so different, such weird
-	if len(radeonDevices) != len(driRadeonDevices) {
+	if len(radeonDevices) != len(driDevices) {
 		return nil, errors.New("cannot find matching CL device to extract vmem")
 	}
 
-	for i, card := range driRadeonDevices {
-		card.Memory = radeonDevices[i].Memory
+	for i, card := range driDevices {
+		// copy card memory value from openCL device to DRI device
+		card.Memory = openclDevices[i].Memory
+	}
+
+	return driDevices, nil
+}
+
+func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
+	options := radeonDefaultOptions()
+	for _, f := range opts {
+		f(options)
+	}
+
+	tun := radeonTuner{
+		devMap: make(map[GPUID]DRICard),
+	}
+
+	devices, err := collectDRICardsWithOpenCL()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, card := range devices {
 		tun.devMap[GPUID(card.PCIBusID)] = card
 
 		log.G(ctx).Debug("discovered gpu device ",
 			zap.String("dev", card.Path),
-			zap.Strings("driDevice", card.Devices),
+			zap.Strings("dri_devices", card.Devices),
 			zap.Uint64("vmem", card.Memory))
 	}
 

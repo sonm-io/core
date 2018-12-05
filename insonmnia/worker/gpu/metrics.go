@@ -73,7 +73,7 @@ type radeonMetrics struct {
 }
 
 func newRadeonMetricsHandler() (MetricsHandler, error) {
-	devices, err := CollectDRICardDevices()
+	devices, err := collectDRICardsWithOpenCL()
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect DRI devices: %v", err)
 	}
