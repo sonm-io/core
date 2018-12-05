@@ -21,7 +21,7 @@ contract('Blacklist', async function (accounts) {
     const master = accounts[5];
 
     before(async function () {
-        token = await SNM.deployed();
+        token = await SNM.new();
         blacklist = await Blacklist.new();
         oracle = await OracleUSD.new();
         pr = await ProfileRegistry.new();

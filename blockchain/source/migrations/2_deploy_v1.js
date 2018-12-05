@@ -29,56 +29,55 @@ let freezingTime = 60 * 15;
 let actualGasPrice = 3000000000;
 let benchmarksQuantity = 12;
 let netflagsQuantity = 3;
-// let Deployers = ['0x7aa5237e0f999a9853a9cc8c56093220142ce48e', '0xd9a43e16e78c86cf7b525c305f8e72723e0fab5e'];
 
-function isSidechain(network) {
+function isSidechain (network) {
     return network === 'dev_side' || network === 'privateLive' || network === 'private';
 }
 
-function isMainChain(network) {
+function isMainChain (network) {
     return network === 'dev_main' || network === 'master' || network === 'rinkeby';
 }
 
-function needMultisig(network) {
+function needMultisig (network) {
     return network === 'master' || network === 'privateLive';
 }
 
-function determineGatekeeperMasterchainAddress(network) {
-    targetNet = TruffleConfig.networks[network]["main_network_id"];
+function determineGatekeeperMasterchainAddress (network) {
+    let targetNet = TruffleConfig.networks[network].main_network_id;
     if (!GateKeeperLive.hasNetwork(targetNet)) {
         throw new Error('GateKeeper was not deployed to ' + targetNet);
     }
     return GateKeeperLive.networks[targetNet].address;
 }
 
-function needFaucet(network) {
+function needFaucet (network) {
     return network === 'dev_main' || network === 'rinkeby';
 }
 
-function hasFaucetInMain(network) {
+function hasFaucetInMain (network) {
     return network === 'dev_side' || network === 'private';
 }
 
-async function determineSNMMasterchainAddress(network) {
-    if(network === 'privateLive') {
+async function determineSNMMasterchainAddress (network) {
+    if (network === 'privateLive') {
         // In main net it is already deployed
         return '0x983f6d60db79ea8ca4eb9968c6aff8cfa04b3c63';
     }
 
-    return await (await TestnetFaucet.deployed()).getTokenAddress();
+    return (await TestnetFaucet.deployed()).getTokenAddress();
 }
 
-function determineFaucetAddress(network) {
-    targetNet = TruffleConfig.networks[network]["main_network_id"];
+function determineFaucetAddress (network) {
+    let targetNet = TruffleConfig.networks[network].main_network_id;
     if (!TestnetFaucet.hasNetwork(targetNet)) {
         throw new Error('TestnetFaucet was not deployed to ' + targetNet);
     }
     return TestnetFaucet.networks[targetNet].address;
 }
 
-async function deployMainchain(deployer, network) {
+async function deployMainchain (deployer, network) {
     if (needFaucet(network)) {
-        await deployer.deploy(TestnetFaucet)
+        await deployer.deploy(TestnetFaucet);
     }
     // deploy Live Gatekeeper
     let snmAddr = await determineSNMMasterchainAddress();
@@ -89,16 +88,16 @@ async function deployMainchain(deployer, network) {
     await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 100000 * 1e18, { gasPrice: actualGasPrice }); // eslint-disable-line max-len
 
     if (needMultisig(network)) {
-        await deployer.deploy(Multisig, MSOwners, MSRequired, {gasPrice: actualGasPrice});
+        await deployer.deploy(Multisig, MSOwners, MSRequired, { gasPrice: actualGasPrice });
         let multisig = await Multisig.deployed();
 
         // transfer Live Gatekeeper ownership to `Gatekeeper` multisig
-        await gk.transferOwnership(multisig.address, {gasPrice: actualGasPrice});
+        await gk.transferOwnership(multisig.address, { gasPrice: actualGasPrice });
     }
 }
 
-async function deploySidechain(deployer, network) {
-    GatekeeperMasterchainAddress = determineGatekeeperMasterchainAddress(network);
+async function deploySidechain (deployer, network) {
+    let GatekeeperMasterchainAddress = determineGatekeeperMasterchainAddress(network);
     if (GatekeeperMasterchainAddress === '') {
         console.log('GatekeeperMasterchainAddress is not set!!!');
         throw new Error('GatekeeperMasterchainAddress is not set!!!');
@@ -157,11 +156,9 @@ async function deploySidechain(deployer, network) {
     await ahm.write('gatekeeperSidechainAddress', gk.address, { gasPrice: 0 });
     await ahm.write('gatekeeperMasterchainAddress', GatekeeperMasterchainAddress, { gasPrice: 0 });
 
-
-
     if (needMultisig(network)) {
         // 0) deploy `Gatekeeper` multisig
-        await deployer.deploy(Multisig, MSOwners, MSRequired, {gasPrice: 0});
+        await deployer.deploy(Multisig, MSOwners, MSRequired, { gasPrice: 0 });
         let multiSig = await Multisig.deployed();
         await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
 
@@ -169,7 +166,7 @@ async function deploySidechain(deployer, network) {
         await ahm.transferOwnership(multiSig.address, { gasPrice: 0 });
 
         // 4) transfer Gatekeeper ownership to `Gatekeeper` multisig
-        await gk.transferOwnership(multiSig.address, {gasPrice: 0});
+        await gk.transferOwnership(multiSig.address, { gasPrice: 0 });
 
         // transfer ProfileRegistry ownership to `Migration` multisig
         await pr.transferOwnership(multiSig.address, { gasPrice: 0 });
@@ -182,19 +179,16 @@ async function deploySidechain(deployer, network) {
 
         // transfer Blacklist ownership to Migration multisig
         await bl.transferOwnership(multiSig.address, { gasPrice: 0 });
-
-        // transfer DeployList ownership
-        await deployList.transferOwnership(multiSig.address, { gasPrice: 0 });
     }
 }
 
 module.exports = function (deployer, network) {
     deployer.then(async () => { // eslint-disable-line promise/catch-or-return
         if (isMainChain(network)) {
-            await deployMainchain(deployer, network)
+            await deployMainchain(deployer, network);
         }
         if (isSidechain(network)) {
-            await deploySidechain(deployer, network)
+            await deploySidechain(deployer, network);
         }
     });
 };
