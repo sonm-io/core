@@ -147,7 +147,7 @@
         "id": 4854,
         "nodeType": "ImportDirective",
         "scope": 4904,
-        "sourceUnit": 7526,
+        "sourceUnit": 7337,
         "src": "27:59:8",
         "symbolAliases": [],
         "unitAlias": ""
@@ -161,10 +161,10 @@
               "id": 4855,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7525,
+              "referencedDeclaration": 7336,
               "src": "111:7:8",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$7525",
+                "typeIdentifier": "t_contract$_Ownable_$7336",
                 "typeString": "contract Ownable"
               }
             },
@@ -174,7 +174,7 @@
           }
         ],
         "contractDependencies": [
-          7525
+          7336
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -182,7 +182,7 @@
         "id": 4903,
         "linearizedBaseContracts": [
           4903,
-          7525
+          7336
         ],
         "name": "OracleUSD",
         "nodeType": "ContractDefinition",
@@ -292,7 +292,7 @@
                       "name": "owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7443,
+                      "referencedDeclaration": 7254,
                       "src": "221:5:8",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -309,7 +309,7 @@
                         "name": "msg",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7958,
+                        "referencedDeclaration": 7769,
                         "src": "229:3:8",
                         "typeDescriptions": {
                           "typeIdentifier": "t_magic_message",
@@ -441,10 +441,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        7961,
-                        7962
+                        7772,
+                        7773
                       ],
-                      "referencedDeclaration": 7961,
+                      "referencedDeclaration": 7772,
                       "src": "316:7:8",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -586,7 +586,7 @@
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 7473,
+                  "referencedDeclaration": 7284,
                   "src": "297:9:8",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
@@ -760,7 +760,7 @@
         "id": 4854,
         "nodeType": "ImportDirective",
         "scope": 4904,
-        "sourceUnit": 7526,
+        "sourceUnit": 7337,
         "src": "27:59:8",
         "symbolAliases": [],
         "unitAlias": ""
@@ -774,10 +774,10 @@
               "id": 4855,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7525,
+              "referencedDeclaration": 7336,
               "src": "111:7:8",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$7525",
+                "typeIdentifier": "t_contract$_Ownable_$7336",
                 "typeString": "contract Ownable"
               }
             },
@@ -787,7 +787,7 @@
           }
         ],
         "contractDependencies": [
-          7525
+          7336
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -795,7 +795,7 @@
         "id": 4903,
         "linearizedBaseContracts": [
           4903,
-          7525
+          7336
         ],
         "name": "OracleUSD",
         "nodeType": "ContractDefinition",
@@ -905,7 +905,7 @@
                       "name": "owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7443,
+                      "referencedDeclaration": 7254,
                       "src": "221:5:8",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -922,7 +922,7 @@
                         "name": "msg",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7958,
+                        "referencedDeclaration": 7769,
                         "src": "229:3:8",
                         "typeDescriptions": {
                           "typeIdentifier": "t_magic_message",
@@ -1054,10 +1054,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        7961,
-                        7962
+                        7772,
+                        7773
                       ],
-                      "referencedDeclaration": 7961,
+                      "referencedDeclaration": 7772,
                       "src": "316:7:8",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -1199,7 +1199,7 @@
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 7473,
+                  "referencedDeclaration": 7284,
                   "src": "297:9:8",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
@@ -1352,5 +1352,5 @@
   },
   "networks": {},
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-04T13:55:17.213Z"
+  "updatedAt": "2018-12-06T13:25:10.531Z"
 }

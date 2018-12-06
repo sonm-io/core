@@ -237,7 +237,7 @@
         "id": 211,
         "nodeType": "ImportDirective",
         "scope": 384,
-        "sourceUnit": 6678,
+        "sourceUnit": 6489,
         "src": "46:41:2",
         "symbolAliases": [],
         "unitAlias": ""
@@ -251,10 +251,10 @@
               "id": 212,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7525,
+              "referencedDeclaration": 7336,
               "src": "112:7:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$7525",
+                "typeIdentifier": "t_contract$_Ownable_$7336",
                 "typeString": "contract Ownable"
               }
             },
@@ -264,7 +264,7 @@
           }
         ],
         "contractDependencies": [
-          7525
+          7336
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -272,7 +272,7 @@
         "id": 383,
         "linearizedBaseContracts": [
           383,
-          7525
+          7336
         ],
         "name": "AutoPayout",
         "nodeType": "ContractDefinition",
@@ -284,10 +284,10 @@
               "id": 214,
               "name": "SafeMath",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7439,
+              "referencedDeclaration": 7250,
               "src": "133:8:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_SafeMath_$7439",
+                "typeIdentifier": "t_contract$_SafeMath_$7250",
                 "typeString": "library SafeMath"
               }
             },
@@ -585,7 +585,7 @@
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
-              "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+              "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
               "typeString": "contract SimpleGatekeeperWithLimit"
             },
             "typeName": {
@@ -593,10 +593,10 @@
               "id": 240,
               "name": "SimpleGatekeeperWithLimit",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 6677,
+              "referencedDeclaration": 6488,
               "src": "438:25:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                 "typeString": "contract SimpleGatekeeperWithLimit"
               }
             },
@@ -755,7 +755,7 @@
                       "referencedDeclaration": 241,
                       "src": "638:10:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                         "typeString": "contract SimpleGatekeeperWithLimit"
                       }
                     },
@@ -789,10 +789,10 @@
                         "name": "SimpleGatekeeperWithLimit",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 6677,
+                        "referencedDeclaration": 6488,
                         "src": "651:25:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_type$_t_contract$_SimpleGatekeeperWithLimit_$6677_$",
+                          "typeIdentifier": "t_type$_t_contract$_SimpleGatekeeperWithLimit_$6488_$",
                           "typeString": "type(contract SimpleGatekeeperWithLimit)"
                         }
                       },
@@ -806,13 +806,13 @@
                       "nodeType": "FunctionCall",
                       "src": "651:38:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                         "typeString": "contract SimpleGatekeeperWithLimit"
                       }
                     },
                     "src": "638:51:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                      "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                       "typeString": "contract SimpleGatekeeperWithLimit"
                     }
                   },
@@ -834,7 +834,7 @@
                       "name": "owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7443,
+                      "referencedDeclaration": 7254,
                       "src": "699:5:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -851,7 +851,7 @@
                         "name": "msg",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7958,
+                        "referencedDeclaration": 7769,
                         "src": "707:3:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_magic_message",
@@ -1004,7 +1004,7 @@
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7958,
+                            "referencedDeclaration": 7769,
                             "src": "818:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
@@ -1109,7 +1109,7 @@
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7958,
+                            "referencedDeclaration": 7769,
                             "src": "872:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
@@ -1192,7 +1192,7 @@
                           "name": "msg",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 7958,
+                          "referencedDeclaration": 7769,
                           "src": "933:3:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_magic_message",
@@ -1449,7 +1449,7 @@
                       "lValueRequested": false,
                       "memberName": "balanceOf",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 7620,
+                      "referencedDeclaration": 7431,
                       "src": "1048:15:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_view$_t_address_$returns$_t_uint256_$",
@@ -1577,10 +1577,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        7961,
-                        7962
+                        7772,
+                        7773
                       ],
-                      "referencedDeclaration": 7961,
+                      "referencedDeclaration": 7772,
                       "src": "1082:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -1631,7 +1631,7 @@
                             "name": "this",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7991,
+                            "referencedDeclaration": 7802,
                             "src": "1181:4:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_contract$_AutoPayout_$383",
@@ -1722,7 +1722,7 @@
                       "lValueRequested": false,
                       "memberName": "transferFrom",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 7796,
+                      "referencedDeclaration": 7607,
                       "src": "1145:18:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_address_$_t_uint256_$returns$_t_bool_$",
@@ -1760,7 +1760,7 @@
                         "referencedDeclaration": 241,
                         "src": "1221:10:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                           "typeString": "contract SimpleGatekeeperWithLimit"
                         }
                       },
@@ -1781,7 +1781,7 @@
                     "expression": {
                       "argumentTypes": [
                         {
-                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                           "typeString": "contract SimpleGatekeeperWithLimit"
                         },
                         {
@@ -1809,7 +1809,7 @@
                       "lValueRequested": false,
                       "memberName": "approve",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 7824,
+                      "referencedDeclaration": 7635,
                       "src": "1207:13:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_uint256_$returns$_t_bool_$",
@@ -1928,7 +1928,7 @@
                         "referencedDeclaration": 241,
                         "src": "1251:10:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                           "typeString": "contract SimpleGatekeeperWithLimit"
                         }
                       },
@@ -1939,7 +1939,7 @@
                       "lValueRequested": false,
                       "memberName": "PayinTargeted",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 6376,
+                      "referencedDeclaration": 6187,
                       "src": "1251:24:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_uint256_$_t_address_$returns$__$",
@@ -2093,7 +2093,7 @@
                             "name": "owner",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7443,
+                            "referencedDeclaration": 7254,
                             "src": "1429:5:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_address",
@@ -2112,7 +2112,7 @@
                                     "name": "this",
                                     "nodeType": "Identifier",
                                     "overloadedDeclarations": [],
-                                    "referencedDeclaration": 7991,
+                                    "referencedDeclaration": 7802,
                                     "src": "1460:4:2",
                                     "typeDescriptions": {
                                       "typeIdentifier": "t_contract$_AutoPayout_$383",
@@ -2182,7 +2182,7 @@
                               "lValueRequested": false,
                               "memberName": "balanceOf",
                               "nodeType": "MemberAccess",
-                              "referencedDeclaration": 7620,
+                              "referencedDeclaration": 7431,
                               "src": "1436:15:2",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_function_external_view$_t_address_$returns$_t_uint256_$",
@@ -2235,7 +2235,7 @@
                           "lValueRequested": false,
                           "memberName": "transfer",
                           "nodeType": "MemberAccess",
-                          "referencedDeclaration": 7608,
+                          "referencedDeclaration": 7419,
                           "src": "1414:14:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_uint256_$returns$_t_bool_$",
@@ -2268,10 +2268,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        7961,
-                        7962
+                        7772,
+                        7773
                       ],
-                      "referencedDeclaration": 7961,
+                      "referencedDeclaration": 7772,
                       "src": "1406:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -2308,7 +2308,7 @@
                           "name": "block",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 7948,
+                          "referencedDeclaration": 7759,
                           "src": "1491:5:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_magic_block",
@@ -2376,7 +2376,7 @@
                         "name": "owner",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7443,
+                        "referencedDeclaration": 7254,
                         "src": "1587:5:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -2395,7 +2395,7 @@
                       "name": "selfdestruct",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7966,
+                      "referencedDeclaration": 7777,
                       "src": "1574:12:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_selfdestruct_nonpayable$_t_address_$returns$__$",
@@ -2437,7 +2437,7 @@
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 7473,
+                  "referencedDeclaration": 7284,
                   "src": "1386:9:2",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
@@ -2514,7 +2514,7 @@
         "id": 211,
         "nodeType": "ImportDirective",
         "scope": 384,
-        "sourceUnit": 6678,
+        "sourceUnit": 6489,
         "src": "46:41:2",
         "symbolAliases": [],
         "unitAlias": ""
@@ -2528,10 +2528,10 @@
               "id": 212,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7525,
+              "referencedDeclaration": 7336,
               "src": "112:7:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$7525",
+                "typeIdentifier": "t_contract$_Ownable_$7336",
                 "typeString": "contract Ownable"
               }
             },
@@ -2541,7 +2541,7 @@
           }
         ],
         "contractDependencies": [
-          7525
+          7336
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -2549,7 +2549,7 @@
         "id": 383,
         "linearizedBaseContracts": [
           383,
-          7525
+          7336
         ],
         "name": "AutoPayout",
         "nodeType": "ContractDefinition",
@@ -2561,10 +2561,10 @@
               "id": 214,
               "name": "SafeMath",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7439,
+              "referencedDeclaration": 7250,
               "src": "133:8:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_SafeMath_$7439",
+                "typeIdentifier": "t_contract$_SafeMath_$7250",
                 "typeString": "library SafeMath"
               }
             },
@@ -2862,7 +2862,7 @@
             "stateVariable": true,
             "storageLocation": "default",
             "typeDescriptions": {
-              "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+              "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
               "typeString": "contract SimpleGatekeeperWithLimit"
             },
             "typeName": {
@@ -2870,10 +2870,10 @@
               "id": 240,
               "name": "SimpleGatekeeperWithLimit",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 6677,
+              "referencedDeclaration": 6488,
               "src": "438:25:2",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                 "typeString": "contract SimpleGatekeeperWithLimit"
               }
             },
@@ -3032,7 +3032,7 @@
                       "referencedDeclaration": 241,
                       "src": "638:10:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                         "typeString": "contract SimpleGatekeeperWithLimit"
                       }
                     },
@@ -3066,10 +3066,10 @@
                         "name": "SimpleGatekeeperWithLimit",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 6677,
+                        "referencedDeclaration": 6488,
                         "src": "651:25:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_type$_t_contract$_SimpleGatekeeperWithLimit_$6677_$",
+                          "typeIdentifier": "t_type$_t_contract$_SimpleGatekeeperWithLimit_$6488_$",
                           "typeString": "type(contract SimpleGatekeeperWithLimit)"
                         }
                       },
@@ -3083,13 +3083,13 @@
                       "nodeType": "FunctionCall",
                       "src": "651:38:2",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                        "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                         "typeString": "contract SimpleGatekeeperWithLimit"
                       }
                     },
                     "src": "638:51:2",
                     "typeDescriptions": {
-                      "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                      "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                       "typeString": "contract SimpleGatekeeperWithLimit"
                     }
                   },
@@ -3111,7 +3111,7 @@
                       "name": "owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7443,
+                      "referencedDeclaration": 7254,
                       "src": "699:5:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -3128,7 +3128,7 @@
                         "name": "msg",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7958,
+                        "referencedDeclaration": 7769,
                         "src": "707:3:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_magic_message",
@@ -3281,7 +3281,7 @@
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7958,
+                            "referencedDeclaration": 7769,
                             "src": "818:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
@@ -3386,7 +3386,7 @@
                             "name": "msg",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7958,
+                            "referencedDeclaration": 7769,
                             "src": "872:3:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_magic_message",
@@ -3469,7 +3469,7 @@
                           "name": "msg",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 7958,
+                          "referencedDeclaration": 7769,
                           "src": "933:3:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_magic_message",
@@ -3726,7 +3726,7 @@
                       "lValueRequested": false,
                       "memberName": "balanceOf",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 7620,
+                      "referencedDeclaration": 7431,
                       "src": "1048:15:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_view$_t_address_$returns$_t_uint256_$",
@@ -3854,10 +3854,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        7961,
-                        7962
+                        7772,
+                        7773
                       ],
-                      "referencedDeclaration": 7961,
+                      "referencedDeclaration": 7772,
                       "src": "1082:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -3908,7 +3908,7 @@
                             "name": "this",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7991,
+                            "referencedDeclaration": 7802,
                             "src": "1181:4:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_contract$_AutoPayout_$383",
@@ -3999,7 +3999,7 @@
                       "lValueRequested": false,
                       "memberName": "transferFrom",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 7796,
+                      "referencedDeclaration": 7607,
                       "src": "1145:18:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_address_$_t_uint256_$returns$_t_bool_$",
@@ -4037,7 +4037,7 @@
                         "referencedDeclaration": 241,
                         "src": "1221:10:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                           "typeString": "contract SimpleGatekeeperWithLimit"
                         }
                       },
@@ -4058,7 +4058,7 @@
                     "expression": {
                       "argumentTypes": [
                         {
-                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                           "typeString": "contract SimpleGatekeeperWithLimit"
                         },
                         {
@@ -4086,7 +4086,7 @@
                       "lValueRequested": false,
                       "memberName": "approve",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 7824,
+                      "referencedDeclaration": 7635,
                       "src": "1207:13:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_uint256_$returns$_t_bool_$",
@@ -4205,7 +4205,7 @@
                         "referencedDeclaration": 241,
                         "src": "1251:10:2",
                         "typeDescriptions": {
-                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6677",
+                          "typeIdentifier": "t_contract$_SimpleGatekeeperWithLimit_$6488",
                           "typeString": "contract SimpleGatekeeperWithLimit"
                         }
                       },
@@ -4216,7 +4216,7 @@
                       "lValueRequested": false,
                       "memberName": "PayinTargeted",
                       "nodeType": "MemberAccess",
-                      "referencedDeclaration": 6376,
+                      "referencedDeclaration": 6187,
                       "src": "1251:24:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_external_nonpayable$_t_uint256_$_t_address_$returns$__$",
@@ -4370,7 +4370,7 @@
                             "name": "owner",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 7443,
+                            "referencedDeclaration": 7254,
                             "src": "1429:5:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_address",
@@ -4389,7 +4389,7 @@
                                     "name": "this",
                                     "nodeType": "Identifier",
                                     "overloadedDeclarations": [],
-                                    "referencedDeclaration": 7991,
+                                    "referencedDeclaration": 7802,
                                     "src": "1460:4:2",
                                     "typeDescriptions": {
                                       "typeIdentifier": "t_contract$_AutoPayout_$383",
@@ -4459,7 +4459,7 @@
                               "lValueRequested": false,
                               "memberName": "balanceOf",
                               "nodeType": "MemberAccess",
-                              "referencedDeclaration": 7620,
+                              "referencedDeclaration": 7431,
                               "src": "1436:15:2",
                               "typeDescriptions": {
                                 "typeIdentifier": "t_function_external_view$_t_address_$returns$_t_uint256_$",
@@ -4512,7 +4512,7 @@
                           "lValueRequested": false,
                           "memberName": "transfer",
                           "nodeType": "MemberAccess",
-                          "referencedDeclaration": 7608,
+                          "referencedDeclaration": 7419,
                           "src": "1414:14:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_uint256_$returns$_t_bool_$",
@@ -4545,10 +4545,10 @@
                       "name": "require",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [
-                        7961,
-                        7962
+                        7772,
+                        7773
                       ],
-                      "referencedDeclaration": 7961,
+                      "referencedDeclaration": 7772,
                       "src": "1406:7:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_require_pure$_t_bool_$returns$__$",
@@ -4585,7 +4585,7 @@
                           "name": "block",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 7948,
+                          "referencedDeclaration": 7759,
                           "src": "1491:5:2",
                           "typeDescriptions": {
                             "typeIdentifier": "t_magic_block",
@@ -4653,7 +4653,7 @@
                         "name": "owner",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7443,
+                        "referencedDeclaration": 7254,
                         "src": "1587:5:2",
                         "typeDescriptions": {
                           "typeIdentifier": "t_address",
@@ -4672,7 +4672,7 @@
                       "name": "selfdestruct",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7966,
+                      "referencedDeclaration": 7777,
                       "src": "1574:12:2",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_selfdestruct_nonpayable$_t_address_$returns$__$",
@@ -4714,7 +4714,7 @@
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 7473,
+                  "referencedDeclaration": 7284,
                   "src": "1386:9:2",
                   "typeDescriptions": {
                     "typeIdentifier": "t_modifier$__$",
@@ -4759,5 +4759,5 @@
   },
   "networks": {},
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-04T13:55:17.186Z"
+  "updatedAt": "2018-12-06T13:22:53.127Z"
 }

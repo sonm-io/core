@@ -172,14 +172,14 @@
     "absolutePath": "contracts/test/Dummy.sol",
     "exportedSymbols": {
       "Dummy": [
-        7285
+        7096
       ]
     },
-    "id": 7286,
+    "id": 7097,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 7245,
+        "id": 7056,
         "literals": [
           "solidity",
           "^",
@@ -192,9 +192,9 @@
       {
         "absolutePath": "contracts/Administratable.sol",
         "file": "../Administratable.sol",
-        "id": 7246,
+        "id": 7057,
         "nodeType": "ImportDirective",
-        "scope": 7286,
+        "scope": 7097,
         "sourceUnit": 208,
         "src": "26:32:15",
         "symbolAliases": [],
@@ -206,7 +206,7 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 7247,
+              "id": 7058,
               "name": "Administratable",
               "nodeType": "UserDefinedTypeName",
               "referencedDeclaration": 207,
@@ -216,7 +216,7 @@
                 "typeString": "contract Administratable"
               }
             },
-            "id": 7248,
+            "id": 7059,
             "nodeType": "InheritanceSpecifier",
             "src": "78:15:15"
           }
@@ -227,9 +227,9 @@
         "contractKind": "contract",
         "documentation": null,
         "fullyImplemented": true,
-        "id": 7285,
+        "id": 7096,
         "linearizedBaseContracts": [
-          7285,
+          7096,
           207
         ],
         "name": "Dummy",
@@ -238,20 +238,20 @@
           {
             "anonymous": false,
             "documentation": null,
-            "id": 7252,
+            "id": 7063,
             "name": "Call",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 7251,
+              "id": 7062,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7250,
+                  "id": 7061,
                   "indexed": false,
                   "name": "method",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7252,
+                  "scope": 7063,
                   "src": "112:13:15",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -260,7 +260,7 @@
                     "typeString": "string"
                   },
                   "typeName": {
-                    "id": 7249,
+                    "id": 7060,
                     "name": "string",
                     "nodeType": "ElementaryTypeName",
                     "src": "112:6:15",
@@ -279,7 +279,7 @@
           },
           {
             "body": {
-              "id": 7261,
+              "id": 7072,
               "nodeType": "Block",
               "src": "175:39:15",
               "statements": [
@@ -290,7 +290,7 @@
                       {
                         "argumentTypes": null,
                         "hexValue": "6f6e6c794f776e6572",
-                        "id": 7258,
+                        "id": 7069,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -313,18 +313,18 @@
                           "typeString": "literal_string \"onlyOwner\""
                         }
                       ],
-                      "id": 7257,
+                      "id": 7068,
                       "name": "Call",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7252,
+                      "referencedDeclaration": 7063,
                       "src": "190:4:15",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
                         "typeString": "function (string memory)"
                       }
                     },
-                    "id": 7259,
+                    "id": 7070,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -338,24 +338,24 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 7260,
+                  "id": 7071,
                   "nodeType": "EmitStatement",
                   "src": "185:22:15"
                 }
               ]
             },
             "documentation": null,
-            "id": 7262,
+            "id": 7073,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
             "modifiers": [
               {
                 "arguments": null,
-                "id": 7255,
+                "id": 7066,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 7254,
+                  "id": 7065,
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
@@ -373,19 +373,19 @@
             "name": "testOnlyOwner",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7253,
+              "id": 7064,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "155:2:15"
             },
             "payable": false,
             "returnParameters": {
-              "id": 7256,
+              "id": 7067,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "175:0:15"
             },
-            "scope": 7285,
+            "scope": 7096,
             "src": "133:81:15",
             "stateMutability": "nonpayable",
             "superFunction": null,
@@ -393,7 +393,7 @@
           },
           {
             "body": {
-              "id": 7271,
+              "id": 7082,
               "nodeType": "Block",
               "src": "264:36:15",
               "statements": [
@@ -404,7 +404,7 @@
                       {
                         "argumentTypes": null,
                         "hexValue": "7075626c6963",
-                        "id": 7268,
+                        "id": 7079,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -427,18 +427,18 @@
                           "typeString": "literal_string \"public\""
                         }
                       ],
-                      "id": 7267,
+                      "id": 7078,
                       "name": "Call",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7252,
+                      "referencedDeclaration": 7063,
                       "src": "279:4:15",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
                         "typeString": "function (string memory)"
                       }
                     },
-                    "id": 7269,
+                    "id": 7080,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -452,14 +452,14 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 7270,
+                  "id": 7081,
                   "nodeType": "EmitStatement",
                   "src": "274:19:15"
                 }
               ]
             },
             "documentation": null,
-            "id": 7272,
+            "id": 7083,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
@@ -467,22 +467,22 @@
             "name": "testPublic",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7263,
+              "id": 7074,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "239:2:15"
             },
             "payable": false,
             "returnParameters": {
-              "id": 7266,
+              "id": 7077,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7265,
+                  "id": 7076,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7272,
+                  "scope": 7083,
                   "src": "258:4:15",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -491,7 +491,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 7264,
+                    "id": 7075,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "258:4:15",
@@ -506,7 +506,7 @@
               ],
               "src": "257:6:15"
             },
-            "scope": 7285,
+            "scope": 7096,
             "src": "220:80:15",
             "stateMutability": "nonpayable",
             "superFunction": null,
@@ -514,7 +514,7 @@
           },
           {
             "body": {
-              "id": 7283,
+              "id": 7094,
               "nodeType": "Block",
               "src": "385:50:15",
               "statements": [
@@ -525,7 +525,7 @@
                       {
                         "argumentTypes": null,
                         "hexValue": "6f776e65724f7241646d696e6973747261746f72",
-                        "id": 7280,
+                        "id": 7091,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -548,18 +548,18 @@
                           "typeString": "literal_string \"ownerOrAdministrator\""
                         }
                       ],
-                      "id": 7279,
+                      "id": 7090,
                       "name": "Call",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7252,
+                      "referencedDeclaration": 7063,
                       "src": "400:4:15",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
                         "typeString": "function (string memory)"
                       }
                     },
-                    "id": 7281,
+                    "id": 7092,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -573,24 +573,24 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 7282,
+                  "id": 7093,
                   "nodeType": "EmitStatement",
                   "src": "395:33:15"
                 }
               ]
             },
             "documentation": null,
-            "id": 7284,
+            "id": 7095,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
             "modifiers": [
               {
                 "arguments": null,
-                "id": 7275,
+                "id": 7086,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 7274,
+                  "id": 7085,
                   "name": "ownerOrAdministrator",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
@@ -608,22 +608,22 @@
             "name": "testOwnerOrAdministrator",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7273,
+              "id": 7084,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "339:2:15"
             },
             "payable": false,
             "returnParameters": {
-              "id": 7278,
+              "id": 7089,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7277,
+                  "id": 7088,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7284,
+                  "scope": 7095,
                   "src": "379:4:15",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -632,7 +632,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 7276,
+                    "id": 7087,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "379:4:15",
@@ -647,14 +647,14 @@
               ],
               "src": "378:6:15"
             },
-            "scope": 7285,
+            "scope": 7096,
             "src": "306:129:15",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           }
         ],
-        "scope": 7286,
+        "scope": 7097,
         "src": "60:377:15"
       }
     ],
@@ -664,14 +664,14 @@
     "absolutePath": "contracts/test/Dummy.sol",
     "exportedSymbols": {
       "Dummy": [
-        7285
+        7096
       ]
     },
-    "id": 7286,
+    "id": 7097,
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 7245,
+        "id": 7056,
         "literals": [
           "solidity",
           "^",
@@ -684,9 +684,9 @@
       {
         "absolutePath": "contracts/Administratable.sol",
         "file": "../Administratable.sol",
-        "id": 7246,
+        "id": 7057,
         "nodeType": "ImportDirective",
-        "scope": 7286,
+        "scope": 7097,
         "sourceUnit": 208,
         "src": "26:32:15",
         "symbolAliases": [],
@@ -698,7 +698,7 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 7247,
+              "id": 7058,
               "name": "Administratable",
               "nodeType": "UserDefinedTypeName",
               "referencedDeclaration": 207,
@@ -708,7 +708,7 @@
                 "typeString": "contract Administratable"
               }
             },
-            "id": 7248,
+            "id": 7059,
             "nodeType": "InheritanceSpecifier",
             "src": "78:15:15"
           }
@@ -719,9 +719,9 @@
         "contractKind": "contract",
         "documentation": null,
         "fullyImplemented": true,
-        "id": 7285,
+        "id": 7096,
         "linearizedBaseContracts": [
-          7285,
+          7096,
           207
         ],
         "name": "Dummy",
@@ -730,20 +730,20 @@
           {
             "anonymous": false,
             "documentation": null,
-            "id": 7252,
+            "id": 7063,
             "name": "Call",
             "nodeType": "EventDefinition",
             "parameters": {
-              "id": 7251,
+              "id": 7062,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7250,
+                  "id": 7061,
                   "indexed": false,
                   "name": "method",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7252,
+                  "scope": 7063,
                   "src": "112:13:15",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -752,7 +752,7 @@
                     "typeString": "string"
                   },
                   "typeName": {
-                    "id": 7249,
+                    "id": 7060,
                     "name": "string",
                     "nodeType": "ElementaryTypeName",
                     "src": "112:6:15",
@@ -771,7 +771,7 @@
           },
           {
             "body": {
-              "id": 7261,
+              "id": 7072,
               "nodeType": "Block",
               "src": "175:39:15",
               "statements": [
@@ -782,7 +782,7 @@
                       {
                         "argumentTypes": null,
                         "hexValue": "6f6e6c794f776e6572",
-                        "id": 7258,
+                        "id": 7069,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -805,18 +805,18 @@
                           "typeString": "literal_string \"onlyOwner\""
                         }
                       ],
-                      "id": 7257,
+                      "id": 7068,
                       "name": "Call",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7252,
+                      "referencedDeclaration": 7063,
                       "src": "190:4:15",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
                         "typeString": "function (string memory)"
                       }
                     },
-                    "id": 7259,
+                    "id": 7070,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -830,24 +830,24 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 7260,
+                  "id": 7071,
                   "nodeType": "EmitStatement",
                   "src": "185:22:15"
                 }
               ]
             },
             "documentation": null,
-            "id": 7262,
+            "id": 7073,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
             "modifiers": [
               {
                 "arguments": null,
-                "id": 7255,
+                "id": 7066,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 7254,
+                  "id": 7065,
                   "name": "onlyOwner",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
@@ -865,19 +865,19 @@
             "name": "testOnlyOwner",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7253,
+              "id": 7064,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "155:2:15"
             },
             "payable": false,
             "returnParameters": {
-              "id": 7256,
+              "id": 7067,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "175:0:15"
             },
-            "scope": 7285,
+            "scope": 7096,
             "src": "133:81:15",
             "stateMutability": "nonpayable",
             "superFunction": null,
@@ -885,7 +885,7 @@
           },
           {
             "body": {
-              "id": 7271,
+              "id": 7082,
               "nodeType": "Block",
               "src": "264:36:15",
               "statements": [
@@ -896,7 +896,7 @@
                       {
                         "argumentTypes": null,
                         "hexValue": "7075626c6963",
-                        "id": 7268,
+                        "id": 7079,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -919,18 +919,18 @@
                           "typeString": "literal_string \"public\""
                         }
                       ],
-                      "id": 7267,
+                      "id": 7078,
                       "name": "Call",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7252,
+                      "referencedDeclaration": 7063,
                       "src": "279:4:15",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
                         "typeString": "function (string memory)"
                       }
                     },
-                    "id": 7269,
+                    "id": 7080,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -944,14 +944,14 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 7270,
+                  "id": 7081,
                   "nodeType": "EmitStatement",
                   "src": "274:19:15"
                 }
               ]
             },
             "documentation": null,
-            "id": 7272,
+            "id": 7083,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
@@ -959,22 +959,22 @@
             "name": "testPublic",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7263,
+              "id": 7074,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "239:2:15"
             },
             "payable": false,
             "returnParameters": {
-              "id": 7266,
+              "id": 7077,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7265,
+                  "id": 7076,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7272,
+                  "scope": 7083,
                   "src": "258:4:15",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -983,7 +983,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 7264,
+                    "id": 7075,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "258:4:15",
@@ -998,7 +998,7 @@
               ],
               "src": "257:6:15"
             },
-            "scope": 7285,
+            "scope": 7096,
             "src": "220:80:15",
             "stateMutability": "nonpayable",
             "superFunction": null,
@@ -1006,7 +1006,7 @@
           },
           {
             "body": {
-              "id": 7283,
+              "id": 7094,
               "nodeType": "Block",
               "src": "385:50:15",
               "statements": [
@@ -1017,7 +1017,7 @@
                       {
                         "argumentTypes": null,
                         "hexValue": "6f776e65724f7241646d696e6973747261746f72",
-                        "id": 7280,
+                        "id": 7091,
                         "isConstant": false,
                         "isLValue": false,
                         "isPure": true,
@@ -1040,18 +1040,18 @@
                           "typeString": "literal_string \"ownerOrAdministrator\""
                         }
                       ],
-                      "id": 7279,
+                      "id": 7090,
                       "name": "Call",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7252,
+                      "referencedDeclaration": 7063,
                       "src": "400:4:15",
                       "typeDescriptions": {
                         "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
                         "typeString": "function (string memory)"
                       }
                     },
-                    "id": 7281,
+                    "id": 7092,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": false,
@@ -1065,24 +1065,24 @@
                       "typeString": "tuple()"
                     }
                   },
-                  "id": 7282,
+                  "id": 7093,
                   "nodeType": "EmitStatement",
                   "src": "395:33:15"
                 }
               ]
             },
             "documentation": null,
-            "id": 7284,
+            "id": 7095,
             "implemented": true,
             "isConstructor": false,
             "isDeclaredConst": false,
             "modifiers": [
               {
                 "arguments": null,
-                "id": 7275,
+                "id": 7086,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 7274,
+                  "id": 7085,
                   "name": "ownerOrAdministrator",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
@@ -1100,22 +1100,22 @@
             "name": "testOwnerOrAdministrator",
             "nodeType": "FunctionDefinition",
             "parameters": {
-              "id": 7273,
+              "id": 7084,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "339:2:15"
             },
             "payable": false,
             "returnParameters": {
-              "id": 7278,
+              "id": 7089,
               "nodeType": "ParameterList",
               "parameters": [
                 {
                   "constant": false,
-                  "id": 7277,
+                  "id": 7088,
                   "name": "",
                   "nodeType": "VariableDeclaration",
-                  "scope": 7284,
+                  "scope": 7095,
                   "src": "379:4:15",
                   "stateVariable": false,
                   "storageLocation": "default",
@@ -1124,7 +1124,7 @@
                     "typeString": "bool"
                   },
                   "typeName": {
-                    "id": 7276,
+                    "id": 7087,
                     "name": "bool",
                     "nodeType": "ElementaryTypeName",
                     "src": "379:4:15",
@@ -1139,14 +1139,14 @@
               ],
               "src": "378:6:15"
             },
-            "scope": 7285,
+            "scope": 7096,
             "src": "306:129:15",
             "stateMutability": "nonpayable",
             "superFunction": null,
             "visibility": "public"
           }
         ],
-        "scope": 7286,
+        "scope": 7097,
         "src": "60:377:15"
       }
     ],
@@ -1158,5 +1158,5 @@
   },
   "networks": {},
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-04T13:55:17.230Z"
+  "updatedAt": "2018-12-06T13:22:53.161Z"
 }

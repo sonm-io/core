@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 require('babel-register');
 require('babel-polyfill');
 require('dotenv').config();
@@ -21,6 +23,14 @@ if (process.env.BUILD_TYPE === 'CI') {
             mochaFile: 'result.xml',
         },
     };
+}
+
+let buildFolder = path.join(process.cwd(), 'build');
+if (process.env.MIGRATION === 'true') {
+    buildFolder = path.join(process.cwd(), 'migration_artifacts');
+    fs.mkdir(buildFolder, { recursive: true }, (err) => {
+        if (err) throw err;
+    });
 }
 
 module.exports = {
@@ -80,4 +90,6 @@ module.exports = {
     mocha: mochaConfig,
     // eslint-disable-next-line camelcase
     contracts_directory: './contracts',
+    // eslint-disable-next-line camelcase
+    build_directory: buildFolder,
 };

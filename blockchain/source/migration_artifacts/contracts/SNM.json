@@ -368,7 +368,7 @@
         "id": 5472,
         "nodeType": "ImportDirective",
         "scope": 5515,
-        "sourceUnit": 7944,
+        "sourceUnit": 7755,
         "src": "27:67:10",
         "symbolAliases": [],
         "unitAlias": ""
@@ -379,7 +379,7 @@
         "id": 5473,
         "nodeType": "ImportDirective",
         "scope": 5515,
-        "sourceUnit": 7526,
+        "sourceUnit": 7337,
         "src": "95:59:10",
         "symbolAliases": [],
         "unitAlias": ""
@@ -393,10 +393,10 @@
               "id": 5474,
               "name": "StandardToken",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7943,
+              "referencedDeclaration": 7754,
               "src": "173:13:10",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_StandardToken_$7943",
+                "typeIdentifier": "t_contract$_StandardToken_$7754",
                 "typeString": "contract StandardToken"
               }
             },
@@ -411,10 +411,10 @@
               "id": 5476,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7525,
+              "referencedDeclaration": 7336,
               "src": "188:7:10",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$7525",
+                "typeIdentifier": "t_contract$_Ownable_$7336",
                 "typeString": "contract Ownable"
               }
             },
@@ -424,11 +424,11 @@
           }
         ],
         "contractDependencies": [
-          7525,
-          7621,
-          7664,
-          7696,
-          7943
+          7336,
+          7432,
+          7475,
+          7507,
+          7754
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -436,11 +436,11 @@
         "id": 5514,
         "linearizedBaseContracts": [
           5514,
-          7525,
-          7943,
-          7621,
-          7664,
-          7696
+          7336,
+          7754,
+          7432,
+          7475,
+          7507
         ],
         "name": "SNM",
         "nodeType": "ContractDefinition",
@@ -452,10 +452,10 @@
               "id": 5478,
               "name": "SafeMath",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7439,
+              "referencedDeclaration": 7250,
               "src": "209:8:10",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_SafeMath_$7439",
+                "typeIdentifier": "t_contract$_SafeMath_$7250",
                 "typeString": "library SafeMath"
               }
             },
@@ -621,7 +621,7 @@
                       "name": "owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7443,
+                      "referencedDeclaration": 7254,
                       "src": "374:5:10",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -638,7 +638,7 @@
                         "name": "msg",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7958,
+                        "referencedDeclaration": 7769,
                         "src": "382:3:10",
                         "typeDescriptions": {
                           "typeIdentifier": "t_magic_message",
@@ -683,7 +683,7 @@
                       "name": "totalSupply_",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7540,
+                      "referencedDeclaration": 7351,
                       "src": "402:12:10",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
@@ -810,7 +810,7 @@
                         "name": "balances",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7538,
+                        "referencedDeclaration": 7349,
                         "src": "443:8:10",
                         "typeDescriptions": {
                           "typeIdentifier": "t_mapping$_t_address_$_t_uint256_$",
@@ -826,7 +826,7 @@
                           "name": "msg",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 7958,
+                          "referencedDeclaration": 7769,
                           "src": "452:3:10",
                           "typeDescriptions": {
                             "typeIdentifier": "t_magic_message",
@@ -866,7 +866,7 @@
                       "name": "totalSupply_",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7540,
+                      "referencedDeclaration": 7351,
                       "src": "466:12:10",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
@@ -946,7 +946,7 @@
         "id": 5472,
         "nodeType": "ImportDirective",
         "scope": 5515,
-        "sourceUnit": 7944,
+        "sourceUnit": 7755,
         "src": "27:67:10",
         "symbolAliases": [],
         "unitAlias": ""
@@ -957,7 +957,7 @@
         "id": 5473,
         "nodeType": "ImportDirective",
         "scope": 5515,
-        "sourceUnit": 7526,
+        "sourceUnit": 7337,
         "src": "95:59:10",
         "symbolAliases": [],
         "unitAlias": ""
@@ -971,10 +971,10 @@
               "id": 5474,
               "name": "StandardToken",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7943,
+              "referencedDeclaration": 7754,
               "src": "173:13:10",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_StandardToken_$7943",
+                "typeIdentifier": "t_contract$_StandardToken_$7754",
                 "typeString": "contract StandardToken"
               }
             },
@@ -989,10 +989,10 @@
               "id": 5476,
               "name": "Ownable",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7525,
+              "referencedDeclaration": 7336,
               "src": "188:7:10",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_Ownable_$7525",
+                "typeIdentifier": "t_contract$_Ownable_$7336",
                 "typeString": "contract Ownable"
               }
             },
@@ -1002,11 +1002,11 @@
           }
         ],
         "contractDependencies": [
-          7525,
-          7621,
-          7664,
-          7696,
-          7943
+          7336,
+          7432,
+          7475,
+          7507,
+          7754
         ],
         "contractKind": "contract",
         "documentation": null,
@@ -1014,11 +1014,11 @@
         "id": 5514,
         "linearizedBaseContracts": [
           5514,
-          7525,
-          7943,
-          7621,
-          7664,
-          7696
+          7336,
+          7754,
+          7432,
+          7475,
+          7507
         ],
         "name": "SNM",
         "nodeType": "ContractDefinition",
@@ -1030,10 +1030,10 @@
               "id": 5478,
               "name": "SafeMath",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 7439,
+              "referencedDeclaration": 7250,
               "src": "209:8:10",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_SafeMath_$7439",
+                "typeIdentifier": "t_contract$_SafeMath_$7250",
                 "typeString": "library SafeMath"
               }
             },
@@ -1199,7 +1199,7 @@
                       "name": "owner",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7443,
+                      "referencedDeclaration": 7254,
                       "src": "374:5:10",
                       "typeDescriptions": {
                         "typeIdentifier": "t_address",
@@ -1216,7 +1216,7 @@
                         "name": "msg",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7958,
+                        "referencedDeclaration": 7769,
                         "src": "382:3:10",
                         "typeDescriptions": {
                           "typeIdentifier": "t_magic_message",
@@ -1261,7 +1261,7 @@
                       "name": "totalSupply_",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7540,
+                      "referencedDeclaration": 7351,
                       "src": "402:12:10",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
@@ -1388,7 +1388,7 @@
                         "name": "balances",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
-                        "referencedDeclaration": 7538,
+                        "referencedDeclaration": 7349,
                         "src": "443:8:10",
                         "typeDescriptions": {
                           "typeIdentifier": "t_mapping$_t_address_$_t_uint256_$",
@@ -1404,7 +1404,7 @@
                           "name": "msg",
                           "nodeType": "Identifier",
                           "overloadedDeclarations": [],
-                          "referencedDeclaration": 7958,
+                          "referencedDeclaration": 7769,
                           "src": "452:3:10",
                           "typeDescriptions": {
                             "typeIdentifier": "t_magic_message",
@@ -1444,7 +1444,7 @@
                       "name": "totalSupply_",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 7540,
+                      "referencedDeclaration": 7351,
                       "src": "466:12:10",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
@@ -1503,5 +1503,5 @@
   },
   "networks": {},
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-04T13:55:17.217Z"
+  "updatedAt": "2018-12-06T13:25:10.532Z"
 }
