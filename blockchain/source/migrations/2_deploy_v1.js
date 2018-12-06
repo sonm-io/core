@@ -42,6 +42,18 @@ function needMultisig (network) {
     return network === 'master' || network === 'privateLive';
 }
 
+function mainNetName(network) {
+    if (network === 'dev_side') {
+        return 'dev_main';
+    }
+    if (network === 'private') {
+        return 'rinkeby';
+    }
+    if (network === 'privateLive') {
+        return 'master';
+    }
+}
+
 function determineGatekeeperMasterchainAddress (network) {
     let targetNet = TruffleConfig.networks[network].main_network_id;
     if (!GateKeeperLive.hasNetwork(targetNet)) {
@@ -63,8 +75,20 @@ async function determineSNMMasterchainAddress (network) {
         // In main net it is already deployed
         return '0x983f6d60db79ea8ca4eb9968c6aff8cfa04b3c63';
     }
+    try {
+        let faucet = await TestnetFaucet.deployed();
+        return faucet.getTokenAddress();
+    } catch {
+        //pass
+    }
+    let faucetAddress = determineFaucetAddress(network);
+    let alt = TestnetFaucet.clone();
+    let mainNet = TruffleConfig.networks[network].main_network_id;
+    alt.setNetwork(mainNet);
+    alt.setProvider(TruffleConfig.networks[mainNetName(network)].provider());
+    let faucet = alt.at(faucetAddress);
 
-    return (await TestnetFaucet.deployed()).getTokenAddress();
+    return faucet.getTokenAddress();
 }
 
 function determineFaucetAddress (network) {
@@ -80,7 +104,7 @@ async function deployMainchain (deployer, network) {
         await deployer.deploy(TestnetFaucet);
     }
     // deploy Live Gatekeeper
-    let snmAddr = await determineSNMMasterchainAddress();
+    let snmAddr = await determineSNMMasterchainAddress(network);
     await deployer.deploy(GateKeeperLive, snmAddr, freezingTime, { gasPrice: actualGasPrice });
     let gk = await GateKeeperLive.deployed();
 
@@ -144,9 +168,9 @@ async function deploySidechain (deployer, network) {
 
     // write
     await ahm.write('sidechainSNMAddress', SNM.address, { gasPrice: 0 });
-    let snmAddr = await determineSNMMasterchainAddress();
+    let snmAddr = await determineSNMMasterchainAddress(network);
     if (hasFaucetInMain(network)) {
-        await ahm.write('testnetFaucetAddress', determineFaucetAddress(), { gasPrice: 0 });
+        await ahm.write('testnetFaucetAddress', determineFaucetAddress(network), { gasPrice: 0 });
     }
     await ahm.write('masterchainSNMAddress', snmAddr, { gasPrice: 0 });
     await ahm.write('blacklistAddress', bl.address, { gasPrice: 0 });
@@ -161,6 +185,8 @@ async function deploySidechain (deployer, network) {
         await deployer.deploy(Multisig, MSOwners, MSRequired, { gasPrice: 0 });
         let multiSig = await Multisig.deployed();
         await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
+        // compatibility
+        await ahm.write('oracleMultiSigAddress', multiSig.address, { gasPrice: 0 });
 
         // transfer AddressHashMap ownership to `Migration` multisig
         await ahm.transferOwnership(multiSig.address, { gasPrice: 0 });

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const Web3 = require('web3');
 require('babel-register');
 require('babel-polyfill');
 require('dotenv').config();
@@ -36,21 +37,18 @@ if (process.env.MIGRATION === 'true') {
 module.exports = {
     networks: {
         development: {
-            host: 'localhost',
-            port: 8525,
+            provider: () => new Web3.providers.HttpProvider("http://localhost:8525"),
             network_id: '*', // eslint-disable-line camelcase
         },
         // eslint-disable-next-line camelcase
         dev_side: {
-            host: 'localhost',
-            port: 8535,
+            provider: () => new Web3.providers.HttpProvider("http://localhost:8535"),
             network_id: '8535', // eslint-disable-line camelcase
             main_network_id: '8545', // eslint-disable-line camelcase
         },
         // eslint-disable-next-line camelcase
         dev_main: {
-            host: 'localhost',
-            port: 8545,
+            provider: () => new Web3.providers.HttpProvider("http://localhost:8545"),
             network_id: '*', // eslint-disable-line camelcase
         },
         coverage: {

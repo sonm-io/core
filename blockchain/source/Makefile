@@ -33,29 +33,34 @@ lint_js:
 	@echo "+ $@"
 	@${ESLINT} .
 
+migrate_dev:
+	${TRUFFLE} migrate --network=dev_main
+	${TRUFFLE} migrate --network=dev_side
+
+migrate_test:
+ifeq (${PRV_KEY},)
+	@echo "ERROR: PRV_KEY is required for livenet migration"
+	@exit 1
+endif
+	MIGRATION=true ${TRUFFLE} migrate --network=rinkeby
+	MIGRATION=true ${TRUFFLE} migrate --network=private
+
+migrate_live:
+ifeq (${PRV_KEY},)
+	@echo "ERROR: PRV_KEY is required for livenet migration"
+	@exit 1
+endif
+	MIGRATION=true ${TRUFFLE} migrate --network=master
+	MIGRATION=true ${TRUFFLE} migrate --network=privateLive
+
 migrate:
-	${TRUFFLE} migrate --network=$(NETWORK)
+	MIGRATION=true ${TRUFFLE} migrate --network=$(NETWORK)
 
 coverage:
 	scripts/test_coverage.sh
 
 deploy:
 	${TRUFFLE} migrate --network private
-
-liveMasterDeploy:
-	mv migrations tmp_dir
-	mv live-deploy-scripts migrations
-	${TRUFFLE} migrate --reset --network master
-	mv migrations live-deploy-scripts
-	mv tmp_dir migrations
-	echo "DONT FORGET TO SET KEEPER ADDRESS"
-
-liveSideDeploy:
-	mv migrations tmp_dir
-	mv live-deploy-scripts migrations
-	${TRUFFLE} migrate --network privateLive
-	mv migrations live-deploy-scripts
-	mv tmp_dir migrations
 
 generate_api: compile
 	${GO} build utils/generate_api.go
