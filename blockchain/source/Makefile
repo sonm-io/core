@@ -52,12 +52,12 @@ ifeq (${PRV_KEY_SIDE},)
 endif
 
 migrate_test: check_keys
-	MIGRATION=true ${TRUFFLE} migrate --network=rinkeby
-	MIGRATION=true ${TRUFFLE} migrate --network=private
+	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=rinkeby
+	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=private
 
 migrate_live: check_keys
-	MIGRATION=true ${TRUFFLE} migrate --network=master
-	MIGRATION=true ${TRUFFLE} migrate --network=privateLive
+	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=master
+	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=privateLive
 
 migrate:
 	MIGRATION=true ${TRUFFLE} migrate --network=$(NETWORK)

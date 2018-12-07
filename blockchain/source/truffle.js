@@ -72,11 +72,13 @@ module.exports = {
             provider: () => new PrivateKeyProvider(privateKey, sidechainEndpoint),
             network_id: '444', // eslint-disable-line camelcase
             main_network_id: '1', // eslint-disable-line camelcase
+            gasPrice: 0x0,
         },
         private: {
             provider: () => new PrivateKeyProvider(privateKey, sidechainDevEndpoint),
-            network_id: '4444', // eslint-disable-line camelcase
+            network_id: '4242', // eslint-disable-line camelcase
             main_network_id: '4', // eslint-disable-line camelcase
+            gasPrice: 0x0,
         },
     },
     solc: {

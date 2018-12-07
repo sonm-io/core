@@ -10,6 +10,8 @@ let GateKeeperLive = artifacts.require('./SimpleGatekeeperWithLimitLive.sol');
 let AddressHashMap = artifacts.require('./AddressHashMap.sol');
 let TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
 
+let { isSidechain, isMainChain } = require('../migration_utils/network');
+
 const TruffleConfig = require('../truffle');
 
 let MSOwners = [
@@ -24,22 +26,21 @@ let MSOwners = [
     '0xdd8422eed7fe5f85ea8058d273d3f5c17ef41d1c',
 ];
 
-let MSRequired = 5;
 let freezingTime = 60 * 15;
 let actualGasPrice = 3000000000;
 let benchmarksQuantity = 12;
 let netflagsQuantity = 3;
 
-function isSidechain (network) {
-    return network === 'dev_side' || network === 'privateLive' || network === 'private';
-}
-
-function isMainChain (network) {
-    return network === 'dev_main' || network === 'master' || network === 'rinkeby';
+function MSRequired (network) {
+    if (network === 'rinkeby' || network === 'private') {
+        return 1;
+    } else {
+        return 5;
+    }
 }
 
 function needMultisig (network) {
-    return network === 'master' || network === 'privateLive';
+    return network === 'master' || network === 'privateLive' || network === 'rinkeby' || network === 'private';
 }
 
 function mainNetName(network) {
@@ -112,7 +113,7 @@ async function deployMainchain (deployer, network) {
     await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 100000 * 1e18, { gasPrice: actualGasPrice }); // eslint-disable-line max-len
 
     if (needMultisig(network)) {
-        await deployer.deploy(Multisig, MSOwners, MSRequired, { gasPrice: actualGasPrice });
+        await deployer.deploy(Multisig, MSOwners, MSRequired(network), { gasPrice: actualGasPrice });
         let multisig = await Multisig.deployed();
 
         // transfer Live Gatekeeper ownership to `Gatekeeper` multisig
@@ -182,7 +183,7 @@ async function deploySidechain (deployer, network) {
 
     if (needMultisig(network)) {
         // 0) deploy `Gatekeeper` multisig
-        await deployer.deploy(Multisig, MSOwners, MSRequired, { gasPrice: 0 });
+        await deployer.deploy(Multisig, MSOwners, MSRequired(network), { gasPrice: 0 });
         let multiSig = await Multisig.deployed();
         await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
         // compatibility
