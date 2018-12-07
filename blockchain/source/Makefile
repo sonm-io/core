@@ -37,19 +37,25 @@ migrate_dev:
 	${TRUFFLE} migrate --network=dev_main
 	${TRUFFLE} migrate --network=dev_side
 
-migrate_test:
-ifeq (${PRV_KEY},)
-	@echo "ERROR: PRV_KEY is required for livenet migration"
+check_keys:
+ifeq (${PRV_KEY_MAIN},)
+	@echo "ERROR: PRV_KEY_MAIN is required for migration"
+endif
+ifeq (${PRV_KEY_SIDE},)
+	@echo "ERROR: PRV_KEY_SIDE is required for migration"
+endif
+ifeq (${PRV_KEY_MAIN},)
 	@exit 1
 endif
+ifeq (${PRV_KEY_SIDE},)
+	@exit 1
+endif
+
+migrate_test: check_keys
 	MIGRATION=true ${TRUFFLE} migrate --network=rinkeby
 	MIGRATION=true ${TRUFFLE} migrate --network=private
 
-migrate_live:
-ifeq (${PRV_KEY},)
-	@echo "ERROR: PRV_KEY is required for livenet migration"
-	@exit 1
-endif
+migrate_live: check_keys
 	MIGRATION=true ${TRUFFLE} migrate --network=master
 	MIGRATION=true ${TRUFFLE} migrate --network=privateLive
 
