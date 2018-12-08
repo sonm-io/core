@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/metrics"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -56,6 +57,8 @@ func run(app cmd.AppContext) error {
 	}
 
 	go metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)
+	go debug.ServePProf(ctx, debug.Config{Port: 6060}, logger)
+
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
