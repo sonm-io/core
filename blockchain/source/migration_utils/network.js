@@ -1,4 +1,4 @@
-networkMapping = {
+let networkMapping = {
     dev_main: 'dev_side',
     dev_side: 'dev_main',
     rinkeby: 'private',

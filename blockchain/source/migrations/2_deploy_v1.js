@@ -11,9 +11,11 @@ let GateKeeperLive = artifacts.require('./SimpleGatekeeperWithLimitLive.sol');
 let AddressHashMap = artifacts.require('./AddressHashMap.sol');
 let TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
 
-let { isSidechain, isMainChain } = require('../migration_utils/network');
+let { isSidechain, isMainChain, oppositeNetName } = require('../migration_utils/network');
 
 const TruffleConfig = require('../truffle');
+
+const MSWrapper = require('../migration_utils/multisig');
 
 let freezingTime = 60 * 15;
 let actualGasPrice = 3000000000;
@@ -28,11 +30,10 @@ function MSRequired (network) {
     }
 }
 
-function MSOwners (network) {
+function MSOwners (network, accounts) {
     if (network === 'dev_main' || network === 'dev_side') {
         return [
-            // public repo key for testing migrations
-            '0x8125721c2413d99a33e351e1f6bb4e56b6b633fd'
+            accounts[0]
         ]
     } else {
         return [
@@ -80,7 +81,7 @@ async function determineSNMMasterchainAddress (network) {
     let alt = TestnetFaucet.clone();
     let mainNet = TruffleConfig.networks[network].main_network_id;
     alt.setNetwork(mainNet);
-    alt.setProvider(TruffleConfig.networks[mainNetName(network)].provider());
+    alt.setProvider(TruffleConfig.networks[oppositeNetName(network)].provider());
     let faucet = alt.at(faucetAddress);
 
     return faucet.getTokenAddress();
@@ -94,7 +95,7 @@ function determineFaucetAddress (network) {
     return TestnetFaucet.networks[targetNet].address;
 }
 
-async function deployMainchain (deployer, network) {
+async function deployMainchain (deployer, network, accounts) {
     if (needFaucet(network)) {
         await deployer.deploy(TestnetFaucet);
     }
@@ -106,14 +107,14 @@ async function deployMainchain (deployer, network) {
     // add keeper with 100k limit for testing
     await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 100000 * 1e18, { gasPrice: actualGasPrice }); // eslint-disable-line max-len
 
-    await deployer.deploy(Multisig, MSOwners(network), MSRequired(network), { gasPrice: actualGasPrice });
+    await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: actualGasPrice });
     let multisig = await Multisig.deployed();
 
     // transfer Live Gatekeeper ownership to `Gatekeeper` multisig
     await gk.transferOwnership(multisig.address, { gasPrice: actualGasPrice });
 }
 
-async function deploySidechain (deployer, network) {
+async function deploySidechain (deployer, network, accounts) {
     let GatekeeperMasterchainAddress = determineGatekeeperMasterchainAddress(network);
     if (GatekeeperMasterchainAddress === '') {
         console.log('GatekeeperMasterchainAddress is not set!!!');
@@ -175,7 +176,7 @@ async function deploySidechain (deployer, network) {
 
 
      // 0) deploy `Gatekeeper` multisig
-     await deployer.deploy(Multisig, MSOwners(network), MSRequired(network), { gasPrice: 0 });
+     await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
      let multiSig = await Multisig.deployed();
      await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
      // compatibility
@@ -190,7 +191,7 @@ async function deploySidechain (deployer, network) {
      // transfer ProfileRegistry ownership to `Migration` multisig
      await pr.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-     await deployer.deploy(OracleMultisig, MSOwners(network), MSRequired(network), { gasPrice: 0 });
+     await deployer.deploy(OracleMultisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
      let oracleMS = await OracleMultisig.deployed();
      // Transfer Oracle ownership to `Oracle` multisig
      oracle.transferOwnership(oracleMS.address, { gasPrice: 0 });
@@ -203,13 +204,13 @@ async function deploySidechain (deployer, network) {
 
 }
 
-module.exports = function (deployer, network) {
+module.exports = function (deployer, network, accounts) {
     deployer.then(async () => { // eslint-disable-line promise/catch-or-return
-        if (isMainChain(network)) {
-            await deployMainchain(deployer, network);
-        }
         if (isSidechain(network)) {
-            await deploySidechain(deployer, network);
+            await deploySidechain(deployer, network, accounts);
+        }
+        if (isMainChain(network)) {
+            await deployMainchain(deployer, network, accounts);
         }
     });
 };
