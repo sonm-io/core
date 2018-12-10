@@ -1,4 +1,5 @@
 let Multisig = artifacts.require('./MultiSigWallet.sol');
+let OracleMultisig = artifacts.require('./MultiSigWallet.sol');
 let SNM = artifacts.require('./SNM.sol');
 
 let Market = artifacts.require('./Market.sol');
@@ -14,44 +15,37 @@ let { isSidechain, isMainChain } = require('../migration_utils/network');
 
 const TruffleConfig = require('../truffle');
 
-let MSOwners = [
-    '0xdaec8F2cDf27aD3DF5438E5244aE206c5FcF7fCd',
-    '0xd9a43e16e78c86cf7b525c305f8e72723e0fab5e',
-    '0x72cb2a9AD34aa126fC02b7d32413725A1B478888',
-    '0x1f50Be5cbFBFBF3aBD889e17cb77D31dA2Bd7227',
-    '0xe062C67207F7E478a93EF9BEA39535d8EfFAE3cE',
-    '0x5fa359a9137cc5ac2a85d701ce2991cab5dcd538',
-    '0x7aa5237e0f999a9853a9cc8c56093220142ce48e',
-    '0xd43f262536e916a4a807d27080092f190e25d774',
-    '0xdd8422eed7fe5f85ea8058d273d3f5c17ef41d1c',
-];
-
 let freezingTime = 60 * 15;
 let actualGasPrice = 3000000000;
 let benchmarksQuantity = 12;
 let netflagsQuantity = 3;
 
 function MSRequired (network) {
-    if (network === 'rinkeby' || network === 'private') {
+    if (network === 'rinkeby' || network === 'private' || network === 'dev_main' || network === 'dev_side') {
         return 1;
     } else {
         return 5;
     }
 }
 
-function needMultisig (network) {
-    return network === 'master' || network === 'privateLive' || network === 'rinkeby' || network === 'private';
-}
-
-function mainNetName(network) {
-    if (network === 'dev_side') {
-        return 'dev_main';
-    }
-    if (network === 'private') {
-        return 'rinkeby';
-    }
-    if (network === 'privateLive') {
-        return 'master';
+function MSOwners (network) {
+    if (network === 'dev_main' || network === 'dev_side') {
+        return [
+            // public repo key for testing migrations
+            '0x8125721c2413d99a33e351e1f6bb4e56b6b633fd'
+        ]
+    } else {
+        return [
+            '0xdaec8F2cDf27aD3DF5438E5244aE206c5FcF7fCd',
+            '0xd9a43e16e78c86cf7b525c305f8e72723e0fab5e',
+            '0x72cb2a9AD34aa126fC02b7d32413725A1B478888',
+            '0x1f50Be5cbFBFBF3aBD889e17cb77D31dA2Bd7227',
+            '0xe062C67207F7E478a93EF9BEA39535d8EfFAE3cE',
+            '0x5fa359a9137cc5ac2a85d701ce2991cab5dcd538',
+            '0x7aa5237e0f999a9853a9cc8c56093220142ce48e',
+            '0xd43f262536e916a4a807d27080092f190e25d774',
+            '0xdd8422eed7fe5f85ea8058d273d3f5c17ef41d1c',
+        ];
     }
 }
 
@@ -112,13 +106,11 @@ async function deployMainchain (deployer, network) {
     // add keeper with 100k limit for testing
     await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 100000 * 1e18, { gasPrice: actualGasPrice }); // eslint-disable-line max-len
 
-    if (needMultisig(network)) {
-        await deployer.deploy(Multisig, MSOwners, MSRequired(network), { gasPrice: actualGasPrice });
-        let multisig = await Multisig.deployed();
+    await deployer.deploy(Multisig, MSOwners(network), MSRequired(network), { gasPrice: actualGasPrice });
+    let multisig = await Multisig.deployed();
 
-        // transfer Live Gatekeeper ownership to `Gatekeeper` multisig
-        await gk.transferOwnership(multisig.address, { gasPrice: actualGasPrice });
-    }
+    // transfer Live Gatekeeper ownership to `Gatekeeper` multisig
+    await gk.transferOwnership(multisig.address, { gasPrice: actualGasPrice });
 }
 
 async function deploySidechain (deployer, network) {
@@ -181,32 +173,34 @@ async function deploySidechain (deployer, network) {
     await ahm.write('gatekeeperSidechainAddress', gk.address, { gasPrice: 0 });
     await ahm.write('gatekeeperMasterchainAddress', GatekeeperMasterchainAddress, { gasPrice: 0 });
 
-    if (needMultisig(network)) {
-        // 0) deploy `Gatekeeper` multisig
-        await deployer.deploy(Multisig, MSOwners, MSRequired(network), { gasPrice: 0 });
-        let multiSig = await Multisig.deployed();
-        await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
-        // compatibility
-        await ahm.write('oracleMultiSigAddress', multiSig.address, { gasPrice: 0 });
 
-        // transfer AddressHashMap ownership to `Migration` multisig
-        await ahm.transferOwnership(multiSig.address, { gasPrice: 0 });
+     // 0) deploy `Gatekeeper` multisig
+     await deployer.deploy(Multisig, MSOwners(network), MSRequired(network), { gasPrice: 0 });
+     let multiSig = await Multisig.deployed();
+     await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
+     // compatibility
+     await ahm.write('oracleMultiSigAddress', multiSig.address, { gasPrice: 0 });
 
-        // 4) transfer Gatekeeper ownership to `Gatekeeper` multisig
-        await gk.transferOwnership(multiSig.address, { gasPrice: 0 });
+     // transfer AddressHashMap ownership to `Migration` multisig
+     await ahm.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-        // transfer ProfileRegistry ownership to `Migration` multisig
-        await pr.transferOwnership(multiSig.address, { gasPrice: 0 });
+     // 4) transfer Gatekeeper ownership to `Gatekeeper` multisig
+     await gk.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-        // Transfer Oracle ownership to `Oracle` multisig
-        oracle.transferOwnership(multiSig.address, { gasPrice: 0 });
+     // transfer ProfileRegistry ownership to `Migration` multisig
+     await pr.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-        // transfer Market ownership to `Migration`
-        await market.transferOwnership(multiSig.address, { gasPrice: 0 });
+     await deployer.deploy(OracleMultisig, MSOwners(network), MSRequired(network), { gasPrice: 0 });
+     let oracleMS = await OracleMultisig.deployed();
+     // Transfer Oracle ownership to `Oracle` multisig
+     oracle.transferOwnership(oracleMS.address, { gasPrice: 0 });
 
-        // transfer Blacklist ownership to Migration multisig
-        await bl.transferOwnership(multiSig.address, { gasPrice: 0 });
-    }
+     // transfer Market ownership to `Migration`
+     await market.transferOwnership(multiSig.address, { gasPrice: 0 });
+
+     // transfer Blacklist ownership to Migration multisig
+     await bl.transferOwnership(multiSig.address, { gasPrice: 0 });
+
 }
 
 module.exports = function (deployer, network) {
