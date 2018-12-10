@@ -3,6 +3,7 @@ package sonm
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/sonm-io/core/util/netutil"
 )
@@ -77,4 +78,13 @@ func (m *SocketAddr) IntoTCP() (net.Addr, error) {
 
 func (m *SocketAddr) IntoUDP() (*net.UDPAddr, error) {
 	return net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", m.Addr, m.Port))
+}
+
+func FormatAddrs(addrs ...*Addr) string {
+	formatted := make([]string, len(addrs))
+	for id, addr := range addrs {
+		formatted[id] = fmt.Sprintf("%s:%d", addr.GetAddr().GetAddr(), addr.GetAddr().GetPort())
+	}
+
+	return fmt.Sprintf("[%s]", strings.Join(formatted, ", "))
 }
