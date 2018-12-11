@@ -7,6 +7,7 @@ let networkMapping = {
     privateLive: 'master',
 };
 
+//TODO: move to truffle config
 module.exports = {
     isSidechain: function (network) {
         return network === 'dev_side' || network === 'privateLive' || network === 'private';

@@ -6,15 +6,10 @@ require('babel-polyfill');
 require('dotenv').config();
 let PrivateKeyProvider = require('truffle-privatekey-provider');
 
-let privateKey = '0000000000000000000000000000000000000000000000000000000000000000';
-
+let privateKey;
 if (process.env.PRV_KEY !== undefined) {
     privateKey = process.env.PRV_KEY;
 }
-let masterchainEndpoint = 'https://mainnet.infura.io/';
-let rinkebyEndpoint = 'https://rinkeby.infura.io/';
-let sidechainEndpoint = 'https://sidechain.livenet.sonm.com';
-let sidechainDevEndpoint = 'https://sidechain-dev.sonm.com';
 
 let mochaConfig = {};
 if (process.env.BUILD_TYPE === 'CI') {
@@ -34,56 +29,70 @@ if (process.env.MIGRATION === 'true') {
     });
 }
 
-module.exports = {
-    networks: {
-        development: {
-            provider: () => new Web3.providers.HttpProvider("http://localhost:8525"),
-            network_id: '*', // eslint-disable-line camelcase
-        },
-        // eslint-disable-next-line camelcase
-        dev_side: {
-            provider: () => new Web3.providers.HttpProvider("http://localhost:8535"),
-            network_id: '8535', // eslint-disable-line camelcase
-            main_network_id: '8545', // eslint-disable-line camelcase
-        },
-        // eslint-disable-next-line camelcase
-        dev_main: {
-            provider: () => new Web3.providers.HttpProvider("http://localhost:8545"),
-            network_id: '8545', // eslint-disable-line camelcase
-            side_network_id: '8535', // eslint-disable-line camelcase
-        },
-        coverage: {
-            host: 'localhost',
-            network_id: '*', // eslint-disable-line camelcase
-            port: 8555,
-            gas: 0xfffffffffff,
-            gasPrice: 0x01,
-        },
+let urls = {
+    development: 'http://localhost:8525',
+    dev_side: 'http://localhost:8535',
+    dev_main: 'http://localhost:8545',
+    coverage: 'http://localhost:8555',
+    master: 'https://mainnet.infura.io/',
+    rinkeby: 'https://rinkeby.infura.io/',
+    privateLive: 'https://sidechain.livenet.sonm.com',
+    private: 'https://sidechain-dev.sonm.com',
+};
 
-        master: {
-            provider: () => new PrivateKeyProvider(privateKey, masterchainEndpoint),
-            network_id: '1', // eslint-disable-line camelcase
-            side_network_id: '444', // eslint-disable-line camelcase
-        },
-        rinkeby: {
-            provider: () => new PrivateKeyProvider(privateKey, rinkebyEndpoint),
-            network_id: '4', // eslint-disable-line camelcase
-            side_network_id: '4242', // eslint-disable-line camelcase
-        },
-
-        privateLive: {
-            provider: () => new PrivateKeyProvider(privateKey, sidechainEndpoint),
-            network_id: '444', // eslint-disable-line camelcase
-            main_network_id: '1', // eslint-disable-line camelcase
-            gasPrice: 0x0,
-        },
-        private: {
-            provider: () => new PrivateKeyProvider(privateKey, sidechainDevEndpoint),
-            network_id: '4242', // eslint-disable-line camelcase
-            main_network_id: '4', // eslint-disable-line camelcase
-            gasPrice: 0x0,
-        },
+let networks = {
+    development: {
+        network_id: '*', // eslint-disable-line camelcase
     },
+    // eslint-disable-next-line camelcase
+    dev_side: {
+        network_id: '8535', // eslint-disable-line camelcase
+        main_network_id: '8545', // eslint-disable-line camelcase
+    },
+    // eslint-disable-next-line camelcase
+    dev_main: {
+        network_id: '8545', // eslint-disable-line camelcase
+        side_network_id: '8535', // eslint-disable-line camelcase
+    },
+    coverage: {
+        network_id: '*', // eslint-disable-line camelcase
+        gas: 0xfffffffffff,
+        gasPrice: 0x01,
+    },
+
+    master: {
+        network_id: '1', // eslint-disable-line camelcase
+        side_network_id: '444', // eslint-disable-line camelcase
+    },
+    rinkeby: {
+        network_id: '4', // eslint-disable-line camelcase
+        side_network_id: '4242', // eslint-disable-line camelcase
+    },
+
+    privateLive: {
+        network_id: '444', // eslint-disable-line camelcase
+        main_network_id: '1', // eslint-disable-line camelcase
+        gasPrice: 0x0,
+    },
+    private: {
+        network_id: '4242', // eslint-disable-line camelcase
+        main_network_id: '4', // eslint-disable-line camelcase
+        gasPrice: 0x0,
+    },
+};
+
+for (let net in networks) {
+    let provider;
+    if(privateKey !== undefined) {
+        provider = () => new PrivateKeyProvider(privateKey, urls[net])
+    } else {
+        provider = () => new Web3.providers.HttpProvider(urls[net]);
+    }
+    networks[net].provider = provider;
+}
+
+module.exports = {
+    networks: networks,
     solc: {
         optimizer: {
             enabled: true,

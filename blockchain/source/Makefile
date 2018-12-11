@@ -34,8 +34,8 @@ lint_js:
 	@${ESLINT} .
 
 migrate_dev:
-	${TRUFFLE} migrate --network=dev_main
 	${TRUFFLE} migrate --network=dev_side
+	${TRUFFLE} migrate --network=dev_main
 
 check_keys:
 ifeq (${PRV_KEY_MAIN},)
@@ -52,12 +52,12 @@ ifeq (${PRV_KEY_SIDE},)
 endif
 
 migrate_test: check_keys
-	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=rinkeby
 	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=private
+	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=rinkeby
 
 migrate_live: check_keys
-	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=master
 	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=privateLive
+	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=master
 
 migrate:
 	MIGRATION=true ${TRUFFLE} migrate --network=$(NETWORK)

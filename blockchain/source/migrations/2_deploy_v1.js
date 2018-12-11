@@ -16,6 +16,7 @@ let { isSidechain, isMainChain, oppositeNetName } = require('../migration_utils/
 const TruffleConfig = require('../truffle');
 
 const MSWrapper = require('../migration_utils/multisig');
+const ContractRegistry = require('../migration_utils/address_hashmap');
 
 let freezingTime = 60 * 15;
 let actualGasPrice = 3000000000;
@@ -32,9 +33,7 @@ function MSRequired (network) {
 
 function MSOwners (network, accounts) {
     if (network === 'dev_main' || network === 'dev_side') {
-        return [
-            accounts[0]
-        ]
+        return accounts;
     } else {
         return [
             '0xdaec8F2cDf27aD3DF5438E5244aE206c5FcF7fCd',
@@ -71,20 +70,19 @@ async function determineSNMMasterchainAddress (network) {
         // In main net it is already deployed
         return '0x983f6d60db79ea8ca4eb9968c6aff8cfa04b3c63';
     }
-    try {
-        let faucet = await TestnetFaucet.deployed();
-        return faucet.getTokenAddress();
-    } catch {
-        //pass
-    }
-    let faucetAddress = determineFaucetAddress(network);
-    let alt = TestnetFaucet.clone();
-    let mainNet = TruffleConfig.networks[network].main_network_id;
-    alt.setNetwork(mainNet);
-    alt.setProvider(TruffleConfig.networks[oppositeNetName(network)].provider());
-    let faucet = alt.at(faucetAddress);
-
+    let faucet = await TestnetFaucet.deployed();
     return faucet.getTokenAddress();
+    // } catch {
+    //     //pass
+    // }
+    // let faucetAddress = determineFaucetAddress(network);
+    // let alt = TestnetFaucet.clone();
+    // let mainNet = TruffleConfig.networks[network].main_network_id;
+    // alt.setNetwork(mainNet);
+    // alt.setProvider(TruffleConfig.networks[oppositeNetName(network)].provider());
+    // let faucet = alt.at(faucetAddress);
+    //
+    // return faucet.getTokenAddress();
 }
 
 function determineFaucetAddress (network) {
@@ -96,30 +94,32 @@ function determineFaucetAddress (network) {
 }
 
 async function deployMainchain (deployer, network, accounts) {
+    let registry = new ContractRegistry(AddressHashMap, network, Multisig);
+    await registry.init();
     if (needFaucet(network)) {
         await deployer.deploy(TestnetFaucet);
+        await registry.write('testnetFaucetAddress', (await TestnetFaucet.deployed()).address);
     }
     // deploy Live Gatekeeper
     let snmAddr = await determineSNMMasterchainAddress(network);
+    await registry.write('masterchainSNMAddress', snmAddr, { gasPrice: 0 });
+
     await deployer.deploy(GateKeeperLive, snmAddr, freezingTime, { gasPrice: actualGasPrice });
     let gk = await GateKeeperLive.deployed();
+    await registry.write('gatekeeperMasterchainAddress', gk.address, { gasPrice: 0 });
 
     // add keeper with 100k limit for testing
     await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 100000 * 1e18, { gasPrice: actualGasPrice }); // eslint-disable-line max-len
 
     await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: actualGasPrice });
     let multisig = await Multisig.deployed();
+    await registry.write('masterchainMultisigAddress', multisig.address, { gasPrice: 0 });
 
     // transfer Live Gatekeeper ownership to `Gatekeeper` multisig
     await gk.transferOwnership(multisig.address, { gasPrice: actualGasPrice });
 }
 
 async function deploySidechain (deployer, network, accounts) {
-    let GatekeeperMasterchainAddress = determineGatekeeperMasterchainAddress(network);
-    if (GatekeeperMasterchainAddress === '') {
-        console.log('GatekeeperMasterchainAddress is not set!!!');
-        throw new Error('GatekeeperMasterchainAddress is not set!!!');
-    }
     // 1) deploy SNM token
     await deployer.deploy(SNM, { gasPrice: 0 });
     let token = await SNM.deployed();
@@ -162,45 +162,40 @@ async function deploySidechain (deployer, network, accounts) {
 
     // write
     await ahm.write('sidechainSNMAddress', SNM.address, { gasPrice: 0 });
-    let snmAddr = await determineSNMMasterchainAddress(network);
-    if (hasFaucetInMain(network)) {
-        await ahm.write('testnetFaucetAddress', determineFaucetAddress(network), { gasPrice: 0 });
-    }
-    await ahm.write('masterchainSNMAddress', snmAddr, { gasPrice: 0 });
+
+    await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
+    let multiSig = await Multisig.deployed();
+
+    await deployer.deploy(OracleMultisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
+    let oracleMS = await OracleMultisig.deployed();
+
     await ahm.write('blacklistAddress', bl.address, { gasPrice: 0 });
     await ahm.write('marketAddress', market.address, { gasPrice: 0 });
     await ahm.write('profileRegistryAddress', pr.address, { gasPrice: 0 });
     await ahm.write('oracleUsdAddress', oracle.address, { gasPrice: 0 });
     await ahm.write('gatekeeperSidechainAddress', gk.address, { gasPrice: 0 });
-    await ahm.write('gatekeeperMasterchainAddress', GatekeeperMasterchainAddress, { gasPrice: 0 });
+    await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
+    // compatibility
+    await ahm.write('migrationMultSigAddress', multiSig.address, { gasPrice: 0 });
+    await ahm.write('oracleMultiSigAddress', oracleMS.address, { gasPrice: 0 });
 
+    // transfer AddressHashMap ownership to `Migration` multisig
+    await ahm.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-     // 0) deploy `Gatekeeper` multisig
-     await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
-     let multiSig = await Multisig.deployed();
-     await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
-     // compatibility
-     await ahm.write('oracleMultiSigAddress', multiSig.address, { gasPrice: 0 });
+    // 4) transfer Gatekeeper ownership to `Gatekeeper` multisig
+    await gk.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-     // transfer AddressHashMap ownership to `Migration` multisig
-     await ahm.transferOwnership(multiSig.address, { gasPrice: 0 });
+    // transfer ProfileRegistry ownership to `Migration` multisig
+    await pr.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-     // 4) transfer Gatekeeper ownership to `Gatekeeper` multisig
-     await gk.transferOwnership(multiSig.address, { gasPrice: 0 });
+    // Transfer Oracle ownership to `Oracle` multisig
+    await oracle.transferOwnership(oracleMS.address, { gasPrice: 0 });
 
-     // transfer ProfileRegistry ownership to `Migration` multisig
-     await pr.transferOwnership(multiSig.address, { gasPrice: 0 });
+    // transfer Market ownership to `Migration`
+    await market.transferOwnership(multiSig.address, { gasPrice: 0 });
 
-     await deployer.deploy(OracleMultisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
-     let oracleMS = await OracleMultisig.deployed();
-     // Transfer Oracle ownership to `Oracle` multisig
-     oracle.transferOwnership(oracleMS.address, { gasPrice: 0 });
-
-     // transfer Market ownership to `Migration`
-     await market.transferOwnership(multiSig.address, { gasPrice: 0 });
-
-     // transfer Blacklist ownership to Migration multisig
-     await bl.transferOwnership(multiSig.address, { gasPrice: 0 });
+    // transfer Blacklist ownership to Migration multisig
+    await bl.transferOwnership(multiSig.address, { gasPrice: 0 });
 
 }
 
