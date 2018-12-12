@@ -17,7 +17,7 @@ import (
 
 const (
 	DefaultDatabasePath = "/usr/local/share/sonm/geoip/geobase.mmdb"
-	DefaultDatabaseURL  = "https://s3.eu-west-2.amazonaws.com/sonm.geoip/geobase.mmdb"
+	DefaultDatabaseURL  = "https://dwh.livenet.sonm.com/geobase.mmdb"
 	DefaultDatabaseSHA1 = "2ef2075cc6e4567ab4efca3fde906f4611f18d49"
 )
 
