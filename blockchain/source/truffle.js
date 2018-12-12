@@ -7,8 +7,12 @@ require('dotenv').config();
 let PrivateKeyProvider = require('truffle-privatekey-provider');
 
 let privateKey;
+let msPrivateKey;
 if (process.env.PRV_KEY !== undefined) {
     privateKey = process.env.PRV_KEY;
+}
+if (process.env.MS_PRV_KEY !== undefined) {
+    msPrivateKey = process.env.MS_PRV_KEY;
 }
 
 let mochaConfig = {};
@@ -84,15 +88,26 @@ let networks = {
 for (let net in networks) {
     let provider;
     if(privateKey !== undefined) {
-        provider = () => new PrivateKeyProvider(privateKey, urls[net])
+        provider = () => new PrivateKeyProvider(privateKey, urls[net]);
     } else {
         provider = () => new Web3.providers.HttpProvider(urls[net]);
     }
     networks[net].provider = provider;
 }
 
+let networkMapping = {
+    dev_main: 'dev_side',
+    dev_side: 'dev_main',
+    rinkeby: 'private',
+    private: 'rinkeby',
+    master: 'privateLive',
+    privateLive: 'master',
+};
+
+
 module.exports = {
     networks: networks,
+    urls: urls,
     solc: {
         optimizer: {
             enabled: true,
@@ -104,4 +119,15 @@ module.exports = {
     contracts_directory: './contracts',
     // eslint-disable-next-line camelcase
     build_directory: buildFolder,
+    isSidechain: function (network) {
+        return network === 'dev_side' || network === 'privateLive' || network === 'private';
+    },
+    isMainChain: function (network) {
+        return network === 'dev_main' || network === 'master' || network === 'rinkeby';
+    },
+    oppositeNetName: function (network) {
+        return networkMapping[network];
+    },
+    multisigPrivateKey: msPrivateKey,
 };
+

@@ -1,27 +1,32 @@
 const EthereumjsWallet = require('ethereumjs-wallet');
 const PrivateKeyProvider = require('truffle-privatekey-provider');
+const TruffleConfig = require('../truffle');
 
 function sleep(millis) {
     return new Promise(resolve => setTimeout(resolve, millis));
 }
 
 class MSWrapper {
-    constructor(ms, wrappedContract) {
-        this.ms = ms;
-        this.wrappedContract = wrappedContract;
-    }
-
-    static async new(msContract, network, privateKey, providerUrl) {
-        let alt = msContract.clone();
-        let wallet = EthereumjsWallet.fromPrivateKey(new Buffer(privateKey, "hex"));
-        let address = "0x" + this.wallet.getAddress().toString("hex");
-
-        alt.class_defaults.from = address;
+    static async new(msContract, resolver, network, wrappedContract) {
+        let netID = TruffleConfig.networks[network].network_id;
+        let msWrapper = new MSWrapper();
+        msWrapper.wrappedContract = wrappedContract;
+        let alt = msContract.clone(netID);
         alt.class_defaults.gas = msContract.class_defaults.gas;
-        alt.setNetwork(network);
-        let provider = new PrivateKeyProvider(privateKey, )
-        alt.setProvider(TruffleConfig.networks[oppositeNetName(this.network)].provider());
-        this.multisig = await this.resolve(alt, 'multiSigAddress');
+
+        let pKey = TruffleConfig.multisigPrivateKey;
+        if (pKey !== undefined) {
+            let wallet = EthereumjsWallet.fromPrivateKey(new Buffer(pKey, "hex"));
+            alt.class_defaults.from = wallet.getAddress().toString("hex");
+            let provider = new PrivateKeyProvider(pKey, TruffleConfig.urls[network]);
+            alt.setProvider(provider);
+        } else {
+            alt.class_defaults.from = msContract.class_defaults.from;
+            alt.setProvider(TruffleConfig.networks[network].provider());
+        }
+
+        msWrapper.ms = await resolver.resolve(alt, 'multiSigAddress');
+        return msWrapper;
     }
 
     async call(method, ...args) {

@@ -11,11 +11,8 @@ let GateKeeperLive = artifacts.require('./SimpleGatekeeperWithLimitLive.sol');
 let AddressHashMap = artifacts.require('./AddressHashMap.sol');
 let TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
 
-let { isSidechain, isMainChain, oppositeNetName } = require('../migration_utils/network');
-
 const TruffleConfig = require('../truffle');
 
-const MSWrapper = require('../migration_utils/multisig');
 const ContractRegistry = require('../migration_utils/address_hashmap');
 
 let freezingTime = 60 * 15;
@@ -201,10 +198,10 @@ async function deploySidechain (deployer, network, accounts) {
 
 module.exports = function (deployer, network, accounts) {
     deployer.then(async () => { // eslint-disable-line promise/catch-or-return
-        if (isSidechain(network)) {
+        if (TruffleConfig.isSidechain(network)) {
             await deploySidechain(deployer, network, accounts);
         }
-        if (isMainChain(network)) {
+        if (TruffleConfig.isMainChain(network)) {
             await deployMainchain(deployer, network, accounts);
         }
     });
