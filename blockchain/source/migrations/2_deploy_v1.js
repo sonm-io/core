@@ -43,9 +43,9 @@ function MSOwners (network, accounts) {
             '0xd43f262536e916a4a807d27080092f190e25d774',
             '0xdd8422eed7fe5f85ea8058d273d3f5c17ef41d1c',
         ];
-        // 8th key of ganache, TODO: for testing, drop
+        // antmat's key
         if (network === 'private' || network === 'rinkeby') {
-            accounts.push('0xaca94ef8bd5ffee41947b4585a84bda5a3d3da6e')
+            accounts.push('0x3e73a52d1d9f2ce0b810eed579d9363025be4d6b')
         }
         return accounts;
     }
