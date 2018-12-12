@@ -45,26 +45,14 @@ function MSOwners (network, accounts) {
         ];
         // antmat's key
         if (network === 'private' || network === 'rinkeby') {
-            accounts.push('0x3e73a52d1d9f2ce0b810eed579d9363025be4d6b')
+            accounts.push('0x3e73a52d1d9f2ce0b810eed579d9363025be4d6b');
         }
         return accounts;
     }
 }
 
-function determineGatekeeperMasterchainAddress (network) {
-    let targetNet = TruffleConfig.networks[network].main_network_id;
-    if (!GateKeeperLive.hasNetwork(targetNet)) {
-        throw new Error('GateKeeper was not deployed to ' + targetNet);
-    }
-    return GateKeeperLive.networks[targetNet].address;
-}
-
 function needFaucet (network) {
     return network === 'dev_main' || network === 'rinkeby';
-}
-
-function hasFaucetInMain (network) {
-    return network === 'dev_side' || network === 'private';
 }
 
 async function determineSNMMasterchainAddress (network) {
@@ -74,25 +62,6 @@ async function determineSNMMasterchainAddress (network) {
     }
     let faucet = await TestnetFaucet.deployed();
     return faucet.getTokenAddress();
-    // } catch {
-    //     //pass
-    // }
-    // let faucetAddress = determineFaucetAddress(network);
-    // let alt = TestnetFaucet.clone();
-    // let mainNet = TruffleConfig.networks[network].main_network_id;
-    // alt.setNetwork(mainNet);
-    // alt.setProvider(TruffleConfig.networks[oppositeNetName(network)].provider());
-    // let faucet = alt.at(faucetAddress);
-    //
-    // return faucet.getTokenAddress();
-}
-
-function determineFaucetAddress (network) {
-    let targetNet = TruffleConfig.networks[network].main_network_id;
-    if (!TestnetFaucet.hasNetwork(targetNet)) {
-        throw new Error('TestnetFaucet was not deployed to ' + targetNet);
-    }
-    return TestnetFaucet.networks[targetNet].address;
 }
 
 async function deployMainchain (deployer, network, accounts) {
@@ -198,7 +167,6 @@ async function deploySidechain (deployer, network, accounts) {
 
     // transfer Blacklist ownership to Migration multisig
     await bl.transferOwnership(multiSig.address, { gasPrice: 0 });
-
 }
 
 module.exports = function (deployer, network, accounts) {

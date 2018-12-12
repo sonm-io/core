@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 const fs = require('fs');
 const path = require('path');
 const Web3 = require('web3');
@@ -46,48 +47,46 @@ let urls = {
 
 let networks = {
     development: {
-        network_id: '*', // eslint-disable-line camelcase
+        network_id: '*',
     },
-    // eslint-disable-next-line camelcase
     dev_side: {
-        network_id: '8535', // eslint-disable-line camelcase
-        main_network_id: '8545', // eslint-disable-line camelcase
+        network_id: '8535',
+        main_network_id: '8545',
     },
-    // eslint-disable-next-line camelcase
     dev_main: {
-        network_id: '8545', // eslint-disable-line camelcase
-        side_network_id: '8535', // eslint-disable-line camelcase
+        network_id: '8545',
+        side_network_id: '8535',
     },
     coverage: {
-        network_id: '*', // eslint-disable-line camelcase
+        network_id: '*',
         gas: 0xfffffffffff,
         gasPrice: 0x01,
     },
 
     master: {
-        network_id: '1', // eslint-disable-line camelcase
-        side_network_id: '444', // eslint-disable-line camelcase
+        network_id: '1',
+        side_network_id: '444',
     },
     rinkeby: {
-        network_id: '4', // eslint-disable-line camelcase
-        side_network_id: '4242', // eslint-disable-line camelcase
+        network_id: '4',
+        side_network_id: '4242',
     },
 
     privateLive: {
-        network_id: '444', // eslint-disable-line camelcase
-        main_network_id: '1', // eslint-disable-line camelcase
+        network_id: '444',
+        main_network_id: '1',
         gasPrice: 0x0,
     },
     private: {
-        network_id: '4242', // eslint-disable-line camelcase
-        main_network_id: '4', // eslint-disable-line camelcase
+        network_id: '4242',
+        main_network_id: '4',
         gasPrice: 0x0,
     },
 };
 
 for (let net in networks) {
     let provider;
-    if(privateKey !== undefined) {
+    if (privateKey !== undefined) {
         provider = () => new PrivateKeyProvider(privateKey, urls[net]);
     } else {
         provider = () => new Web3.providers.HttpProvider(urls[net]);
@@ -104,7 +103,6 @@ let networkMapping = {
     privateLive: 'master',
 };
 
-
 module.exports = {
     networks: networks,
     urls: urls,
@@ -115,9 +113,7 @@ module.exports = {
         },
     },
     mocha: mochaConfig,
-    // eslint-disable-next-line camelcase
     contracts_directory: './contracts',
-    // eslint-disable-next-line camelcase
     build_directory: buildFolder,
     isSidechain: function (network) {
         return network === 'dev_side' || network === 'privateLive' || network === 'private';
@@ -130,4 +126,3 @@ module.exports = {
     },
     multisigPrivateKey: msPrivateKey,
 };
-
