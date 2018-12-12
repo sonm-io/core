@@ -1350,7 +1350,56 @@
     "name": "solc",
     "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "4242": {
+      "events": {
+        "0xa6dc15bdb68da224c66db4b3838d9a2b205138e8cff6774e57d0af91e196d622": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "name": "price",
+              "type": "uint256"
+            }
+          ],
+          "name": "PriceChanged",
+          "type": "event"
+        },
+        "0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipRenounced",
+          "type": "event"
+        },
+        "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x8f42ff250257550e127f0234a2220daa70d98250",
+      "transactionHash": "0x29e4a68cbba2348094618fedc9e676de6902cc9f4fdb14db3d894d5e008298e1"
+    }
+  },
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-06T13:25:10.531Z"
+  "updatedAt": "2018-12-12T12:23:09.747Z"
 }

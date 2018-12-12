@@ -15231,7 +15231,180 @@
     "name": "solc",
     "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "4242": {
+      "events": {
+        "0x14312725abbc46ad798bc078b2663e1fcbace97be0247cd177176f3b4df2538e": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "txNumber",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "name": "value",
+              "type": "uint256"
+            }
+          ],
+          "name": "PayinTx",
+          "type": "event"
+        },
+        "0x65546c3bc3a77ffc91667da85018004299542e28a511328cfb4b3f86974902ee": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "txNumber",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "indexed": false,
+              "name": "commitTimestamp",
+              "type": "uint256"
+            }
+          ],
+          "name": "CommitTx",
+          "type": "event"
+        },
+        "0x731af16374848c2c73a6154fd410cb421138e7db45c5a904e5a475c756faa8d9": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "from",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "txNumber",
+              "type": "uint256"
+            },
+            {
+              "indexed": true,
+              "name": "value",
+              "type": "uint256"
+            }
+          ],
+          "name": "PayoutTx",
+          "type": "event"
+        },
+        "0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "name": "block",
+              "type": "uint256"
+            }
+          ],
+          "name": "Suicide",
+          "type": "event"
+        },
+        "0xef9c668177207fb68ca5e3894a1efacebb659762b27a737fde58ceebc4f30ad3": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "keeper",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "dayLimit",
+              "type": "uint256"
+            }
+          ],
+          "name": "LimitChanged",
+          "type": "event"
+        },
+        "0xdf4868d2f39f6ab9f41b92c6917da5aec882c461ce7316bb62076865108502bd": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "keeper",
+              "type": "address"
+            }
+          ],
+          "name": "KeeperFreezed",
+          "type": "event"
+        },
+        "0xbbe17a7427b5192903e1b3f0f2b6ef8b2a1af9b33e1079faf8f8383f2fb63b53": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "keeper",
+              "type": "address"
+            }
+          ],
+          "name": "KeeperUnfreezed",
+          "type": "event"
+        },
+        "0x839e4456845dbc05c7d8638cf0b0976161331b5f9163980d71d9a6444a326c61": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "commission",
+              "type": "uint256"
+            }
+          ],
+          "name": "CommissionChanged",
+          "type": "event"
+        },
+        "0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipRenounced",
+          "type": "event"
+        },
+        "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x09a3473478f621cd01d8aff061e4533e56bf33d1",
+      "transactionHash": "0xc31a5f671dc068f809f1e8663bc586aa1f07339c96799b9ef573ab775eed3ee0"
+    }
+  },
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-06T13:25:10.552Z"
+  "updatedAt": "2018-12-12T12:23:09.780Z"
 }

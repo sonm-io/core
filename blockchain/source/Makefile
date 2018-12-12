@@ -33,10 +33,6 @@ lint_js:
 	@echo "+ $@"
 	@${ESLINT} .
 
-migrate_dev:
-	${TRUFFLE} migrate --network=dev_side
-	${TRUFFLE} migrate --network=dev_main
-
 check_keys:
 ifeq (${PRV_KEY_MAIN},)
 	@echo "ERROR: PRV_KEY_MAIN is required for migration"
@@ -44,12 +40,23 @@ endif
 ifeq (${PRV_KEY_SIDE},)
 	@echo "ERROR: PRV_KEY_SIDE is required for migration"
 endif
+ifeq (${MS_PRV_KEY},)
+	@echo "ERROR: MS_PRV_KEY is required for migration"
+endif
+
 ifeq (${PRV_KEY_MAIN},)
 	@exit 1
 endif
 ifeq (${PRV_KEY_SIDE},)
 	@exit 1
 endif
+ifeq (${MS_PRV_KEY},)
+	@exit 1
+endif
+
+migrate_dev: check_keys
+	${TRUFFLE} migrate --network=dev_side
+	${TRUFFLE} migrate --network=dev_main
 
 migrate_test: check_keys
 	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=private

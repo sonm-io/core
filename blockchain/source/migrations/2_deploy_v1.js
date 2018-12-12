@@ -32,7 +32,7 @@ function MSOwners (network, accounts) {
     if (network === 'dev_main' || network === 'dev_side') {
         return accounts;
     } else {
-        return [
+        accounts = [
             '0xdaec8F2cDf27aD3DF5438E5244aE206c5FcF7fCd',
             '0xd9a43e16e78c86cf7b525c305f8e72723e0fab5e',
             '0x72cb2a9AD34aa126fC02b7d32413725A1B478888',
@@ -43,6 +43,11 @@ function MSOwners (network, accounts) {
             '0xd43f262536e916a4a807d27080092f190e25d774',
             '0xdd8422eed7fe5f85ea8058d273d3f5c17ef41d1c',
         ];
+        // 8th key of ganache, TODO: for testing, drop
+        if (network === 'private' || network === 'rinkeby') {
+            accounts.push('0xaca94ef8bd5ffee41947b4585a84bda5a3d3da6e')
+        }
+        return accounts;
     }
 }
 

@@ -5478,7 +5478,78 @@
     "name": "solc",
     "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
-  "networks": {},
+  "networks": {
+    "4242": {
+      "events": {
+        "0x708802ac7da0a63d9f6b2df693b53345ad263e42d74c245110e1ec1e03a1567e": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "adder",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "addee",
+              "type": "address"
+            }
+          ],
+          "name": "AddedToBlacklist",
+          "type": "event"
+        },
+        "0x576a9aef294e1b4baf3617fde4cbc80ba5344d5eb508222f29e558981704a457": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "remover",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "removee",
+              "type": "address"
+            }
+          ],
+          "name": "RemovedFromBlacklist",
+          "type": "event"
+        },
+        "0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipRenounced",
+          "type": "event"
+        },
+        "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0xaef0816008911d43141119e7e7444adbb1471f1b",
+      "transactionHash": "0xbd08132574b6f0272e048b387e581f031990d083ce8439fdbf3185d5aaf7c232"
+    }
+  },
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-06T13:25:10.537Z"
+  "updatedAt": "2018-12-12T12:23:09.757Z"
 }
