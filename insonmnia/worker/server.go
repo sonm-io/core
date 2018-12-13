@@ -352,7 +352,7 @@ func (m *Worker) exportKey() error {
 
 func (m *Worker) setupBlockchainAPI() error {
 	if m.eth == nil {
-		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain), blockchain.WithNiceMarket())
+		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain), blockchain.WithNiceMarket(), blockchain.WithBlockConfirmations(1))
 		if err != nil {
 			return err
 		}
@@ -575,7 +575,12 @@ func (m *Worker) devicesUpdateRoutine(ctx context.Context) error {
 	for {
 		select {
 		case <-tk.C:
-			m.eth.DeviceStorage().StoreOrUpdate(ctx, m.key, m.hardware)
+			err := m.eth.DeviceStorage().StoreOrUpdate(ctx, m.key, m.hardware)
+			if err != nil {
+				log.S(m.ctx).Warnf("failed to store or update devices: %s", err)
+			} else {
+				log.S(m.ctx).Infof("updated devices")
+			}
 		case <-ctx.Done():
 			return ctx.Err()
 		}
