@@ -51,11 +51,9 @@ let networks = {
     },
     dev_side: {
         network_id: '8525',
-        main_network_id: '8545',
     },
     dev_main: {
         network_id: '8545',
-        side_network_id: '8525',
     },
     coverage: {
         network_id: '*',
@@ -65,21 +63,17 @@ let networks = {
 
     master: {
         network_id: '1',
-        side_network_id: '444',
     },
     rinkeby: {
         network_id: '4',
-        side_network_id: '4242',
     },
 
     privateLive: {
         network_id: '444',
-        main_network_id: '1',
         gasPrice: 0x0,
     },
     private: {
         network_id: '4242',
-        main_network_id: '4',
         gasPrice: 0x0,
     },
 };
