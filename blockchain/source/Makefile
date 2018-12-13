@@ -6,6 +6,7 @@ TRUFFLE=./node_modules/truffle/build/cli.bundled.js
 TESTRPC=./node_modules/ethereumjs-testrpc/build/cli.node.js
 SOLIUM=./node_modules/solium/bin/solium.js
 ESLINT=./node_modules/.bin/eslint
+DEV_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
 
 .PHONY: all test node_modules coverage api
 
@@ -54,15 +55,10 @@ ifeq (${MS_PRV_KEY},)
 	@exit 1
 endif
 
+
 migrate_dev:
-	PRV_KEY_MAIN=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
-	PRV_KEY_SIDE=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
-	MS_PRV_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
-	${TRUFFLE} migrate --network=dev_side
-	PRV_KEY_MAIN=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
-    PRV_KEY_SIDE=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
-   	MS_PRV_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
-    ${TRUFFLE} migrate --network=dev_main
+	PRV_KEY_MAIN=${DEV_KEY} PRV_KEY_SIDE=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_side
+	PRV_KEY_MAIN=${DEV_KEY} PRV_KEY_SIDE=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_main
 
 migrate_test: check_keys
 	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=private

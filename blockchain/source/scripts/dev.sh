@@ -10,7 +10,6 @@ if [[ -n "$blockTime" ]]; then
 fi
 
 cleanup() {
-  echo "huy"
   for pid in "${pids[@]}"
   do
     echo "killing $pid"
