@@ -35,8 +35,8 @@ if (process.env.MIGRATION === 'true') {
 }
 
 let urls = {
-    development: 'http://localhost:8525',
-    dev_side: 'http://localhost:8535',
+    development: 'http://localhost:8535',
+    dev_side: 'http://localhost:8525',
     dev_main: 'http://localhost:8545',
     coverage: 'http://localhost:8555',
     master: 'https://mainnet.infura.io/',
@@ -50,12 +50,12 @@ let networks = {
         network_id: '*',
     },
     dev_side: {
-        network_id: '8535',
+        network_id: '8525',
         main_network_id: '8545',
     },
     dev_main: {
         network_id: '8545',
-        side_network_id: '8535',
+        side_network_id: '8525',
     },
     coverage: {
         network_id: '*',
