@@ -57,8 +57,8 @@ endif
 
 
 migrate_dev:
-	PRV_KEY_MAIN=${DEV_KEY} PRV_KEY_SIDE=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_side
-	PRV_KEY_MAIN=${DEV_KEY} PRV_KEY_SIDE=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_main
+	PRV_KEY=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_side
+	PRV_KEY=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_main
 
 migrate_test: check_keys
 	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=private

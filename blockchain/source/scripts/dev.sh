@@ -25,7 +25,6 @@ rpc_running() {
 run() {
     port=$1;
     chain=$2
-    mkdir -p ./$port.db
     if rpc_running $port; then
         echo "rpc is running on $port"
     else
