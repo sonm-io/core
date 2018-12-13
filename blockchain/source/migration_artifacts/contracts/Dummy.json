@@ -1,0 +1,1162 @@
+{
+  "contractName": "Dummy",
+  "abi": [
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_newAdministrator",
+          "type": "address"
+        }
+      ],
+      "name": "transferAdministratorship",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "administrator",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "method",
+          "type": "string"
+        }
+      ],
+      "name": "Call",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "previousOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipRenounced",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "previousAdministrator",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "name": "newAdministrator",
+          "type": "address"
+        }
+      ],
+      "name": "AdministratorshipTransferred",
+      "type": "event"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "testOnlyOwner",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "testPublic",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "testOwnerOrAdministrator",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60806040526000805433600160a060020a0319918216811783556001805490921617905561051890819061003390396000f30060806040526004361061008d5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166325e7d9ee8114610092578063715018a6146100a95780638da5cb5b146100be578063916b2be0146100ef578063a9f0a59014610118578063f2fde38b14610139578063f53d0a8e1461015a578063f5fda8cd1461016f575b600080fd5b34801561009e57600080fd5b506100a7610184565b005b3480156100b557600080fd5b506100a76101fd565b3480156100ca57600080fd5b506100d3610280565b60408051600160a060020a039092168252519081900360200190f35b3480156100fb57600080fd5b5061010461028f565b604080519115158252519081900360200190f35b34801561012457600080fd5b506100a7600160a060020a0360043516610321565b34801561014557600080fd5b506100a7600160a060020a0360043516610344565b34801561016657600080fd5b506100d361037b565b34801561017b57600080fd5b5061010461038a565b600054600160a060020a0316331461019b57600080fd5b6040805160208082526009908201527f6f6e6c794f776e657200000000000000000000000000000000000000000000008183015290517f76cd15b4362d70f576bc9a8057fa5525509bd67b0aabccae82e1d5aeb523a9ef9181900360600190a1565b600054600160a060020a03163314806102205750600154600160a060020a031633145b151561022b57600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b600054600160a060020a031681565b60008054600160a060020a03163314806102b35750600154600160a060020a031633145b15156102be57600080fd5b6040805160208082526014908201527f6f776e65724f7241646d696e6973747261746f720000000000000000000000008183015290517f76cd15b4362d70f576bc9a8057fa5525509bd67b0aabccae82e1d5aeb523a9ef9181900360600190a190565b600154600160a060020a0316331461033857600080fd5b610341816103f1565b50565b600054600160a060020a03163314806103675750600154600160a060020a031633145b151561037257600080fd5b6103418161046f565b600154600160a060020a031681565b6040805160208082526006908201527f7075626c696300000000000000000000000000000000000000000000000000008183015290516000917f76cd15b4362d70f576bc9a8057fa5525509bd67b0aabccae82e1d5aeb523a9ef919081900360600190a190565b600160a060020a038116151561040657600080fd5b600154604051600160a060020a038084169216907f39e41585bde2224ba5127a3a5d20414c158e7966cc0d391983c1abbcf142c52b90600090a36001805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b600160a060020a038116151561048457600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03929092169190911790555600a165627a7a72305820a632383e9f08329121a31c03f1465386391a3fa683dfa54efe39634a2f7de22e0029",
+  "deployedBytecode": "0x60806040526004361061008d5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166325e7d9ee8114610092578063715018a6146100a95780638da5cb5b146100be578063916b2be0146100ef578063a9f0a59014610118578063f2fde38b14610139578063f53d0a8e1461015a578063f5fda8cd1461016f575b600080fd5b34801561009e57600080fd5b506100a7610184565b005b3480156100b557600080fd5b506100a76101fd565b3480156100ca57600080fd5b506100d3610280565b60408051600160a060020a039092168252519081900360200190f35b3480156100fb57600080fd5b5061010461028f565b604080519115158252519081900360200190f35b34801561012457600080fd5b506100a7600160a060020a0360043516610321565b34801561014557600080fd5b506100a7600160a060020a0360043516610344565b34801561016657600080fd5b506100d361037b565b34801561017b57600080fd5b5061010461038a565b600054600160a060020a0316331461019b57600080fd5b6040805160208082526009908201527f6f6e6c794f776e657200000000000000000000000000000000000000000000008183015290517f76cd15b4362d70f576bc9a8057fa5525509bd67b0aabccae82e1d5aeb523a9ef9181900360600190a1565b600054600160a060020a03163314806102205750600154600160a060020a031633145b151561022b57600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b600054600160a060020a031681565b60008054600160a060020a03163314806102b35750600154600160a060020a031633145b15156102be57600080fd5b6040805160208082526014908201527f6f776e65724f7241646d696e6973747261746f720000000000000000000000008183015290517f76cd15b4362d70f576bc9a8057fa5525509bd67b0aabccae82e1d5aeb523a9ef9181900360600190a190565b600154600160a060020a0316331461033857600080fd5b610341816103f1565b50565b600054600160a060020a03163314806103675750600154600160a060020a031633145b151561037257600080fd5b6103418161046f565b600154600160a060020a031681565b6040805160208082526006908201527f7075626c696300000000000000000000000000000000000000000000000000008183015290516000917f76cd15b4362d70f576bc9a8057fa5525509bd67b0aabccae82e1d5aeb523a9ef919081900360600190a190565b600160a060020a038116151561040657600080fd5b600154604051600160a060020a038084169216907f39e41585bde2224ba5127a3a5d20414c158e7966cc0d391983c1abbcf142c52b90600090a36001805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b600160a060020a038116151561048457600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a03929092169190911790555600a165627a7a72305820a632383e9f08329121a31c03f1465386391a3fa683dfa54efe39634a2f7de22e0029",
+  "sourceMap": "60:377:15:-;;;414:5:1;:18;;422:10;-1:-1:-1;;;;;;414:18:1;;;;;;;-1:-1:-1;442:26:1;;;;;;;;60:377:15;;;;;;;;",
+  "deployedSourceMap": "60:377:15:-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;133:81;;8:9:-1;5:2;;;30:1;27;20:12;5:2;133:81:15;;;;;;788:132:1;;8:9:-1;5:2;;;30:1;27;20:12;5:2;788:132:1;;;;57:20;;8:9:-1;5:2;;;30:1;27;20:12;5:2;57:20:1;;;;;;;;-1:-1:-1;;;;;57:20:1;;;;;;;;;;;;;;306:129:15;;8:9:-1;5:2;;;30:1;27;20:12;5:2;306:129:15;;;;;;;;;;;;;;;;;;;;;;1243:149:1;;8:9:-1;5:2;;;30:1;27;20:12;5:2;-1:-1;1243:149:1;-1:-1:-1;;;;;1243:149:1;;;;;926:120;;8:9:-1;5:2;;;30:1;27;20:12;5:2;-1:-1;926:120:1;-1:-1:-1;;;;;926:120:1;;;;;83:28;;8:9:-1;5:2;;;30:1;27;20:12;5:2;83:28:1;;;;220:80:15;;8:9:-1;5:2;;;30:1;27;20:12;5:2;220:80:15;;;;133:81;534:5:1;;-1:-1:-1;;;;;534:5:1;520:10;:19;512:28;;;;;;190:17:15;;;;;;;;;;;;;;;;;;;;;;;;;;;;133:81::o;788:132:1:-;628:5;;-1:-1:-1;;;;;628:5:1;614:10;:19;;:50;;-1:-1:-1;651:13:1;;-1:-1:-1;;;;;651:13:1;637:10;:27;614:50;606:59;;;;;;;;879:5;;;860:25;;-1:-1:-1;;;;;879:5:1;;;;860:25;;;911:1;895:18;;-1:-1:-1;;895:18:1;;;788:132::o;57:20::-;;;-1:-1:-1;;;;;57:20:1;;:::o;306:129:15:-;379:4;628:5:1;;-1:-1:-1;;;;;628:5:1;614:10;:19;;:50;;-1:-1:-1;651:13:1;;-1:-1:-1;;;;;651:13:1;637:10;:27;614:50;606:59;;;;;;;;400:28:15;;;;;;;;;;;;;;;;;;;;;;;;;;;;306:129;:::o;1243:149:1:-;750:13;;-1:-1:-1;;;;;750:13:1;736:10;:27;728:36;;;;;;1340:45;1367:17;1340:26;:45::i;:::-;1243:149;:::o;926:120::-;628:5;;-1:-1:-1;;;;;628:5:1;614:10;:19;;:50;;-1:-1:-1;651:13:1;;-1:-1:-1;;;;;651:13:1;637:10;:27;614:50;606:59;;;;;;;;1010:29;1029:9;1010:18;:29::i;83:28::-;;;-1:-1:-1;;;;;83:28:1;;:::o;220:80:15:-;279:14;;;;;;;;;;;;;;;;;;;258:4;;279:14;;;;;;;;;;220:80;:::o;1398:249:1:-;-1:-1:-1;;;;;1488:31:1;;;;1480:40;;;;;;1564:13;;1535:62;;-1:-1:-1;;;;;1535:62:1;;;;1564:13;;1535:62;;1564:13;;1535:62;1607:13;:33;;-1:-1:-1;;1607:33:1;-1:-1:-1;;;;;1607:33:1;;;;;;;;;;1398:249::o;1052:185::-;-1:-1:-1;;;;;1126:23:1;;;;1118:32;;;;;;1186:5;;;1165:38;;-1:-1:-1;;;;;1165:38:1;;;;1186:5;;;1165:38;;;1213:5;:17;;-1:-1:-1;;1213:17:1;-1:-1:-1;;;;;1213:17:1;;;;;;;;;;1052:185::o",
+  "source": "pragma solidity ^0.4.23;\n\nimport \"../Administratable.sol\";\n\ncontract Dummy is Administratable {\n\n    event Call(string method);\n\n    function testOnlyOwner() public onlyOwner {\n        emit Call(\"onlyOwner\");\n    }\n\n    function testPublic() public returns (bool) {\n        emit Call(\"public\");\n    }\n\n    function testOwnerOrAdministrator() public ownerOrAdministrator returns (bool) {\n        emit Call(\"ownerOrAdministrator\");\n    }\n}\n",
+  "sourcePath": "contracts/test/Dummy.sol",
+  "ast": {
+    "absolutePath": "contracts/test/Dummy.sol",
+    "exportedSymbols": {
+      "Dummy": [
+        7096
+      ]
+    },
+    "id": 7097,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7056,
+        "literals": [
+          "solidity",
+          "^",
+          "0.4",
+          ".23"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:15"
+      },
+      {
+        "absolutePath": "contracts/Administratable.sol",
+        "file": "../Administratable.sol",
+        "id": 7057,
+        "nodeType": "ImportDirective",
+        "scope": 7097,
+        "sourceUnit": 208,
+        "src": "26:32:15",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 7058,
+              "name": "Administratable",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 207,
+              "src": "78:15:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_Administratable_$207",
+                "typeString": "contract Administratable"
+              }
+            },
+            "id": 7059,
+            "nodeType": "InheritanceSpecifier",
+            "src": "78:15:15"
+          }
+        ],
+        "contractDependencies": [
+          207
+        ],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 7096,
+        "linearizedBaseContracts": [
+          7096,
+          207
+        ],
+        "name": "Dummy",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "anonymous": false,
+            "documentation": null,
+            "id": 7063,
+            "name": "Call",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 7062,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7061,
+                  "indexed": false,
+                  "name": "method",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7063,
+                  "src": "112:13:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_string_memory_ptr",
+                    "typeString": "string"
+                  },
+                  "typeName": {
+                    "id": 7060,
+                    "name": "string",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "112:6:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_string_storage_ptr",
+                      "typeString": "string"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "111:15:15"
+            },
+            "src": "101:26:15"
+          },
+          {
+            "body": {
+              "id": 7072,
+              "nodeType": "Block",
+              "src": "175:39:15",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "6f6e6c794f776e6572",
+                        "id": 7069,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "195:11:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_f0f5652c1a65ed7aab563ec92201f225ad4f21da65ab92358467716dd724ffbe",
+                          "typeString": "literal_string \"onlyOwner\""
+                        },
+                        "value": "onlyOwner"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_stringliteral_f0f5652c1a65ed7aab563ec92201f225ad4f21da65ab92358467716dd724ffbe",
+                          "typeString": "literal_string \"onlyOwner\""
+                        }
+                      ],
+                      "id": 7068,
+                      "name": "Call",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7063,
+                      "src": "190:4:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (string memory)"
+                      }
+                    },
+                    "id": 7070,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "190:17:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7071,
+                  "nodeType": "EmitStatement",
+                  "src": "185:22:15"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 7073,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 7066,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 7065,
+                  "name": "onlyOwner",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 93,
+                  "src": "165:9:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "165:9:15"
+              }
+            ],
+            "name": "testOnlyOwner",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7064,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "155:2:15"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 7067,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "175:0:15"
+            },
+            "scope": 7096,
+            "src": "133:81:15",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7082,
+              "nodeType": "Block",
+              "src": "264:36:15",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "7075626c6963",
+                        "id": 7079,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "284:8:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_3c0c3a2537aaf75b853bbf2b595e872d3db0359b7e792ebd8907fb017c3b71a2",
+                          "typeString": "literal_string \"public\""
+                        },
+                        "value": "public"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_stringliteral_3c0c3a2537aaf75b853bbf2b595e872d3db0359b7e792ebd8907fb017c3b71a2",
+                          "typeString": "literal_string \"public\""
+                        }
+                      ],
+                      "id": 7078,
+                      "name": "Call",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7063,
+                      "src": "279:4:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (string memory)"
+                      }
+                    },
+                    "id": 7080,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "279:14:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7081,
+                  "nodeType": "EmitStatement",
+                  "src": "274:19:15"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 7083,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [],
+            "name": "testPublic",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7074,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "239:2:15"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 7077,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7076,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7083,
+                  "src": "258:4:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7075,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "258:4:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "257:6:15"
+            },
+            "scope": 7096,
+            "src": "220:80:15",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7094,
+              "nodeType": "Block",
+              "src": "385:50:15",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "6f776e65724f7241646d696e6973747261746f72",
+                        "id": 7091,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "405:22:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_839aea8de291c5c04180ab336e4587f164c0cbb0ea954bd26fb51268bdcfce7c",
+                          "typeString": "literal_string \"ownerOrAdministrator\""
+                        },
+                        "value": "ownerOrAdministrator"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_stringliteral_839aea8de291c5c04180ab336e4587f164c0cbb0ea954bd26fb51268bdcfce7c",
+                          "typeString": "literal_string \"ownerOrAdministrator\""
+                        }
+                      ],
+                      "id": 7090,
+                      "name": "Call",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7063,
+                      "src": "400:4:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (string memory)"
+                      }
+                    },
+                    "id": 7092,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "400:28:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7093,
+                  "nodeType": "EmitStatement",
+                  "src": "395:33:15"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 7095,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 7086,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 7085,
+                  "name": "ownerOrAdministrator",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 109,
+                  "src": "349:20:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "349:20:15"
+              }
+            ],
+            "name": "testOwnerOrAdministrator",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7084,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "339:2:15"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 7089,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7088,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7095,
+                  "src": "379:4:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7087,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "379:4:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "378:6:15"
+            },
+            "scope": 7096,
+            "src": "306:129:15",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          }
+        ],
+        "scope": 7097,
+        "src": "60:377:15"
+      }
+    ],
+    "src": "0:438:15"
+  },
+  "legacyAST": {
+    "absolutePath": "contracts/test/Dummy.sol",
+    "exportedSymbols": {
+      "Dummy": [
+        7096
+      ]
+    },
+    "id": 7097,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 7056,
+        "literals": [
+          "solidity",
+          "^",
+          "0.4",
+          ".23"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:15"
+      },
+      {
+        "absolutePath": "contracts/Administratable.sol",
+        "file": "../Administratable.sol",
+        "id": 7057,
+        "nodeType": "ImportDirective",
+        "scope": 7097,
+        "sourceUnit": 208,
+        "src": "26:32:15",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "baseContracts": [
+          {
+            "arguments": null,
+            "baseName": {
+              "contractScope": null,
+              "id": 7058,
+              "name": "Administratable",
+              "nodeType": "UserDefinedTypeName",
+              "referencedDeclaration": 207,
+              "src": "78:15:15",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_Administratable_$207",
+                "typeString": "contract Administratable"
+              }
+            },
+            "id": 7059,
+            "nodeType": "InheritanceSpecifier",
+            "src": "78:15:15"
+          }
+        ],
+        "contractDependencies": [
+          207
+        ],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 7096,
+        "linearizedBaseContracts": [
+          7096,
+          207
+        ],
+        "name": "Dummy",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "anonymous": false,
+            "documentation": null,
+            "id": 7063,
+            "name": "Call",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 7062,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7061,
+                  "indexed": false,
+                  "name": "method",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7063,
+                  "src": "112:13:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_string_memory_ptr",
+                    "typeString": "string"
+                  },
+                  "typeName": {
+                    "id": 7060,
+                    "name": "string",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "112:6:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_string_storage_ptr",
+                      "typeString": "string"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "111:15:15"
+            },
+            "src": "101:26:15"
+          },
+          {
+            "body": {
+              "id": 7072,
+              "nodeType": "Block",
+              "src": "175:39:15",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "6f6e6c794f776e6572",
+                        "id": 7069,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "195:11:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_f0f5652c1a65ed7aab563ec92201f225ad4f21da65ab92358467716dd724ffbe",
+                          "typeString": "literal_string \"onlyOwner\""
+                        },
+                        "value": "onlyOwner"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_stringliteral_f0f5652c1a65ed7aab563ec92201f225ad4f21da65ab92358467716dd724ffbe",
+                          "typeString": "literal_string \"onlyOwner\""
+                        }
+                      ],
+                      "id": 7068,
+                      "name": "Call",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7063,
+                      "src": "190:4:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (string memory)"
+                      }
+                    },
+                    "id": 7070,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "190:17:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7071,
+                  "nodeType": "EmitStatement",
+                  "src": "185:22:15"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 7073,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 7066,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 7065,
+                  "name": "onlyOwner",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 93,
+                  "src": "165:9:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "165:9:15"
+              }
+            ],
+            "name": "testOnlyOwner",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7064,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "155:2:15"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 7067,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "175:0:15"
+            },
+            "scope": 7096,
+            "src": "133:81:15",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7082,
+              "nodeType": "Block",
+              "src": "264:36:15",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "7075626c6963",
+                        "id": 7079,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "284:8:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_3c0c3a2537aaf75b853bbf2b595e872d3db0359b7e792ebd8907fb017c3b71a2",
+                          "typeString": "literal_string \"public\""
+                        },
+                        "value": "public"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_stringliteral_3c0c3a2537aaf75b853bbf2b595e872d3db0359b7e792ebd8907fb017c3b71a2",
+                          "typeString": "literal_string \"public\""
+                        }
+                      ],
+                      "id": 7078,
+                      "name": "Call",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7063,
+                      "src": "279:4:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (string memory)"
+                      }
+                    },
+                    "id": 7080,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "279:14:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7081,
+                  "nodeType": "EmitStatement",
+                  "src": "274:19:15"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 7083,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [],
+            "name": "testPublic",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7074,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "239:2:15"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 7077,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7076,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7083,
+                  "src": "258:4:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7075,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "258:4:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "257:6:15"
+            },
+            "scope": 7096,
+            "src": "220:80:15",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 7094,
+              "nodeType": "Block",
+              "src": "385:50:15",
+              "statements": [
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "hexValue": "6f776e65724f7241646d696e6973747261746f72",
+                        "id": 7091,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "kind": "string",
+                        "lValueRequested": false,
+                        "nodeType": "Literal",
+                        "src": "405:22:15",
+                        "subdenomination": null,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_stringliteral_839aea8de291c5c04180ab336e4587f164c0cbb0ea954bd26fb51268bdcfce7c",
+                          "typeString": "literal_string \"ownerOrAdministrator\""
+                        },
+                        "value": "ownerOrAdministrator"
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_stringliteral_839aea8de291c5c04180ab336e4587f164c0cbb0ea954bd26fb51268bdcfce7c",
+                          "typeString": "literal_string \"ownerOrAdministrator\""
+                        }
+                      ],
+                      "id": 7090,
+                      "name": "Call",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 7063,
+                      "src": "400:4:15",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_string_memory_ptr_$returns$__$",
+                        "typeString": "function (string memory)"
+                      }
+                    },
+                    "id": 7092,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "400:28:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 7093,
+                  "nodeType": "EmitStatement",
+                  "src": "395:33:15"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 7095,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [
+              {
+                "arguments": null,
+                "id": 7086,
+                "modifierName": {
+                  "argumentTypes": null,
+                  "id": 7085,
+                  "name": "ownerOrAdministrator",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 109,
+                  "src": "349:20:15",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_modifier$__$",
+                    "typeString": "modifier ()"
+                  }
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "349:20:15"
+              }
+            ],
+            "name": "testOwnerOrAdministrator",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 7084,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "339:2:15"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 7089,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 7088,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 7095,
+                  "src": "379:4:15",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bool",
+                    "typeString": "bool"
+                  },
+                  "typeName": {
+                    "id": 7087,
+                    "name": "bool",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "379:4:15",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "378:6:15"
+            },
+            "scope": 7096,
+            "src": "306:129:15",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          }
+        ],
+        "scope": 7097,
+        "src": "60:377:15"
+      }
+    ],
+    "src": "0:438:15"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.4.24+commit.e67f0147.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "2.0.1",
+  "updatedAt": "2018-12-06T13:22:53.161Z"
+}

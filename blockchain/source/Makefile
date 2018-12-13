@@ -6,18 +6,19 @@ TRUFFLE=./node_modules/truffle/build/cli.bundled.js
 TESTRPC=./node_modules/ethereumjs-testrpc/build/cli.node.js
 SOLIUM=./node_modules/solium/bin/solium.js
 ESLINT=./node_modules/.bin/eslint
+DEV_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d
 
-.PHONY: all test clean node_modules coverage api
+.PHONY: all test node_modules coverage api
 
 all: node_modules lint compile test
 
-compile: clean
+compile:
 	@echo "+ $@"
 	@${TRUFFLE} compile
 
 node_modules:
 	@echo "+ $@"
-	@npm install
+	@npm ci
 
 test:
 	@echo "+ $@"
@@ -33,8 +34,42 @@ lint_js:
 	@echo "+ $@"
 	@${ESLINT} .
 
+check_keys:
+ifeq (${PRV_KEY_MAIN},)
+	@echo "ERROR: PRV_KEY_MAIN is required for migration"
+endif
+ifeq (${PRV_KEY_SIDE},)
+	@echo "ERROR: PRV_KEY_SIDE is required for migration"
+endif
+ifeq (${MS_PRV_KEY},)
+	@echo "ERROR: MS_PRV_KEY is required for migration"
+endif
+
+ifeq (${PRV_KEY_MAIN},)
+	@exit 1
+endif
+ifeq (${PRV_KEY_SIDE},)
+	@exit 1
+endif
+ifeq (${MS_PRV_KEY},)
+	@exit 1
+endif
+
+
+migrate_dev:
+	PRV_KEY=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_side
+	PRV_KEY=${DEV_KEY} MS_PRV_KEY=${DEV_KEY} ${TRUFFLE} migrate --network=dev_main
+
+migrate_test: check_keys
+	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=private
+	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=rinkeby
+
+migrate_live: check_keys
+	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=privateLive
+	MIGRATION=true PRV_KEY=${PRV_KEY_MAIN} ${TRUFFLE} migrate --network=master
+
 migrate:
-	${TRUFFLE} migrate
+	MIGRATION=true ${TRUFFLE} migrate --network=$(NETWORK)
 
 coverage:
 	scripts/test_coverage.sh
@@ -42,25 +77,7 @@ coverage:
 deploy:
 	${TRUFFLE} migrate --network private
 
-liveMasterDeploy:
-	mv migrations tmp_dir
-	mv live-deploy-scripts migrations
-	${TRUFFLE} migrate --reset --network master
-	mv migrations live-deploy-scripts
-	mv tmp_dir migrations
-	echo "DONT FORGET TO SET KEEPER ADDRESS"
-
-liveSideDeploy:
-	mv migrations tmp_dir
-	mv live-deploy-scripts migrations
-	${TRUFFLE} migrate --network privateLive
-	mv migrations live-deploy-scripts
-	mv tmp_dir migrations
-
-clean:
-	@rm -rf build
-
-generate_api: clean compile
+generate_api: compile
 	${GO} build utils/generate_api.go
 	./generate_api
 	rm generate_api
