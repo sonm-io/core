@@ -54,9 +54,15 @@ ifeq (${MS_PRV_KEY},)
 	@exit 1
 endif
 
-migrate_dev: check_keys
+migrate_dev:
+	PRV_KEY_MAIN=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
+	PRV_KEY_SIDE=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
+	MS_PRV_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
 	${TRUFFLE} migrate --network=dev_side
-	${TRUFFLE} migrate --network=dev_main
+	PRV_KEY_MAIN=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
+    PRV_KEY_SIDE=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
+   	MS_PRV_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d \
+    ${TRUFFLE} migrate --network=dev_main
 
 migrate_test: check_keys
 	MIGRATION=true PRV_KEY=${PRV_KEY_SIDE} ${TRUFFLE} migrate --network=private
