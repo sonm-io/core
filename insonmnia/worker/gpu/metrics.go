@@ -69,7 +69,7 @@ func (m *nvidiaMetrics) Close() error {
 
 type radeonMetrics struct {
 	mu      sync.Mutex
-	devices []DRICard
+	devices []*DRICard
 }
 
 func newRadeonMetricsHandler() (MetricsHandler, error) {

@@ -17,11 +17,11 @@ import (
 
 type radeonTuner struct {
 	m      sync.Mutex
-	devMap map[GPUID]DRICard
+	devMap map[GPUID]*DRICard
 }
 
 // collectDRICardsWithOpenCL collects DRI devices and match it with openCL.
-func collectDRICardsWithOpenCL() ([]DRICard, error) {
+func collectDRICardsWithOpenCL() ([]*DRICard, error) {
 	openclDevices, err := gpu.GetGPUDevices()
 	if err != nil {
 		return nil, err
@@ -45,11 +45,11 @@ func collectDRICardsWithOpenCL() ([]DRICard, error) {
 	}
 
 	// match DRI and CL devices by vendor ID
-	var driDevices []DRICard
+	var driDevices []*DRICard
 	for _, dev := range cards {
 		for _, rid := range sonm.Radeons {
 			if dev.VendorID == rid {
-				driDevices = append(driDevices, dev)
+				driDevices = append(driDevices, &dev)
 			}
 		}
 	}
@@ -74,7 +74,7 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	}
 
 	tun := radeonTuner{
-		devMap: make(map[GPUID]DRICard),
+		devMap: make(map[GPUID]*DRICard),
 	}
 
 	devices, err := collectDRICardsWithOpenCL()
@@ -98,8 +98,7 @@ func (tun radeonTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error
 	tun.m.Lock()
 	defer tun.m.Unlock()
 
-	var cardsToBind = make(map[GPUID]DRICard)
-
+	var cardsToBind = make(map[GPUID]*DRICard)
 	for _, id := range ids {
 		card, ok := tun.devMap[id]
 		if !ok {
