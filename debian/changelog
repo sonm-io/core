@@ -1,3 +1,50 @@
+sonm-core (0.4.20) unstable; urgency=low
+
+  * Added: TTL for servers in Rendezvous (#1773).
+    Previously in a client tries to resolve remote server in the Rendezvous and
+    that server is absent - the client is hanged for some period of time. This was
+    reported as inconvenient because if such server has never been published it is
+    meaningless even to try to wait for it.
+    Moreover, when a server is resolved it cleans its announce mapping until the
+    next announce, which causes flapping in the info handler.
+    Now all servers are considered live and will not be removed from the info
+    handle if they are capable to reannounce themselves in ~30s. Otherwise the
+    immediate "no peer found" error will be returned to the client.
+  * Fixed: memory leak in Optimus (#1785).
+    Reduced default branch-bound model thresholds. Switch for default optimization
+    method while calculating current worker's price.
+  * Fixed: smart contracts migrations (#1778).
+    This PR is intended to provide more clear and stable migration process:
+    * migration artifacts now are saved in migration_artifacts folder to maintain
+    migration data
+    * migration contract from truffle suit is used.
+    * all current migrations are packed into one, as we start from the beginning
+    * useful makefile targets introduced
+    * npm ci command is used for build stability.
+  * Fixed: properly detect for "red" cards in monitoring handler (#1776).
+    Now we have a situation when we have on-board and external video on the
+    machine.
+    Embedded graphics adapter also can be detected as DRI device, but does not
+    provide any metrics interface.
+    For GPU tuner plugin we're using a crutch: detecting device twice, via DRI and
+    OpenCL, then comparing the results.
+    This commit re-use that code to collect cards for monitoring interface.
+  * Fixed: drop nvidia socket if exists (#1772).
+    If a worker terminates unexpectedly, it leaves an orphaned socket file made by
+    the NVidia GPU plugin.
+    In such case the systemd cannot restart worker because of "address already in
+    use" error. So we should remove this socket when initializing new listener for
+    the GPU plugin.
+  * Fixed: blockchain Events api from block processing (#1771).
+    This PR fix behaviour which if fromBlock is not zero, events processing is
+    unreachable, because "fromBlock" always greater to 1 than "toBlock".
+  * Fixed: proper RAM metrics collection (#1769).
+  * Fixed: close QUIC sessions and streams (#1770).
+    This fixes the memory leak in Rendezvous, Node and Worker components.
+  * Fixed: proper disk metrics (#1768).
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 14 Dec 2018 19:47:37 +0300
+
 sonm-core (0.4.19) unstable; urgency=low
 
   * Fixed: random rendezvous hanging (#1758).
