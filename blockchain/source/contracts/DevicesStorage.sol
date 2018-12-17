@@ -12,8 +12,6 @@ contract DevicesStorage is Ownable {
 
     mapping (address => Record) devicesMap;
 
-    uint public defaultTTL = 1 days;
-
     bytes32 constant emptyStringHash = keccak256("");
 
     // EVENTS
@@ -37,7 +35,7 @@ contract DevicesStorage is Ownable {
         devicesMap[msg.sender].timestamp = block.timestamp;
     }
 
-    function UpdateTTL(bytes32 _hash) public returns(bool) {
+    function Touch(bytes32 _hash) public returns(bool) {
         bytes32 recordHash = keccak256(abi.encodePacked(devicesMap[msg.sender].devices));
         if (recordHash == _hash && recordHash != emptyStringHash) {
             devicesMap[msg.sender].timestamp = block.timestamp;
@@ -47,26 +45,15 @@ contract DevicesStorage is Ownable {
         revert();
     }
 
-    function SetDefaultTTL(uint _new) public onlyOwner {
-        defaultTTL = _new;
-    }
-
-    // GETTERS
-    function TTL(address _owner) public view returns (uint) {
-        if (block.timestamp > devicesMap[_owner].timestamp + defaultTTL) {
-            return 0;
-        }
-        return devicesMap[_owner].timestamp + defaultTTL - block.timestamp ;
-    }
-
     function Hash(address _owner) public view returns(bytes32) {
         return keccak256(abi.encodePacked(devicesMap[_owner].devices));
     }
 
+    function GetTimestamp(address _owner) public view returns (uint) {
+        return devicesMap[_owner].timestamp;
+    }
+
     function GetDevices(address _owner) public view returns (bytes devices) {
-        if (devicesMap[_owner].timestamp + defaultTTL > block.timestamp) {
-            return devicesMap[_owner].devices;
-        }
-        return "";
+        return devicesMap[_owner].devices;
     }
 }

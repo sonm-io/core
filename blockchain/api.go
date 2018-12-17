@@ -190,8 +190,8 @@ type MultiSigAPI interface {
 
 type DeviceStorageAPI interface {
 	StoreOrUpdate(ctx context.Context, key *ecdsa.PrivateKey, devices interface{}) error
-	TTL(ctx context.Context, address common.Address) (uint64, error)
-	DefaultTTL(ctx context.Context) (uint64, error)
+	Timestamp(ctx context.Context, address common.Address) (uint64, error)
+	Devices(ctx context.Context, address common.Address) ([]byte, error)
 }
 
 type BasicAPI struct {
@@ -229,6 +229,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 		api.setupOracle,
 		api.setupMasterchainGate,
 		api.setupSidechainGate,
+		api.setupDevicesStorage,
 		api.setupOracleMultiSig,
 	}
 
@@ -2085,7 +2086,7 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 	if err != nil {
 		return err
 	}
-	bytes32Ty, err := abi.NewType("bytes32")
+	bytes32Ty, err := abi.NewType("bytes")
 	if err != nil {
 		return err
 	}
@@ -2107,8 +2108,9 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 	}
 	txOpts := m.opts.getTxOpts(ctx, key, m.opts.gasLimit)
 	if curHash == newHash {
+		ctxlog.S(ctx).Debug("hash is unchanged, touching")
 		tx, err := txRetryWrapper(func() (*types.Transaction, error) {
-			return m.devicesStorageContract.UpdateTTL(txOpts, curHash)
+			return m.devicesStorageContract.Touch(txOpts, curHash)
 		})
 		if err != nil {
 			return err
@@ -2132,24 +2134,17 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 	return nil
 }
 
-func (m *BasicDevicesStorage) TTL(ctx context.Context, address common.Address) (uint64, error) {
-	ttl, err := m.devicesStorageContract.TTL(getCallOptions(ctx), address)
+func (m *BasicDevicesStorage) Timestamp(ctx context.Context, address common.Address) (uint64, error) {
+	ts, err := m.devicesStorageContract.GetTimestamp(getCallOptions(ctx), address)
 	if err != nil {
 		return 0, err
 	}
-	if !ttl.IsUint64() {
-		return 0, fmt.Errorf("ttl is too big for uint64")
+	if !ts.IsUint64() {
+		return 0, fmt.Errorf("timestamp is too big for uint64")
 	}
-	return ttl.Uint64(), nil
+	return ts.Uint64(), nil
 }
 
-func (m *BasicDevicesStorage) DefaultTTL(ctx context.Context) (uint64, error) {
-	ttl, err := m.devicesStorageContract.DefaultTTL(getCallOptions(ctx))
-	if err != nil {
-		return 0, err
-	}
-	if !ttl.IsUint64() {
-		return 0, fmt.Errorf("ttl is too big for uint64")
-	}
-	return ttl.Uint64(), nil
+func (m *BasicDevicesStorage) Devices(ctx context.Context, address common.Address) ([]byte, error) {
+	return m.devicesStorageContract.GetDevices(getCallOptions(ctx), address)
 }

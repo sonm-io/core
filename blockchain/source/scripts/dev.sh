@@ -33,7 +33,6 @@ run() {
         pids+=($!)
         echo "started ganache on $port (pid $!)"
     fi
-
 }
 
 run 8545 main

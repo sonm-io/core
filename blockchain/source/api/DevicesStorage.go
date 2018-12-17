@@ -16,10 +16,10 @@ import (
 )
 
 // DevicesStorageABI is the input ABI used to generate the binding from.
-const DevicesStorageABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"defaultTTL\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesHasSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesTimestampUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deviceList\",\"type\":\"bytes\"}],\"name\":\"SetDevices\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_hash\",\"type\":\"bytes32\"}],\"name\":\"UpdateTTL\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_new\",\"type\":\"uint256\"}],\"name\":\"SetTTL\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"TTL\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"Hash\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"GetDevices\",\"outputs\":[{\"name\":\"devices\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const DevicesStorageABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesHasSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesTimestampUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deviceList\",\"type\":\"bytes\"}],\"name\":\"SetDevices\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_hash\",\"type\":\"bytes32\"}],\"name\":\"Touch\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"Hash\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"GetTimestamp\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"GetDevices\",\"outputs\":[{\"name\":\"devices\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // DevicesStorageBin is the compiled bytecode used for deploying new contracts.
-const DevicesStorageBin = `0x60806040526201518060025534801561001757600080fd5b5060008054600160a060020a031990811633908117909116179055610a16806100416000396000f3006080604052600436106100a35763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416633e550cd481146100a857806347426ed21461013e5780634f5efd1a1461016557806354976e1a1461019157806359ef3950146101b2578063715018a6146101d357806375ff58db146101ea5780638da5cb5b14610243578063f2fde38b14610274578063f35c007b14610295575b600080fd5b3480156100b457600080fd5b506100c9600160a060020a03600435166102ad565b6040805160208082528351818301528351919283929083019185019080838360005b838110156101035781810151838201526020016100eb565b50505050905090810190601f1680156101305780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561014a57600080fd5b50610153610397565b60408051918252519081900360200190f35b34801561017157600080fd5b5061017d60043561039d565b604080519115158252519081900360200190f35b34801561019d57600080fd5b50610153600160a060020a0360043516610513565b3480156101be57600080fd5b50610153600160a060020a036004351661056e565b3480156101df57600080fd5b506101e861066b565b005b3480156101f657600080fd5b506040805160206004803580820135601f81018490048402850184019095528484526101e89436949293602493928401919081908401838280828437509497506106d79650505050505050565b34801561024f57600080fd5b50610258610884565b60408051600160a060020a039092168252519081900360200190f35b34801561028057600080fd5b506101e8600160a060020a0360043516610893565b3480156102a157600080fd5b506101e86004356108b6565b600254600160a060020a03821660009081526001602081905260409091200154606091429101111561038157600160a060020a03821660009081526001602081815260409283902080548451600294821615610100026000190190911693909304601f81018390048302840183019094528383529192908301828280156103755780601f1061034a57610100808354040283529160200191610375565b820191906000526020600020905b81548152906001019060200180831161035857829003601f168201915b50505050509050610392565b506040805160208101909152600081525b919050565b60025481565b6000806001600033600160a060020a0316600160a060020a0316815260200190815260200160002060000160405160200180828054600181600116156101000203166002900480156104265780601f10610404576101008083540402835291820191610426565b820191906000526020600020905b815481529060010190602001808311610412575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106104695780518252601f19909201916020918201910161044a565b5181516020939093036101000a6000190180199091169216919091179052604051920182900390912093505050838214905080156104c757507fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4708114155b156100a35733600081815260016020819052604080832042920191909155517f84769e7ee13c01432c7d8b384e4a9ba21ead8189731b1049244807be07df834a9190a250600192915050565b600254600160a060020a03821660009081526001602081905260408220015490910142111561054457506000610392565b50600254600160a060020a0382166000908152600160208190526040909120015442910103919050565b60006001600083600160a060020a0316600160a060020a0316815260200190815260200160002060000160405160200180828054600181600116156101000203166002900480156105f65780601f106105d45761010080835404028352918201916105f6565b820191906000526020600020905b8154815290600101906020018083116105e2575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106106395780518252601f19909201916020918201910161061a565b5181516020939093036101000a6000190180199091169216919091179052604051920182900390912095945050505050565b600054600160a060020a0316331461068257600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b60408051336000908152600160208181529390912080547fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47094919391909101918291849160026101009183161591909102600019019091160480156107735780601f10610751576101008083540402835291820191610773565b820191906000526020600020905b81548152906001019060200180831161075f575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106107b65780518252601f199092019160209182019101610797565b6001836020036101000a03801982511681845116808217855250505050505090500191505060405180910390206000191614151561081e5760405133907f1cd3cdf902f594faafe10e417201b346dcfaceed5eb9fc913379951f0d40068f90600090a261084a565b60405133907fc7582f50a7f5f4ab5898d20e888a592d9338cb6bdd957aa01f89fd3198d0fa9690600090a25b336000908152600160209081526040909120825161086a9284019061094f565b505033600090815260016020819052604090912042910155565b600054600160a060020a031681565b600054600160a060020a031633146108aa57600080fd5b6108b3816108d2565b50565b600054600160a060020a031633146108cd57600080fd5b600255565b600160a060020a03811615156108e757600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061099057805160ff19168380011785556109bd565b828001600101855582156109bd579182015b828111156109bd5782518255916020019190600101906109a2565b506109c99291506109cd565b5090565b6109e791905b808211156109c957600081556001016109d3565b905600a165627a7a7230582065021563019d56dc06c060f85de3a8ed79a32207cd8cc364bc6357b108140e5b0029`
+const DevicesStorageBin = `0x608060405234801561001057600080fd5b5060008054600160a060020a0319908116339081179091161790556109358061003a6000396000f30060806040526004361061008d5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416632d8dce7b81146100925780633515509a146100be5780633e550cd4146100f157806359ef395014610187578063715018a6146101a857806375ff58db146101bf5780638da5cb5b14610218578063f2fde38b14610249575b600080fd5b34801561009e57600080fd5b506100aa60043561026a565b604080519115158252519081900360200190f35b3480156100ca57600080fd5b506100df600160a060020a03600435166103e0565b60408051918252519081900360200190f35b3480156100fd57600080fd5b50610112600160a060020a03600435166103ff565b6040805160208082528351818301528351919283929083019185019080838360005b8381101561014c578181015183820152602001610134565b50505050905090810190601f1680156101795780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561019357600080fd5b506100df600160a060020a03600435166104a9565b3480156101b457600080fd5b506101bd6105a6565b005b3480156101cb57600080fd5b506040805160206004803580820135601f81018490048402850184019095528484526101bd9436949293602493928401919081908401838280828437509497506106129650505050505050565b34801561022457600080fd5b5061022d6107bf565b60408051600160a060020a039092168252519081900360200190f35b34801561025557600080fd5b506101bd600160a060020a03600435166107ce565b6000806001600033600160a060020a0316600160a060020a0316815260200190815260200160002060000160405160200180828054600181600116156101000203166002900480156102f35780601f106102d15761010080835404028352918201916102f3565b820191906000526020600020905b8154815290600101906020018083116102df575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106103365780518252601f199092019160209182019101610317565b5181516020939093036101000a60001901801990911692169190911790526040519201829003909120935050508382149050801561039457507fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4708114155b1561008d5733600081815260016020819052604080832042920191909155517f84769e7ee13c01432c7d8b384e4a9ba21ead8189731b1049244807be07df834a9190a250600192915050565b600160a060020a03166000908152600160208190526040909120015490565b600160a060020a03811660009081526001602081815260409283902080548451600294821615610100026000190190911693909304601f8101839004830284018301909452838352606093909183018282801561049d5780601f106104725761010080835404028352916020019161049d565b820191906000526020600020905b81548152906001019060200180831161048057829003601f168201915b50505050509050919050565b60006001600083600160a060020a0316600160a060020a0316815260200190815260200160002060000160405160200180828054600181600116156101000203166002900480156105315780601f1061050f576101008083540402835291820191610531565b820191906000526020600020905b81548152906001019060200180831161051d575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106105745780518252601f199092019160209182019101610555565b5181516020939093036101000a6000190180199091169216919091179052604051920182900390912095945050505050565b600054600160a060020a031633146105bd57600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b60408051336000908152600160208181529390912080547fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47094919391909101918291849160026101009183161591909102600019019091160480156106ae5780601f1061068c5761010080835404028352918201916106ae565b820191906000526020600020905b81548152906001019060200180831161069a575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106106f15780518252601f1990920191602091820191016106d2565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040518091039020600019161415156107595760405133907f1cd3cdf902f594faafe10e417201b346dcfaceed5eb9fc913379951f0d40068f90600090a2610785565b60405133907fc7582f50a7f5f4ab5898d20e888a592d9338cb6bdd957aa01f89fd3198d0fa9690600090a25b33600090815260016020908152604090912082516107a59284019061086e565b505033600090815260016020819052604090912042910155565b600054600160a060020a031681565b600054600160a060020a031633146107e557600080fd5b6107ee816107f1565b50565b600160a060020a038116151561080657600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106108af57805160ff19168380011785556108dc565b828001600101855582156108dc579182015b828111156108dc5782518255916020019190600101906108c1565b506108e89291506108ec565b5090565b61090691905b808211156108e857600081556001016108f2565b905600a165627a7a7230582018cb5a46296d8a2c39d7ce9783e32a41978923d5166e785d783e56cdac5eaf130029`
 
 // DeployDevicesStorage deploys a new Ethereum contract, binding an instance of DevicesStorage to it.
 func DeployDevicesStorage(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *DevicesStorage, error) {
@@ -202,6 +202,32 @@ func (_DevicesStorage *DevicesStorageCallerSession) GetDevices(_owner common.Add
 	return _DevicesStorage.Contract.GetDevices(&_DevicesStorage.CallOpts, _owner)
 }
 
+// GetTimestamp is a free data retrieval call binding the contract method 0x3515509a.
+//
+// Solidity: function GetTimestamp(_owner address) constant returns(uint256)
+func (_DevicesStorage *DevicesStorageCaller) GetTimestamp(opts *bind.CallOpts, _owner common.Address) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _DevicesStorage.contract.Call(opts, out, "GetTimestamp", _owner)
+	return *ret0, err
+}
+
+// GetTimestamp is a free data retrieval call binding the contract method 0x3515509a.
+//
+// Solidity: function GetTimestamp(_owner address) constant returns(uint256)
+func (_DevicesStorage *DevicesStorageSession) GetTimestamp(_owner common.Address) (*big.Int, error) {
+	return _DevicesStorage.Contract.GetTimestamp(&_DevicesStorage.CallOpts, _owner)
+}
+
+// GetTimestamp is a free data retrieval call binding the contract method 0x3515509a.
+//
+// Solidity: function GetTimestamp(_owner address) constant returns(uint256)
+func (_DevicesStorage *DevicesStorageCallerSession) GetTimestamp(_owner common.Address) (*big.Int, error) {
+	return _DevicesStorage.Contract.GetTimestamp(&_DevicesStorage.CallOpts, _owner)
+}
+
 // Hash is a free data retrieval call binding the contract method 0x59ef3950.
 //
 // Solidity: function Hash(_owner address) constant returns(bytes32)
@@ -226,58 +252,6 @@ func (_DevicesStorage *DevicesStorageSession) Hash(_owner common.Address) ([32]b
 // Solidity: function Hash(_owner address) constant returns(bytes32)
 func (_DevicesStorage *DevicesStorageCallerSession) Hash(_owner common.Address) ([32]byte, error) {
 	return _DevicesStorage.Contract.Hash(&_DevicesStorage.CallOpts, _owner)
-}
-
-// TTL is a free data retrieval call binding the contract method 0x54976e1a.
-//
-// Solidity: function TTL(_owner address) constant returns(uint256)
-func (_DevicesStorage *DevicesStorageCaller) TTL(opts *bind.CallOpts, _owner common.Address) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _DevicesStorage.contract.Call(opts, out, "TTL", _owner)
-	return *ret0, err
-}
-
-// TTL is a free data retrieval call binding the contract method 0x54976e1a.
-//
-// Solidity: function TTL(_owner address) constant returns(uint256)
-func (_DevicesStorage *DevicesStorageSession) TTL(_owner common.Address) (*big.Int, error) {
-	return _DevicesStorage.Contract.TTL(&_DevicesStorage.CallOpts, _owner)
-}
-
-// TTL is a free data retrieval call binding the contract method 0x54976e1a.
-//
-// Solidity: function TTL(_owner address) constant returns(uint256)
-func (_DevicesStorage *DevicesStorageCallerSession) TTL(_owner common.Address) (*big.Int, error) {
-	return _DevicesStorage.Contract.TTL(&_DevicesStorage.CallOpts, _owner)
-}
-
-// DefaultTTL is a free data retrieval call binding the contract method 0x47426ed2.
-//
-// Solidity: function defaultTTL() constant returns(uint256)
-func (_DevicesStorage *DevicesStorageCaller) DefaultTTL(opts *bind.CallOpts) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _DevicesStorage.contract.Call(opts, out, "defaultTTL")
-	return *ret0, err
-}
-
-// DefaultTTL is a free data retrieval call binding the contract method 0x47426ed2.
-//
-// Solidity: function defaultTTL() constant returns(uint256)
-func (_DevicesStorage *DevicesStorageSession) DefaultTTL() (*big.Int, error) {
-	return _DevicesStorage.Contract.DefaultTTL(&_DevicesStorage.CallOpts)
-}
-
-// DefaultTTL is a free data retrieval call binding the contract method 0x47426ed2.
-//
-// Solidity: function defaultTTL() constant returns(uint256)
-func (_DevicesStorage *DevicesStorageCallerSession) DefaultTTL() (*big.Int, error) {
-	return _DevicesStorage.Contract.DefaultTTL(&_DevicesStorage.CallOpts)
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
@@ -327,46 +301,25 @@ func (_DevicesStorage *DevicesStorageTransactorSession) SetDevices(_deviceList [
 	return _DevicesStorage.Contract.SetDevices(&_DevicesStorage.TransactOpts, _deviceList)
 }
 
-// SetTTL is a paid mutator transaction binding the contract method 0xf35c007b.
+// Touch is a paid mutator transaction binding the contract method 0x2d8dce7b.
 //
-// Solidity: function SetTTL(_new uint256) returns()
-func (_DevicesStorage *DevicesStorageTransactor) SetTTL(opts *bind.TransactOpts, _new *big.Int) (*types.Transaction, error) {
-	return _DevicesStorage.contract.Transact(opts, "SetTTL", _new)
+// Solidity: function Touch(_hash bytes32) returns(bool)
+func (_DevicesStorage *DevicesStorageTransactor) Touch(opts *bind.TransactOpts, _hash [32]byte) (*types.Transaction, error) {
+	return _DevicesStorage.contract.Transact(opts, "Touch", _hash)
 }
 
-// SetTTL is a paid mutator transaction binding the contract method 0xf35c007b.
+// Touch is a paid mutator transaction binding the contract method 0x2d8dce7b.
 //
-// Solidity: function SetTTL(_new uint256) returns()
-func (_DevicesStorage *DevicesStorageSession) SetTTL(_new *big.Int) (*types.Transaction, error) {
-	return _DevicesStorage.Contract.SetTTL(&_DevicesStorage.TransactOpts, _new)
+// Solidity: function Touch(_hash bytes32) returns(bool)
+func (_DevicesStorage *DevicesStorageSession) Touch(_hash [32]byte) (*types.Transaction, error) {
+	return _DevicesStorage.Contract.Touch(&_DevicesStorage.TransactOpts, _hash)
 }
 
-// SetTTL is a paid mutator transaction binding the contract method 0xf35c007b.
+// Touch is a paid mutator transaction binding the contract method 0x2d8dce7b.
 //
-// Solidity: function SetTTL(_new uint256) returns()
-func (_DevicesStorage *DevicesStorageTransactorSession) SetTTL(_new *big.Int) (*types.Transaction, error) {
-	return _DevicesStorage.Contract.SetTTL(&_DevicesStorage.TransactOpts, _new)
-}
-
-// UpdateTTL is a paid mutator transaction binding the contract method 0x4f5efd1a.
-//
-// Solidity: function UpdateTTL(_hash bytes32) returns(bool)
-func (_DevicesStorage *DevicesStorageTransactor) UpdateTTL(opts *bind.TransactOpts, _hash [32]byte) (*types.Transaction, error) {
-	return _DevicesStorage.contract.Transact(opts, "UpdateTTL", _hash)
-}
-
-// UpdateTTL is a paid mutator transaction binding the contract method 0x4f5efd1a.
-//
-// Solidity: function UpdateTTL(_hash bytes32) returns(bool)
-func (_DevicesStorage *DevicesStorageSession) UpdateTTL(_hash [32]byte) (*types.Transaction, error) {
-	return _DevicesStorage.Contract.UpdateTTL(&_DevicesStorage.TransactOpts, _hash)
-}
-
-// UpdateTTL is a paid mutator transaction binding the contract method 0x4f5efd1a.
-//
-// Solidity: function UpdateTTL(_hash bytes32) returns(bool)
-func (_DevicesStorage *DevicesStorageTransactorSession) UpdateTTL(_hash [32]byte) (*types.Transaction, error) {
-	return _DevicesStorage.Contract.UpdateTTL(&_DevicesStorage.TransactOpts, _hash)
+// Solidity: function Touch(_hash bytes32) returns(bool)
+func (_DevicesStorage *DevicesStorageTransactorSession) Touch(_hash [32]byte) (*types.Transaction, error) {
+	return _DevicesStorage.Contract.Touch(&_DevicesStorage.TransactOpts, _hash)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.

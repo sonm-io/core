@@ -566,28 +566,6 @@ func (m *Worker) setupOverseer() error {
 	return nil
 }
 
-func (m *Worker) devicesUpdateRoutine(ctx context.Context) error {
-	defaultTTL, err := m.eth.DeviceStorage().DefaultTTL(ctx)
-	if err != nil {
-		return err
-	}
-	tk := util.NewImmediateTicker(time.Duration(defaultTTL) / 2)
-	for {
-		select {
-		case <-tk.C:
-			err := m.eth.DeviceStorage().StoreOrUpdate(ctx, m.key, m.hardware)
-			if err != nil {
-				log.S(m.ctx).Warnf("failed to store or update devices: %s", err)
-			} else {
-				log.S(m.ctx).Infof("updated devices")
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-
-}
-
 // Serve starts handling incoming API gRPC requests
 func (m *Worker) Serve() error {
 	m.startTime = time.Now()
@@ -601,6 +579,11 @@ func (m *Worker) Serve() error {
 		return err
 	}
 
+	if err := m.eth.DeviceStorage().StoreOrUpdate(m.ctx, m.key, m.hardware); err != nil {
+		return fmt.Errorf("failed to store or update devices: %s", err)
+	}
+	log.S(m.ctx).Info("updated hardware in blockchain")
+
 	wg, ctx := errgroup.WithContext(m.ctx)
 	wg.Go(func() error {
 		return m.RunSSH(ctx)
@@ -610,9 +593,6 @@ func (m *Worker) Serve() error {
 		defer log.S(m.ctx).Infof("finished listening for gRPC API connections on %s", m.listener.Addr())
 
 		return m.externalGrpc.Serve(m.listener)
-	})
-	wg.Go(func() error {
-		return m.devicesUpdateRoutine(ctx)
 	})
 
 	<-ctx.Done()
