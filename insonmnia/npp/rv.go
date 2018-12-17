@@ -2,6 +2,7 @@ package npp
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"time"
 
@@ -24,8 +25,7 @@ type rendezvousClient struct {
 
 	// The underlying connection. Held here for information reasons, it is
 	// closed internally in the gRPC client.
-	conn    net.Conn
-	UDPConn net.PacketConn
+	conn net.Conn
 }
 
 func newRendezvousClient(ctx context.Context, addr auth.Addr, credentials credentials.TransportCredentials) (*rendezvousClient, error) {
@@ -58,7 +58,29 @@ func newRendezvousClient(ctx context.Context, addr auth.Addr, credentials creden
 	return &rendezvousClient{Client: client, conn: conn}, nil
 }
 
-func newRendezvousQUICClient(ctx context.Context, udpConn net.PacketConn, addr auth.Addr, credentials *xgrpc.TransportCredentials) (*rendezvousClient, error) {
+// LocalAddr returns the local network address.
+func (m *rendezvousClient) LocalAddr() net.Addr {
+	return m.conn.LocalAddr()
+}
+
+// RemoteAddr returns the remote network address.
+func (m *rendezvousClient) RemoteAddr() net.Addr {
+	return m.conn.RemoteAddr()
+}
+
+// RendezvousClientQUIC is a tiny wrapper over the generated gRPC client
+// allowing to close the underlying connection and to get its connection
+// info that is useful for NAT penetration.
+// Contains QUIC specific implementation details.
+type rendezvousClientQUIC struct {
+	rendezvous.Client
+
+	tlsConfig  *tls.Config
+	remoteAddr net.Addr
+	conn       net.PacketConn
+}
+
+func newRendezvousClientQUIC(ctx context.Context, udpConn net.PacketConn, addr auth.Addr, credentials *xgrpc.TransportCredentials) (*rendezvousClientQUIC, error) {
 	netAddr, err := addr.Addr()
 	if err != nil {
 		return nil, err
@@ -84,15 +106,23 @@ func newRendezvousQUICClient(ctx context.Context, udpConn net.PacketConn, addr a
 		return nil, err
 	}
 
-	return &rendezvousClient{Client: client, conn: conn, UDPConn: udpConn}, nil
+	return &rendezvousClientQUIC{Client: client, tlsConfig: credentials.TLSConfig, remoteAddr: udpNetAddr, conn: udpConn}, nil
+}
+
+// PacketConn returns the underlying packet connection that is used in this
+// client.
+// Useful for QUIC communication, since it allows to reuse a single socket for
+// multiple connections.
+func (m *rendezvousClientQUIC) PacketConn() net.PacketConn {
+	return m.conn
 }
 
 // LocalAddr returns the local network address.
-func (m *rendezvousClient) LocalAddr() net.Addr {
+func (m *rendezvousClientQUIC) LocalAddr() net.Addr {
 	return m.conn.LocalAddr()
 }
 
 // RemoteAddr returns the remote network address.
-func (m *rendezvousClient) RemoteAddr() net.Addr {
-	return m.conn.RemoteAddr()
+func (m *rendezvousClientQUIC) RemoteAddr() net.Addr {
+	return m.remoteAddr
 }
