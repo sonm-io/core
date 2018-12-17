@@ -44,6 +44,25 @@ type engine struct {
 	state            *state
 }
 
+type temporaryError struct{ err error }
+
+func (m temporaryError) Error() string {
+	return fmt.Sprintf("temporary: %v", m.err)
+}
+
+func newTemporaryError(err error) error {
+	return temporaryError{err}
+}
+
+func isTemporaryError(err error) bool {
+	switch err.(type) {
+	case temporaryError:
+		return true
+	default:
+		return false
+	}
+}
+
 var (
 	activeDealsGauge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "sonm_deals_active",
@@ -397,13 +416,14 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 			defer cancel()
 			go e.antiFraud.TrackTask(taskCtx, deal, taskID)
 
-			shouldRestartTask, err := e.trackTaskWithRetry(taskCtx, log, deal.GetId(), taskID)
+			err := e.trackTaskWithRetry(taskCtx, log, deal.GetId(), taskID)
 			if err != nil {
-				log.Warn("task tracking failed", zap.Error(err), zap.String("task_id", taskID))
-			}
+				if isTemporaryError(err) {
+					log.Warn("task failed, should restart", zap.Error(err), zap.String("task_id", taskID))
+					return true
+				}
 
-			if !shouldRestartTask {
-				log.Warn("should not restarting the task", zap.Error(err), zap.Int("try", try))
+				log.Warn("task failed, stop task tracking", zap.Error(err), zap.Int("try", try))
 				return false
 			}
 
@@ -502,7 +522,9 @@ func (e *engine) startTaskOnce(ctx context.Context, log *zap.Logger, dealID *son
 	return taskReply, nil
 }
 
-func (e *engine) trackTaskWithRetry(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
+// trackTaskWithRetry checks that deal is active and related task is running.
+// Retrying by itself in case of temporary error.
+func (e *engine) trackTaskWithRetry(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
 	log = log.Named("task").With(zap.String("task_id", taskID))
 	log.Info("start task status tracking")
 
@@ -513,83 +535,85 @@ func (e *engine) trackTaskWithRetry(ctx context.Context, log *zap.Logger, dealID
 	for {
 		select {
 		case <-ctx.Done():
-			return false, ctx.Err()
+			return ctx.Err()
 		case <-t.C:
 			if try > maxRetryCount {
-				return false, fmt.Errorf("task tracking failed: retry count exceeded")
+				return fmt.Errorf("retry count exceeded")
 			}
 
-			ok, err := e.checkDealStatus(ctx, log, dealID)
-			if err != nil {
-				try++
-				log.Warn("cannot check deal status, increasing retry counter", zap.Error(err), zap.Int("try", try))
-				continue
-			}
-
-			if !ok {
-				log.Warn("deal is closed, finishing tracking")
-				return false, fmt.Errorf("deal is closed")
-			}
-
-			log.Debug("deal status OK, checking tasks")
-			shouldRetry, err := e.trackTaskOnce(ctx, log, dealID, taskID)
-			if err != nil {
-				if !shouldRetry {
-					return true, err
+			if err := e.checkDealStatus(ctx, log, dealID); err != nil {
+				if isTemporaryError(err) {
+					try++
+					log.Warn("cannot check deal status, increasing retry counter", zap.Error(err), zap.Int("try", try))
+					continue
 				}
 
-				try++
-				log.Warn("cannot get task status, increasing retry counter", zap.Error(err), zap.Int("try", try))
-				continue
+				return err
 			}
 
-			log.Debug("task tracking OK, resetting failure counter")
+			if err := e.trackTaskOnce(ctx, log, dealID, taskID); err != nil {
+				if isTemporaryError(err) {
+					try++
+					log.Warn("cannot get task status, increasing retry counter", zap.Error(err), zap.Int("try", try))
+					continue
+				}
+
+				// propagate this error as temporary, thus task overseer should restart it
+				return newTemporaryError(err)
+			}
+
 			try = 0
 		}
 	}
 }
 
-func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) (bool, error) {
+// checkDealStatus checks that deal is actibve and we still have to wotk with it.
+// May fire `temporaryError` error is case of network problems.
+func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) error {
 	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	dealStatus, err := e.deals.Status(ctx, dealID)
 	if err != nil {
-		return false, err
+		return newTemporaryError(err)
 	}
 
-	if dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED {
-		deal := e.backends.dealFactory.FromDeal(dealStatus.GetDeal())
-		actualPrice := e.backends.priceProvider.GetPrice()
-		if deal.IsReplaceable(actualPrice, e.cfg.Market.PriceControl.DealCancelThreshold) {
-			log := log.Named("price-deviation")
-			if len(e.orderCancelChan) > 0 {
-				log.Warn("shouldn't finish deal, orders replacing in progress",
-					zap.Int("cancel", len(e.orderCancelChan)),
-					zap.Int("create", len(e.ordersCreateChan)))
-				return true, nil
-			}
+	if dealStatus.GetDeal().GetStatus() != sonm.DealStatus_DEAL_ACCEPTED {
+		return fmt.Errorf("deal is closed")
+	}
 
-			pricePerDeal := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(deal.BenchmarkValue())))
-			log.Info("too much price deviation detected: closing deal",
-				zap.Uint64("benchmark", deal.BenchmarkValue()),
-				zap.String("actual_price", pricePerDeal.String()),
-				zap.String("current_price", deal.GetPrice().Unwrap().String()))
-
-			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap(), antifraud.SkipBlacklisting); err != nil {
-				log.Warn("failed to finish deal", zap.Error(err))
-			}
-
-			return false, nil
+	deal := e.backends.dealFactory.FromDeal(dealStatus.GetDeal())
+	actualPrice := e.backends.priceProvider.GetPrice()
+	if deal.IsReplaceable(actualPrice, e.cfg.Market.PriceControl.DealCancelThreshold) {
+		log := log.Named("price-deviation")
+		if len(e.orderCancelChan) > 0 {
+			log.Warn("shouldn't finish deal, orders replacing in progress",
+				zap.Int("cancel", len(e.orderCancelChan)),
+				zap.Int("create", len(e.ordersCreateChan)))
+			// deal can be replaced because of price,
+			// but don't act right now: wait unit all orders will be placed.
+			return nil
 		}
 
-		return true, nil
+		pricePerDeal := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(deal.BenchmarkValue())))
+		log.Info("too much price deviation detected: closing deal",
+			zap.Uint64("benchmark", deal.BenchmarkValue()),
+			zap.String("actual_price", pricePerDeal.String()),
+			zap.String("current_price", deal.GetPrice().Unwrap().String()))
+
+		if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap(), antifraud.SkipBlacklisting); err != nil {
+			log.Warn("failed to finish deal", zap.Error(err))
+		}
+
+		return fmt.Errorf("drice devication detected: deal should be closed")
 	}
 
-	return false, nil
+	return nil
 }
 
-func (e *engine) trackTaskOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
+// trackTaskOnce check task aliveness, if returned error is not temporary we should stop checking this task
+// and try to restart it.
+func (e *engine) trackTaskOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
 	log.Debug("checking task status")
 
 	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
@@ -598,16 +622,20 @@ func (e *engine) trackTaskOnce(ctx context.Context, log *zap.Logger, dealID *son
 	// 3. ping task
 	status, err := e.tasks.Status(ctx, &sonm.TaskID{Id: taskID, DealID: dealID})
 	if err != nil {
-		return true, err
+		// cannot get task status probably because of network errors,
+		// treat such case as temporary.
+		log.Warn("failed to retrieve task status", zap.Error(err))
+		return newTemporaryError(err)
 	}
 
-	if status.GetStatus() == sonm.TaskStatusReply_FINISHED || status.GetStatus() == sonm.TaskStatusReply_BROKEN {
-		log.Warn("task is failed by unknown reasons", zap.String("status", status.GetStatus().String()))
-		return false, fmt.Errorf("task is finished by unknown reasons")
+	if status.GetStatus() == sonm.TaskStatusReply_FINISHED ||
+		status.GetStatus() == sonm.TaskStatusReply_BROKEN ||
+		status.GetStatus() == sonm.TaskStatusReply_UNKNOWN {
+		log.Warn("task was terminated by unknown reasons", zap.String("status", status.GetStatus().String()))
+		return fmt.Errorf("task was terminated by unknown reasons")
 	}
 
-	log.Debug("task status is OK")
-	return true, nil
+	return nil
 }
 
 func (e *engine) restoreTasks(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) (string, error) {
