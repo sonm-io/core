@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
@@ -33,8 +30,7 @@ func run(app cmd.AppContext) error {
 	}
 
 	ctx := log.WithLogger(context.Background(), logger)
-
-	log.G(ctx).Info("starting with config", zap.Any("config", cfg))
+	logger.Info("starting with config", zap.Any("config", cfg))
 
 	key, err := cfg.Eth.LoadKey()
 	if err != nil {
@@ -56,23 +52,29 @@ func run(app cmd.AppContext) error {
 		return fmt.Errorf("failed to create L1 events processor instance: %v", err)
 	}
 
-	go metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)
-	go debug.ServePProf(ctx, debug.Config{Port: 6060}, logger)
-
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		<-c
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		err := cmd.WaitInterrupted(ctx)
 		p.Stop()
 		w.Stop()
-	}()
-
-	log.G(ctx).Info("starting DWH service")
-	log.G(ctx).Info("starting L1 events processor")
-
-	wg := errgroup.Group{}
-	wg.Go(p.Start)
-	wg.Go(w.Serve)
+		return err
+	})
+	wg.Go(func() error {
+		return metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)
+	})
+	wg.Go(func() error {
+		return debug.ServePProf(ctx, debug.Config{Port: 6060}, logger)
+	})
+	wg.Go(func() error {
+		logger.Info("starting L1 events processor")
+		defer logger.Info("stopping L1 events processor")
+		return p.Start()
+	})
+	wg.Go(func() error {
+		logger.Info("starting DWH service")
+		defer logger.Info("stopping DWH service")
+		return w.Serve()
+	})
 
 	return wg.Wait()
 }
