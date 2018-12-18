@@ -22,7 +22,7 @@ var devicesRootCmd = &cobra.Command{
 }
 
 var devicesLoadRawCmd = &cobra.Command{
-	Use:   "loadRaw [addr]",
+	Use:   "load-raw [addr]",
 	Short: "Load worker devices from blockchain",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
