@@ -352,7 +352,7 @@ func (m *Worker) exportKey() error {
 
 func (m *Worker) setupBlockchainAPI() error {
 	if m.eth == nil {
-		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain), blockchain.WithNiceMarket(), blockchain.WithBlockConfirmations(1))
+		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain), blockchain.WithNiceMarket())
 		if err != nil {
 			return err
 		}

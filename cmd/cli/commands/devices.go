@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
@@ -34,12 +33,11 @@ var devicesLoadRawCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		key, err := getDefaultKey()
+		ownerAddr, err := keystore.GetDefaultAddress()
 		if err != nil {
 			return err
 		}
 
-		ownerAddr := crypto.PubkeyToAddress(key.PublicKey)
 		if len(args) > 0 {
 			ownerAddr, err = util.HexToAddress(args[0])
 			if err != nil {
@@ -68,12 +66,11 @@ var devicesLoadCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		key, err := getDefaultKey()
+		ownerAddr, err := keystore.GetDefaultAddress()
 		if err != nil {
 			return err
 		}
 
-		ownerAddr := crypto.PubkeyToAddress(key.PublicKey)
 		if len(args) > 0 {
 			ownerAddr, err = util.HexToAddress(args[0])
 			if err != nil {
