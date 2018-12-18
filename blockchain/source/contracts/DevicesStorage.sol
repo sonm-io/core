@@ -49,11 +49,8 @@ contract DevicesStorage is Ownable {
         return keccak256(abi.encodePacked(devicesMap[_owner].devices));
     }
 
-    function GetTimestamp(address _owner) public view returns (uint) {
-        return devicesMap[_owner].timestamp;
-    }
-
-    function GetDevices(address _owner) public view returns (bytes devices) {
-        return devicesMap[_owner].devices;
+    function GetDevices(address _owner) public view returns (bytes devices, uint timestamp) {
+        Record memory record = devicesMap[_owner];
+        return (record.devices, record.timestamp);
     }
 }

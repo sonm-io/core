@@ -190,8 +190,9 @@ type MultiSigAPI interface {
 
 type DeviceStorageAPI interface {
 	StoreOrUpdate(ctx context.Context, key *ecdsa.PrivateKey, devices interface{}) error
-	Timestamp(ctx context.Context, address common.Address) (uint64, error)
-	Devices(ctx context.Context, address common.Address) ([]byte, error)
+	Devices(ctx context.Context, address common.Address) (*sonm.StoredDevicesReply, error)
+	// For debug purposes, when something could not be properly unmarshalled for example
+	RawDevices(ctx context.Context, address common.Address) ([]byte, uint64, error)
 }
 
 type BasicAPI struct {
@@ -2134,17 +2135,30 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 	return nil
 }
 
-func (m *BasicDevicesStorage) Timestamp(ctx context.Context, address common.Address) (uint64, error) {
-	ts, err := m.devicesStorageContract.GetTimestamp(getCallOptions(ctx), address)
+func (m *BasicDevicesStorage) Devices(ctx context.Context, address common.Address) (*sonm.StoredDevicesReply, error) {
+	rawDevices, err := m.devicesStorageContract.GetDevices(getCallOptions(ctx), address)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	if !ts.IsUint64() {
-		return 0, fmt.Errorf("timestamp is too big for uint64")
+	if len(rawDevices.Devices) == 0 {
+		return nil, fmt.Errorf("devices for %s are empty", address.Hex())
 	}
-	return ts.Uint64(), nil
+	devices := &sonm.StoredDevicesReply{
+		Devices: &sonm.DevicesReply{},
+	}
+	err = json.Unmarshal(rawDevices.Devices, devices.Devices)
+	if err != nil {
+		return nil, err
+	}
+	ts := rawDevices.Timestamp
+	if !ts.IsInt64() {
+		return nil, fmt.Errorf("timestamp is too big for uint64")
+	}
+	devices.Timestamp = &sonm.Timestamp{Seconds: ts.Int64()}
+	return devices, nil
 }
 
-func (m *BasicDevicesStorage) Devices(ctx context.Context, address common.Address) ([]byte, error) {
-	return m.devicesStorageContract.GetDevices(getCallOptions(ctx), address)
+func (m *BasicDevicesStorage) RawDevices(ctx context.Context, address common.Address) ([]byte, uint64, error) {
+	rawDevices, err := m.devicesStorageContract.GetDevices(getCallOptions(ctx), address)
+	return rawDevices.Devices, rawDevices.Timestamp.Uint64(), err
 }
