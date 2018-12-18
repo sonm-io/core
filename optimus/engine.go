@@ -706,7 +706,7 @@ func (m *defaultPredictionOptimizationMethodFactory) Config() interface{} {
 }
 
 func (m *defaultPredictionOptimizationMethodFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
-	if len(matchedOrders) < 64 {
+	if len(matchedOrders) < 16 {
 		return &BranchBoundModel{
 			Log: log.With(zap.String("model", "BBM")),
 		}
@@ -751,7 +751,7 @@ func (m *defaultOptimizationMethodFactory) Config() interface{} {
 }
 
 func (m *defaultOptimizationMethodFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
-	if len(matchedOrders) < 64 {
+	if len(matchedOrders) < 16 {
 		return &BranchBoundModel{
 			Log: log.With(zap.String("model", "BBM")),
 		}
@@ -863,9 +863,9 @@ func planEq(a, b *sonm.AskPlan) bool {
 }
 
 func priceForPack(ctx context.Context, input *optimizationInput, manager *DeviceManager, virtualFreeOrders []*MarketOrder) *priceTuple {
-	model := BranchBoundModel{
-		Log: zap.NewNop().Sugar(),
-	}
+	factory := &defaultOptimizationMethodFactory{}
+	model := factory.Create(virtualFreeOrders, virtualFreeOrders, zap.NewNop().Sugar())
+
 	knapsack := NewKnapsack(manager)
 	if err := model.Optimize(ctx, knapsack, virtualFreeOrders); err != nil {
 		return nil

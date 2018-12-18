@@ -102,20 +102,34 @@ type QUICListener struct {
 }
 
 func (m *QUICListener) Accept() (net.Conn, error) {
-	session, err := m.Listener.Accept()
-	if err != nil {
-		return nil, newQUICError(err)
+	for {
+		session, err := m.Listener.Accept()
+		if err != nil {
+			return nil, newQUICError(err)
+		}
+
+		stream, err := session.AcceptStream()
+		if err != nil {
+			if isPeerGoneErr(err) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		conn := &QUICConn{
+			Stream:  stream,
+			session: session,
+		}
+
+		return conn, nil
+	}
+}
+
+func isPeerGoneErr(err error) bool {
+	if qErr, ok := err.(*qerr.QuicError); ok && qErr.ErrorCode != qerr.PeerGoingAway {
+		return true
 	}
 
-	stream, err := session.AcceptStream()
-	if err != nil {
-		return nil, newQUICError(err)
-	}
-
-	conn := &QUICConn{
-		Stream:  stream,
-		session: session,
-	}
-
-	return conn, nil
+	return false
 }

@@ -108,10 +108,12 @@ func guessConfigPath(log *zap.Logger) (string, error) {
 }
 
 type WorkerStatus struct {
-	Status string `json:"status"`
-	Uptime string `json:"uptime"`
-	IP     string `json:"ip"`
-	Sold   struct {
+	Success   bool
+	LastCheck time.Time
+	Status    string `json:"status"`
+	Uptime    string `json:"uptime"`
+	IP        string `json:"ip"`
+	Sold      struct {
 		RAM     uint64 `json:"ram"`
 		Storage uint64 `json:"storage"`
 		NetIn   uint64 `json:"net_in"`
@@ -128,29 +130,11 @@ type WorkerStatus struct {
 
 func NewWorkerStatus() *WorkerStatus {
 	return &WorkerStatus{
-		Status: "UNAVAILABLE",
-		Uptime: "0s",
-		IP:     "127.0.0.1",
-	}
-}
-
-func (w *WorkerStatus) waitFirst(ctx context.Context, log *zap.Logger, cc *grpc.ClientConn, addr string) error {
-	t := time.NewTicker(5 * time.Second)
-	defer t.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("context finished", zap.Error(ctx.Err()))
-			return ctx.Err()
-		case <-t.C:
-			if err := w.update(ctx, cc, addr); err != nil {
-				log.Error("failed to update worker status", zap.Error(err))
-				continue
-			}
-			log.Debug("first status received")
-			return nil
-		}
+		Success:   false,
+		LastCheck: time.Time{},
+		Status:    "UNAVAILABLE",
+		Uptime:    "0s",
+		IP:        "127.0.0.1",
 	}
 }
 
@@ -164,9 +148,12 @@ func (w *WorkerStatus) update(ctx context.Context, cc *grpc.ClientConn, addr str
 
 	status, err := client.Status(metaCtx, &sonm.Empty{})
 	if err != nil {
+		w.Success = false
 		return err
 	}
 
+	w.Success = true
+	w.LastCheck = time.Now()
 	w.Worker = status.EthAddr
 	w.Master = status.Master.Unwrap().Hex()
 	if !status.IsMasterConfirmed {
@@ -281,7 +268,7 @@ func (ctl *displayCtl) drawText(x, y int32, text string, color sdl.Color) error 
 	var dstrect sdl.Rect
 	if x < 0 {
 		dstrect = sdl.Rect{
-			X: int32(float64(-x-solid.W/2)*ctl.Rat) - ctl.X,
+			X: int32(float64(-x)*ctl.Rat) - solid.W/2 - ctl.X,
 			Y: int32(float64(y)*ctl.Rat) - ctl.Y,
 			W: int32(float64(solid.W)),
 			H: int32(float64(solid.H)),
@@ -436,10 +423,6 @@ func main() {
 	}
 
 	worker := NewWorkerStatus()
-	if err := worker.waitFirst(ctx, log, cc, cfg.WorkerAddr); err != nil {
-		log.Error("failed to get worker status for first time", zap.Error(err))
-		return
-	}
 
 	ctl, err := initGraphics(log)
 	defer ctl.Close()
@@ -471,14 +454,29 @@ func main() {
 
 		black := sdl.Color{0, 0, 0, 255}
 		white := sdl.Color{255, 255, 255, 255}
+		red := sdl.Color{255, 0, 0, 255}
 
-		ctl.drawText(-1020, 183, worker.Status, white)
+		if worker.Success {
+			ctl.drawText(-1020, 190, worker.Status, white)
+		} else {
+			ctl.drawText(-1020, 190, "UNABLE TO GET WORKER STATUS", red)
+			if !worker.LastCheck.IsZero() {
+				builder := strings.Builder{}
+				builder.WriteString("STATUS RECEIVED LAST ")
+				builder.WriteString(time.Now().Sub(worker.LastCheck).Truncate(1 * time.Second).String())
+				builder.WriteString(" AGO.")
+				ctl.drawText(-1020, 190+40, builder.String(), red)
+				ctl.drawText(-1020, 190+40*2, "DISPLAYING LATEST RETRIEVED VALUES", red)
+			}
+		}
+
 		ctl.drawText(273, 421, "Worker address", black)
 		if worker.WorkerName != "" {
 			ctl.drawText(273, 469, fmt.Sprintf("%s (%s)", worker.Worker, worker.WorkerName), black)
 		} else {
 			ctl.drawText(273, 469, worker.Worker, black)
 		}
+
 		ctl.drawText(273, 589, "Master address", black)
 		ctl.drawText(273, 636, worker.Master, black)
 		ctl.drawText(220, 938, worker.IP, white)
@@ -508,7 +506,7 @@ func main() {
 			}
 
 			// todo: maybe move to goroutine and wait for signal asynchronously?
-			event := sdl.WaitEventTimeout(10000)
+			event := sdl.WaitEventTimeout(5000)
 			if event == nil {
 				break
 			}

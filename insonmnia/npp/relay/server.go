@@ -75,6 +75,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
+	"github.com/sonm-io/core/util/xnet"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -453,7 +454,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		cfg: cfg,
 
 		port:     port,
-		listener: &BackPressureListener{listener, opts.log},
+		listener: &xnet.BackPressureListener{Listener: listener, Log: opts.log},
 		cluster:  nil,
 		members:  cfg.Cluster.Members,
 

@@ -30,3 +30,7 @@ func (m *ConnectRequest) Validate() error {
 func (m *RendezvousReply) Empty() bool {
 	return (m.PublicAddr == nil || m.PublicAddr.Addr == nil) && len(m.PrivateAddrs) == 0
 }
+
+func (m *RendezvousReply) GetAddresses() []*Addr {
+	return append([]*Addr{m.PublicAddr}, m.PrivateAddrs...)
+}

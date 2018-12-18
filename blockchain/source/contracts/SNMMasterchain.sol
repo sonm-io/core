@@ -1,61 +1,14 @@
 pragma solidity ^0.4.11;
+import "zeppelin-solidity/contracts/math/SafeMath.sol";
 
-library SafeMath {
-  function mul(uint a, uint b) internal returns (uint) {
-    uint c = a * b;
-    assert(a == 0 || c / a == b);
-    return c;
-  }
-
-  function div(uint a, uint b) internal returns (uint) {
-    assert(b > 0);
-    uint c = a / b;
-    assert(a == b * c + a % b);
-    return c;
-  }
-
-  function sub(uint a, uint b) internal returns (uint) {
-    assert(b <= a);
-    return a - b;
-  }
-
-  function add(uint a, uint b) internal returns (uint) {
-    uint c = a + b;
-    assert(c >= a);
-    return c;
-  }
-
-  function max64(uint64 a, uint64 b) internal constant returns (uint64) {
-    return a >= b ? a : b;
-  }
-
-  function min64(uint64 a, uint64 b) internal constant returns (uint64) {
-    return a < b ? a : b;
-  }
-
-  function max256(uint256 a, uint256 b) internal constant returns (uint256) {
-    return a >= b ? a : b;
-  }
-
-  function min256(uint256 a, uint256 b) internal constant returns (uint256) {
-    return a < b ? a : b;
-  }
-
-  function assert(bool assertion) internal {
-    if (!assertion) {
-      throw;
-    }
-  }
-}
-
-contract ERC20Basic {
+contract ERC20BasicDeployed {
   uint public totalSupply;
   function balanceOf(address who) constant returns (uint);
   function transfer(address to, uint value);
   event Transfer(address indexed from, address indexed to, uint value);
 }
 
-contract BasicToken is ERC20Basic {
+contract BasicTokenDeployed is ERC20BasicDeployed {
   using SafeMath for uint;
 
   mapping(address => uint) balances;
@@ -79,14 +32,14 @@ contract BasicToken is ERC20Basic {
 
 }
 
-contract ERC20 is ERC20Basic {
+contract ERC20Deployed is ERC20BasicDeployed {
   function allowance(address owner, address spender) constant returns (uint);
   function transferFrom(address from, address to, uint value);
   function approve(address spender, uint value);
   event Approval(address indexed owner, address indexed spender, uint value);
 }
 
-contract StandardToken is BasicToken, ERC20 {
+contract StandardTokenDeployed is BasicTokenDeployed, ERC20Deployed {
 
   mapping (address => mapping (address => uint)) allowed;
 
@@ -109,7 +62,7 @@ contract StandardToken is BasicToken, ERC20 {
 
 }
 
-contract SNMMasterchain  is StandardToken {
+contract SNMMasterchain  is StandardTokenDeployed {
   string public name = "SONM Token";
   string public symbol = "SNM";
   uint public decimals = 18;
