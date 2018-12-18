@@ -12,7 +12,7 @@ class MSWrapper {
         let msWrapper = new MSWrapper();
         msWrapper.wrappedContract = wrappedContract;
         let alt;
-        if(msContract.network_id !== netID) {
+        if (msContract.network_id !== netID) {
             console.log('cloning multisig');
             alt = msContract.clone(netID);
             alt.class_defaults.gas = msContract.class_defaults.gas;
@@ -27,7 +27,7 @@ class MSWrapper {
         if (pKey !== undefined) {
             let wallet = EthereumjsWallet.fromPrivateKey(Buffer.from(pKey, 'hex'));
             let from = '0x' + wallet.getAddress().toString('hex');
-            if(from !== alt.class_defaults.from) {
+            if (from !== alt.class_defaults.from) {
                 console.log('using separate pKey provider for multisig');
                 alt.class_defaults.from = from;
                 let provider = new PrivateKeyProvider(pKey, TruffleConfig.urls[network]);
