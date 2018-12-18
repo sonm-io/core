@@ -2152,7 +2152,7 @@ func (m *BasicDevicesStorage) Devices(ctx context.Context, address common.Addres
 	}
 	ts := rawDevices.Timestamp
 	if !ts.IsInt64() {
-		return nil, fmt.Errorf("timestamp is too big for uint64")
+		return nil, fmt.Errorf("timestamp is too big for int64")
 	}
 	devices.Timestamp = &sonm.Timestamp{Seconds: ts.Int64()}
 	return devices, nil
