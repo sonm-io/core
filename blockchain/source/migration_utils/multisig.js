@@ -11,18 +11,28 @@ class MSWrapper {
         let netID = TruffleConfig.networks[network].network_id;
         let msWrapper = new MSWrapper();
         msWrapper.wrappedContract = wrappedContract;
-        let alt = msContract.clone(netID);
-        alt.class_defaults.gas = msContract.class_defaults.gas;
+        let alt;
+        if (msContract.network_id !== netID) {
+            console.log('cloning multisig');
+            alt = msContract.clone(netID);
+            alt.class_defaults.gas = msContract.class_defaults.gas;
+            alt.class_defaults.from = msContract.class_defaults.from;
+            alt.setProvider(TruffleConfig.networks[network].provider());
+        } else {
+            console.log('using existing multisig');
+            alt = msContract;
+        }
 
         let pKey = TruffleConfig.multisigPrivateKey;
         if (pKey !== undefined) {
             let wallet = EthereumjsWallet.fromPrivateKey(Buffer.from(pKey, 'hex'));
-            alt.class_defaults.from = wallet.getAddress().toString('hex');
-            let provider = new PrivateKeyProvider(pKey, TruffleConfig.urls[network]);
-            alt.setProvider(provider);
-        } else {
-            alt.class_defaults.from = msContract.class_defaults.from;
-            alt.setProvider(TruffleConfig.networks[network].provider());
+            let from = '0x' + wallet.getAddress().toString('hex');
+            if (from !== alt.class_defaults.from) {
+                console.log('using separate pKey provider for multisig');
+                alt.class_defaults.from = from;
+                let provider = new PrivateKeyProvider(pKey, TruffleConfig.urls[network]);
+                alt.setProvider(provider);
+            }
         }
 
         msWrapper.ms = await resolver.resolve(alt, 'multiSigAddress');

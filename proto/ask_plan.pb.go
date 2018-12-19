@@ -132,6 +132,8 @@ It has these top-level messages:
 	NPPMetricsReply
 	NamedMetrics
 	NamedMetric
+	StoredDevicesReply
+	RawDevicesReply
 	PredictSupplierRequest
 	PredictSupplierReply
 	HandshakeRequest

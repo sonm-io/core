@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -41,6 +42,7 @@ type API interface {
 	SidechainGate() SimpleGatekeeperAPI
 	OracleMultiSig() MultiSigAPI
 	ContractRegistry() ContractRegistry
+	DeviceStorage() DeviceStorageAPI
 }
 
 type ContractRegistry interface {
@@ -54,6 +56,7 @@ type ContractRegistry interface {
 	GatekeeperSidechainAddress() common.Address
 	TestnetFaucetAddress() common.Address
 	OracleMultiSig() common.Address
+	DevicesStorage() common.Address
 }
 
 type ProfileRegistryAPI interface {
@@ -185,6 +188,13 @@ type MultiSigAPI interface {
 	GetTransaction(ctx context.Context, transactionID *big.Int) (*MultiSigTransactionData, error)
 }
 
+type DeviceStorageAPI interface {
+	StoreOrUpdate(ctx context.Context, key *ecdsa.PrivateKey, devices interface{}) error
+	Devices(ctx context.Context, address common.Address) (*sonm.StoredDevicesReply, error)
+	// For debug purposes, when something could not be properly unmarshalled for example
+	RawDevices(ctx context.Context, address common.Address) (*sonm.RawDevicesReply, error)
+}
+
 type BasicAPI struct {
 	options          *options
 	contractRegistry ContractRegistry
@@ -198,6 +208,7 @@ type BasicAPI struct {
 	masterchainGate  SimpleGatekeeperAPI
 	sidechainGate    SimpleGatekeeperAPI
 	oracleMultiSig   MultiSigAPI
+	deviceStorage    DeviceStorageAPI
 }
 
 func NewAPI(ctx context.Context, opts ...Option) (API, error) {
@@ -219,6 +230,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 		api.setupOracle,
 		api.setupMasterchainGate,
 		api.setupSidechainGate,
+		api.setupDevicesStorage,
 		api.setupOracleMultiSig,
 	}
 
@@ -340,6 +352,16 @@ func (api *BasicAPI) setupSidechainGate(ctx context.Context) error {
 	return nil
 }
 
+func (api *BasicAPI) setupDevicesStorage(ctx context.Context) error {
+	devicesStorageAddr := api.contractRegistry.DevicesStorage()
+	devicesStorage, err := NewDevicesStorage(devicesStorageAddr, api.options.sidechain)
+	if err != nil {
+		return fmt.Errorf("failed to setup devices storage: %s", err)
+	}
+	api.deviceStorage = devicesStorage
+	return nil
+}
+
 func (api *BasicAPI) Market() MarketAPI {
 	if api.options.niceMarket {
 		return &niceMarketAPI{
@@ -391,6 +413,10 @@ func (api *BasicAPI) ContractRegistry() ContractRegistry {
 	return api.contractRegistry
 }
 
+func (api *BasicAPI) DeviceStorage() DeviceStorageAPI {
+	return api.deviceStorage
+}
+
 func NewRegistry(ctx context.Context, address common.Address, opts *chainOpts) (*BasicContractRegistry, error) {
 	client, err := opts.getClient()
 	if err != nil {
@@ -422,6 +448,7 @@ type BasicContractRegistry struct {
 	gatekeeperSidechainAddress   common.Address
 	testnetFaucetAddress         common.Address
 	oracleMultiSigAddress        common.Address
+	devicesStorageAddress        common.Address
 
 	registryContract *marketAPI.AddressHashMap
 }
@@ -459,6 +486,7 @@ func (m *BasicContractRegistry) setup(ctx context.Context) error {
 		{gatekeeperSidechainAddressKey, &m.gatekeeperSidechainAddress},
 		{testnetFaucetAddressKey, &m.testnetFaucetAddress},
 		{oracleMultiSigAddressKey, &m.oracleMultiSigAddress},
+		{devicesStorageAddressKey, &m.devicesStorageAddress},
 	}
 
 	for _, param := range addresses {
@@ -508,6 +536,10 @@ func (m *BasicContractRegistry) TestnetFaucetAddress() common.Address {
 
 func (m *BasicContractRegistry) OracleMultiSig() common.Address {
 	return m.oracleMultiSigAddress
+}
+
+func (m *BasicContractRegistry) DevicesStorage() common.Address {
+	return m.devicesStorageAddress
 }
 
 type BasicMarketAPI struct {
@@ -2023,5 +2055,122 @@ func (api *BasicMultiSigAPI) GetTransaction(ctx context.Context, transactionID *
 		Value:    tx.Value,
 		Data:     tx.Data,
 		Executed: tx.Executed,
+	}, nil
+}
+
+type BasicDevicesStorage struct {
+	client                 CustomEthereumClient
+	devicesStorageContract *marketAPI.DevicesStorage
+	opts                   *chainOpts
+}
+
+func NewDevicesStorage(addr common.Address, opts *chainOpts) (*BasicDevicesStorage, error) {
+	client, err := opts.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	devicesStorageContract, err := marketAPI.NewDevicesStorage(addr, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicDevicesStorage{
+		client:                 client,
+		devicesStorageContract: devicesStorageContract,
+		opts:                   opts,
+	}, nil
+}
+
+func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.PrivateKey, devices interface{}) error {
+	data, err := json.Marshal(devices)
+	if err != nil {
+		return err
+	}
+	bytes32Ty, err := abi.NewType("bytes")
+	if err != nil {
+		return err
+	}
+
+	arguments := abi.Arguments{
+		{
+			Type: bytes32Ty,
+		},
+	}
+	bytes, err := arguments.Pack(data)
+	if err != nil {
+		return err
+	}
+	newHash := crypto.Keccak256Hash(bytes)
+
+	curHash, err := m.devicesStorageContract.Hash(getCallOptions(ctx), crypto.PubkeyToAddress(key.PublicKey))
+	if err != nil {
+		return err
+	}
+	txOpts := m.opts.getTxOpts(ctx, key, m.opts.gasLimit)
+	if curHash == newHash {
+		ctxlog.S(ctx).Debug("hash is unchanged, touching")
+		tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+			return m.devicesStorageContract.Touch(txOpts, curHash)
+		})
+		if err != nil {
+			return err
+		}
+		receipt, err := WaitTransactionReceipt(ctx, m.client, m.opts.blockConfirmations, m.opts.logParsePeriod, tx)
+		if err != nil {
+			return err
+		}
+		if receipt.Status == types.ReceiptStatusFailed {
+			return fmt.Errorf("DevicesStorage::Touch transaction failed")
+		}
+	} else {
+		tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+			return m.devicesStorageContract.SetDevices(txOpts, data)
+		})
+		if err != nil {
+			return err
+		}
+		receipt, err := WaitTransactionReceipt(ctx, m.client, m.opts.blockConfirmations, m.opts.logParsePeriod, tx)
+		if err != nil {
+			return err
+		}
+		if receipt.Status == types.ReceiptStatusFailed {
+			return fmt.Errorf("DevicesStorage::SetDevices transaction failed")
+		}
+	}
+	return nil
+}
+
+func (m *BasicDevicesStorage) Devices(ctx context.Context, address common.Address) (*sonm.StoredDevicesReply, error) {
+	rawDevices, err := m.devicesStorageContract.GetDevices(getCallOptions(ctx), address)
+	if err != nil {
+		return nil, err
+	}
+	if len(rawDevices.Devices) == 0 {
+		return nil, fmt.Errorf("devices for %s are empty", address.Hex())
+	}
+	devices := &sonm.StoredDevicesReply{
+		Devices: &sonm.DevicesReply{},
+	}
+	err = json.Unmarshal(rawDevices.Devices, devices.Devices)
+	if err != nil {
+		return nil, err
+	}
+	ts := rawDevices.Timestamp
+	if !ts.IsInt64() {
+		return nil, fmt.Errorf("timestamp is too big for int64")
+	}
+	devices.Timestamp = &sonm.Timestamp{Seconds: ts.Int64()}
+	return devices, nil
+}
+
+func (m *BasicDevicesStorage) RawDevices(ctx context.Context, address common.Address) (*sonm.RawDevicesReply, error) {
+	rawDevices, err := m.devicesStorageContract.GetDevices(getCallOptions(ctx), address)
+	if err != nil {
+		return nil, err
+	}
+	return &sonm.RawDevicesReply{
+		Data:      rawDevices.Devices,
+		Timestamp: rawDevices.Timestamp.Uint64(),
 	}, nil
 }

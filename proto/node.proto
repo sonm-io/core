@@ -5,6 +5,7 @@ import "container.proto";
 import "dwh.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
+import "timestamp.proto";
 import "worker.proto";
 import "github.com/prometheus/client_model/metrics.proto";
 
@@ -187,4 +188,20 @@ message NamedMetrics {
 message NamedMetric {
     string name = 1;
     io.prometheus.client.Metric metric = 2;
+}
+
+message StoredDevicesReply {
+    DevicesReply devices = 1;
+    Timestamp timestamp = 2;
+}
+
+message RawDevicesReply {
+    bytes data = 1;
+    uint64 timestamp = 2;
+}
+
+service DevicesStorage {
+    rpc Devices(EthAddress) returns (StoredDevicesReply) {}
+    // Exactly how it is stored in blockchain
+    rpc RawDevices(EthAddress) returns (RawDevicesReply) {}
 }
