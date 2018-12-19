@@ -15,11 +15,11 @@ func (m connSource) String() string {
 	case sourceDirectConnection:
 		return "direct"
 	case sourceNPPConnection:
-		return "NPP"
+		return "npp"
 	case sourceRelayedConnection:
 		return "relay"
 	case sourceNPPQUICConnection:
-		return "NPP/QUIC"
+		return "npp/quic"
 	default:
 		return "unknown source"
 	}
