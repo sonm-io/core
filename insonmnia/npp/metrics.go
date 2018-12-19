@@ -123,7 +123,7 @@ func newMeterWrapper() *meterWrapper {
 
 func (m *meterWrapper) ToNamedMetrics(prefix string) []*NamedMetric {
 	return []*NamedMetric{
-		{Name: prefix + "", Metric: newPrometheusGaugeMetric(func() float64 { return float64(m.Count()) })},
+		{Name: prefix + "", Metric: newPrometheusCounterMetric(m.Count)},
 		{Name: prefix + "Rate01", Metric: newPrometheusGaugeMetric(m.Rate1)},
 		{Name: prefix + "Rate05", Metric: newPrometheusGaugeMetric(m.Rate5)},
 		{Name: prefix + "Rate15", Metric: newPrometheusGaugeMetric(m.Rate15)},
@@ -133,16 +133,29 @@ func (m *meterWrapper) ToNamedMetrics(prefix string) []*NamedMetric {
 
 type histogramWrapper struct {
 	prometheus.Histogram
+	meter metrics.Meter
 }
 
 func newHistogramWrapper() *histogramWrapper {
 	return &histogramWrapper{
 		Histogram: prometheus.NewHistogram(prometheus.HistogramOpts{}),
+		meter:     metrics.NewMeter(),
 	}
 }
 
+func (m *histogramWrapper) Observe(v float64) {
+	m.Histogram.Observe(v)
+	m.meter.Mark(1)
+}
+
 func (m *histogramWrapper) ToNamedMetrics(prefix string) []*NamedMetric {
-	return []*NamedMetric{{Name: prefix + "", Metric: newPrometheusMetric(m)}}
+	return []*NamedMetric{
+		{Name: prefix + "", Metric: newPrometheusMetric(m)},
+		{Name: prefix + "Rate01", Metric: newPrometheusGaugeMetric(m.meter.Rate1)},
+		{Name: prefix + "Rate05", Metric: newPrometheusGaugeMetric(m.meter.Rate5)},
+		{Name: prefix + "Rate15", Metric: newPrometheusGaugeMetric(m.meter.Rate15)},
+		{Name: prefix + "RateMean", Metric: newPrometheusGaugeMetric(m.meter.RateMean)},
+	}
 }
 
 func newPrometheusMetric(metric prometheus.Metric) *prometheusIO.Metric {
@@ -154,6 +167,12 @@ func newPrometheusMetric(metric prometheus.Metric) *prometheusIO.Metric {
 	}
 
 	return value
+}
+
+func newPrometheusCounterMetric(fn func() int64) *prometheusIO.Metric {
+	metric := prometheus.NewCounter(prometheus.CounterOpts{})
+	metric.Add(float64(fn()))
+	return newPrometheusMetric(metric)
 }
 
 func newPrometheusGaugeMetric(fn func() float64) *prometheusIO.Metric {
