@@ -53,4 +53,8 @@ contract DevicesStorage is Ownable {
         Record memory record = devicesMap[_owner];
         return (record.devices, record.timestamp);
     }
+
+    function Kill() public onlyOwner {
+        selfdestruct(owner);
+    }
 }

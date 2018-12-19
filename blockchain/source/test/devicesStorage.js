@@ -4,7 +4,7 @@ import { eventInTransaction, allEventsInTransaction } from './helpers/expectEven
 
 let DevicesStorage = artifacts.require('./DevicesStorage.sol');
 
-contract('DevicesStora1ge', (accounts) => {
+contract('DevicesStorage', (accounts) => {
     let devicesStorage;
     let worker = accounts[1];
 

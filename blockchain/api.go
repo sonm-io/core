@@ -2116,9 +2116,12 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 		if err != nil {
 			return err
 		}
-		_, err = WaitTransactionReceipt(ctx, m.client, m.opts.blockConfirmations, m.opts.logParsePeriod, tx)
+		receipt, err := WaitTransactionReceipt(ctx, m.client, m.opts.blockConfirmations, m.opts.logParsePeriod, tx)
 		if err != nil {
 			return err
+		}
+		if receipt.Status == types.ReceiptStatusFailed {
+			return fmt.Errorf("DevicesStorage::Touch transaction failed")
 		}
 	} else {
 		tx, err := txRetryWrapper(func() (*types.Transaction, error) {
@@ -2127,9 +2130,12 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 		if err != nil {
 			return err
 		}
-		_, err = WaitTransactionReceipt(ctx, m.client, m.opts.blockConfirmations, m.opts.logParsePeriod, tx)
+		receipt, err := WaitTransactionReceipt(ctx, m.client, m.opts.blockConfirmations, m.opts.logParsePeriod, tx)
 		if err != nil {
 			return err
+		}
+		if receipt.Status == types.ReceiptStatusFailed {
+			return fmt.Errorf("DevicesStorage::SetDevices transaction failed")
 		}
 	}
 	return nil
