@@ -6,6 +6,6 @@ module.exports = function (deployer, network) {
     if (TruffleConfig.isSidechain(network)) {
         deployer.deploy(Migrations, { gasPrice: 0 });
     } else {
-        deployer.deploy(Migrations);
+        deployer.deploy(Migrations, { gas: 500000 });
     }
 };

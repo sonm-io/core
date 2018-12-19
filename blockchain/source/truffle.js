@@ -63,6 +63,8 @@ let networks = {
 
     master: {
         network_id: '1',
+        gasPrice: 5000000000,
+        gas: 1500000,
     },
     rinkeby: {
         network_id: '4',
