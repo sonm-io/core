@@ -49,5 +49,10 @@ contract('DevicesStorage', (accounts) => {
             let tx = await devicesStorage.SetDevices(devices, { from: worker });
             await eventInTransaction(tx, 'DevicesUpdated');
         });
+
+        it('should be able to be killed', async () => {
+            let tx = await devicesStorage.KillDevicesStorage();
+            await eventInTransaction(tx, 'Killed');
+        })
     });
 });

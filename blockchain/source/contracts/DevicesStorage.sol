@@ -18,6 +18,7 @@ contract DevicesStorage is Ownable {
     event DevicesHasSet(address indexed owner);
     event DevicesUpdated(address indexed owner);
     event DevicesTimestampUpdated(address indexed owner);
+    event Killed(address owner);
 
     constructor() public {
         owner = msg.sender;
@@ -54,7 +55,8 @@ contract DevicesStorage is Ownable {
         return (record.devices, record.timestamp);
     }
 
-    function Kill() public onlyOwner {
+    function KillDevicesStorage() public onlyOwner {
+        emit Killed(owner);
         selfdestruct(owner);
     }
 }
