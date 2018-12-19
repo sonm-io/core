@@ -354,6 +354,11 @@ func (api *BasicAPI) setupSidechainGate(ctx context.Context) error {
 
 func (api *BasicAPI) setupDevicesStorage(ctx context.Context) error {
 	devicesStorageAddr := api.contractRegistry.DevicesStorage()
+	if devicesStorageAddr.Big().Cmp(big.NewInt(0)) == 0 {
+		ctxlog.S(ctx).Warnf("using nil device storage")
+		api.deviceStorage = NewNilDevicesStorage()
+		return nil
+	}
 	devicesStorage, err := NewDevicesStorage(devicesStorageAddr, api.options.sidechain)
 	if err != nil {
 		return fmt.Errorf("failed to setup devices storage: %s", err)
@@ -2056,6 +2061,24 @@ func (api *BasicMultiSigAPI) GetTransaction(ctx context.Context, transactionID *
 		Data:     tx.Data,
 		Executed: tx.Executed,
 	}, nil
+}
+
+type NilDevicesStorage struct{}
+
+func (*NilDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.PrivateKey, devices interface{}) error {
+	return nil
+}
+
+func (*NilDevicesStorage) Devices(ctx context.Context, address common.Address) (*sonm.StoredDevicesReply, error) {
+	return nil, fmt.Errorf("devices storage are not present in address hash map")
+}
+
+func (*NilDevicesStorage) RawDevices(ctx context.Context, address common.Address) (*sonm.RawDevicesReply, error) {
+	return nil, fmt.Errorf("devices storage are not present in address hash map")
+}
+
+func NewNilDevicesStorage() *NilDevicesStorage {
+	return &NilDevicesStorage{}
 }
 
 type BasicDevicesStorage struct {
