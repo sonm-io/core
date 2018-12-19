@@ -18,7 +18,7 @@ contract DevicesStorage is Ownable {
     event DevicesHasSet(address indexed owner);
     event DevicesUpdated(address indexed owner);
     event DevicesTimestampUpdated(address indexed owner);
-    event Killed(address owner);
+    event Suicide(uint block);
 
     constructor() public {
         owner = msg.sender;
@@ -56,7 +56,7 @@ contract DevicesStorage is Ownable {
     }
 
     function KillDevicesStorage() public onlyOwner {
-        emit Killed(owner);
+        emit Suicide(block.timestamp);
         selfdestruct(owner);
     }
 }

@@ -16,10 +16,10 @@ import (
 )
 
 // DevicesStorageABI is the input ABI used to generate the binding from.
-const DevicesStorageABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesHasSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesTimestampUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"Killed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deviceList\",\"type\":\"bytes\"}],\"name\":\"SetDevices\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_hash\",\"type\":\"bytes32\"}],\"name\":\"Touch\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"Hash\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"GetDevices\",\"outputs\":[{\"name\":\"devices\",\"type\":\"bytes\"},{\"name\":\"timestamp\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"KillDevicesStorage\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const DevicesStorageABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesHasSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"DevicesTimestampUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"block\",\"type\":\"uint256\"}],\"name\":\"Suicide\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"}],\"name\":\"OwnershipRenounced\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_deviceList\",\"type\":\"bytes\"}],\"name\":\"SetDevices\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_hash\",\"type\":\"bytes32\"}],\"name\":\"Touch\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"Hash\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"GetDevices\",\"outputs\":[{\"name\":\"devices\",\"type\":\"bytes\"},{\"name\":\"timestamp\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"KillDevicesStorage\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // DevicesStorageBin is the compiled bytecode used for deploying new contracts.
-const DevicesStorageBin = `0x608060405234801561001057600080fd5b5060008054600160a060020a0319908116339081179091161790556109bf8061003a6000396000f30060806040526004361061008d5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416632d8dce7b81146100925780633e550cd4146100be57806359ef39501461015e578063715018a61461019157806375ff58db146101a85780638da5cb5b14610201578063cd33174a14610232578063f2fde38b14610247575b600080fd5b34801561009e57600080fd5b506100aa600435610268565b604080519115158252519081900360200190f35b3480156100ca57600080fd5b506100df600160a060020a03600435166103de565b6040518080602001838152602001828103825284818151815260200191508051906020019080838360005b8381101561012257818101518382015260200161010a565b50505050905090810190601f16801561014f5780820380516001836020036101000a031916815260200191505b50935050505060405180910390f35b34801561016a57600080fd5b5061017f600160a060020a03600435166104b7565b60408051918252519081900360200190f35b34801561019d57600080fd5b506101a66105b4565b005b3480156101b457600080fd5b506040805160206004803580820135601f81018490048402850184019095528484526101a69436949293602493928401919081908401838280828437509497506106209650505050505050565b34801561020d57600080fd5b506102166107cd565b60408051600160a060020a039092168252519081900360200190f35b34801561023e57600080fd5b506101a66107dc565b34801561025357600080fd5b506101a6600160a060020a0360043516610840565b6000806001600033600160a060020a0316600160a060020a0316815260200190815260200160002060000160405160200180828054600181600116156101000203166002900480156102f15780601f106102cf5761010080835404028352918201916102f1565b820191906000526020600020905b8154815290600101906020018083116102dd575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106103345780518252601f199092019160209182019101610315565b5181516020939093036101000a60001901801990911692169190911790526040519201829003909120935050508382149050801561039257507fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4708114155b1561008d5733600081815260016020819052604080832042920191909155517f84769e7ee13c01432c7d8b384e4a9ba21ead8189731b1049244807be07df834a9190a250600192915050565b606060006103ea6108e0565b600160a060020a0384166000908152600160208181526040928390208351815460029481161561010002600019011693909304601f810183900490920283016060908101855293830182815292939092849290918491908401828280156104925780601f1061046757610100808354040283529160200191610492565b820191906000526020600020905b81548152906001019060200180831161047557829003601f168201915b5050509183525050600191909101546020918201528151910151909590945092505050565b60006001600083600160a060020a0316600160a060020a03168152602001908152602001600020600001604051602001808280546001816001161561010002031660029004801561053f5780601f1061051d57610100808354040283529182019161053f565b820191906000526020600020905b81548152906001019060200180831161052b575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106105825780518252601f199092019160209182019101610563565b5181516020939093036101000a6000190180199091169216919091179052604051920182900390912095945050505050565b600054600160a060020a031633146105cb57600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b60408051336000908152600160208181529390912080547fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47094919391909101918291849160026101009183161591909102600019019091160480156106bc5780601f1061069a5761010080835404028352918201916106bc565b820191906000526020600020905b8154815290600101906020018083116106a8575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106106ff5780518252601f1990920191602091820191016106e0565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040518091039020600019161415156107675760405133907f1cd3cdf902f594faafe10e417201b346dcfaceed5eb9fc913379951f0d40068f90600090a2610793565b60405133907fc7582f50a7f5f4ab5898d20e888a592d9338cb6bdd957aa01f89fd3198d0fa9690600090a25b33600090815260016020908152604090912082516107b3928401906108f8565b505033600090815260016020819052604090912042910155565b600054600160a060020a031681565b600054600160a060020a031633146107f357600080fd5b60005460408051600160a060020a039092168252517f4b0bc4f25f8d0b92d2e12b686ba96cd75e4e69325e6cf7b1f3119d14eaf2cbdf9181900360200190a1600054600160a060020a0316ff5b600054600160a060020a0316331461085757600080fd5b61086081610863565b50565b600160a060020a038116151561087857600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b60408051808201909152606081526000602082015290565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061093957805160ff1916838001178555610966565b82800160010185558215610966579182015b8281111561096657825182559160200191906001019061094b565b50610972929150610976565b5090565b61099091905b80821115610972576000815560010161097c565b905600a165627a7a72305820c934745f074fa7863a71457130f604e774c9f0d79abf22ca02ea6684517bb9000029`
+const DevicesStorageBin = `0x608060405234801561001057600080fd5b5060008054600160a060020a0319908116339081179091161790556109b38061003a6000396000f30060806040526004361061008d5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416632d8dce7b81146100925780633e550cd4146100be57806359ef39501461015e578063715018a61461019157806375ff58db146101a85780638da5cb5b14610201578063cd33174a14610232578063f2fde38b14610247575b600080fd5b34801561009e57600080fd5b506100aa600435610268565b604080519115158252519081900360200190f35b3480156100ca57600080fd5b506100df600160a060020a03600435166103de565b6040518080602001838152602001828103825284818151815260200191508051906020019080838360005b8381101561012257818101518382015260200161010a565b50505050905090810190601f16801561014f5780820380516001836020036101000a031916815260200191505b50935050505060405180910390f35b34801561016a57600080fd5b5061017f600160a060020a03600435166104b7565b60408051918252519081900360200190f35b34801561019d57600080fd5b506101a66105b4565b005b3480156101b457600080fd5b506040805160206004803580820135601f81018490048402850184019095528484526101a69436949293602493928401919081908401838280828437509497506106209650505050505050565b34801561020d57600080fd5b506102166107cd565b60408051600160a060020a039092168252519081900360200190f35b34801561023e57600080fd5b506101a66107dc565b34801561025357600080fd5b506101a6600160a060020a0360043516610834565b6000806001600033600160a060020a0316600160a060020a0316815260200190815260200160002060000160405160200180828054600181600116156101000203166002900480156102f15780601f106102cf5761010080835404028352918201916102f1565b820191906000526020600020905b8154815290600101906020018083116102dd575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106103345780518252601f199092019160209182019101610315565b5181516020939093036101000a60001901801990911692169190911790526040519201829003909120935050508382149050801561039257507fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4708114155b1561008d5733600081815260016020819052604080832042920191909155517f84769e7ee13c01432c7d8b384e4a9ba21ead8189731b1049244807be07df834a9190a250600192915050565b606060006103ea6108d4565b600160a060020a0384166000908152600160208181526040928390208351815460029481161561010002600019011693909304601f810183900490920283016060908101855293830182815292939092849290918491908401828280156104925780601f1061046757610100808354040283529160200191610492565b820191906000526020600020905b81548152906001019060200180831161047557829003601f168201915b5050509183525050600191909101546020918201528151910151909590945092505050565b60006001600083600160a060020a0316600160a060020a03168152602001908152602001600020600001604051602001808280546001816001161561010002031660029004801561053f5780601f1061051d57610100808354040283529182019161053f565b820191906000526020600020905b81548152906001019060200180831161052b575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106105825780518252601f199092019160209182019101610563565b5181516020939093036101000a6000190180199091169216919091179052604051920182900390912095945050505050565b600054600160a060020a031633146105cb57600080fd5b60008054604051600160a060020a03909116917ff8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c6482091a26000805473ffffffffffffffffffffffffffffffffffffffff19169055565b60408051336000908152600160208181529390912080547fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47094919391909101918291849160026101009183161591909102600019019091160480156106bc5780601f1061069a5761010080835404028352918201916106bc565b820191906000526020600020905b8154815290600101906020018083116106a8575b50509150506040516020818303038152906040526040518082805190602001908083835b602083106106ff5780518252601f1990920191602091820191016106e0565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040518091039020600019161415156107675760405133907f1cd3cdf902f594faafe10e417201b346dcfaceed5eb9fc913379951f0d40068f90600090a2610793565b60405133907fc7582f50a7f5f4ab5898d20e888a592d9338cb6bdd957aa01f89fd3198d0fa9690600090a25b33600090815260016020908152604090912082516107b3928401906108ec565b505033600090815260016020819052604090912042910155565b600054600160a060020a031681565b600054600160a060020a031633146107f357600080fd5b6040805142815290517fa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde9181900360200190a1600054600160a060020a0316ff5b600054600160a060020a0316331461084b57600080fd5b61085481610857565b50565b600160a060020a038116151561086c57600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b60408051808201909152606081526000602082015290565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061092d57805160ff191683800117855561095a565b8280016001018555821561095a579182015b8281111561095a57825182559160200191906001019061093f565b5061096692915061096a565b5090565b61098491905b808211156109665760008155600101610970565b905600a165627a7a72305820df50965bc39729ab0b29d9c276304718203612d4916d40e28786def0e53dbca50029`
 
 // DeployDevicesStorage deploys a new Ethereum contract, binding an instance of DevicesStorage to it.
 func DeployDevicesStorage(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *DevicesStorage, error) {
@@ -765,128 +765,6 @@ func (_DevicesStorage *DevicesStorageFilterer) WatchDevicesUpdated(opts *bind.Wa
 	}), nil
 }
 
-// DevicesStorageKilledIterator is returned from FilterKilled and is used to iterate over the raw logs and unpacked data for Killed events raised by the DevicesStorage contract.
-type DevicesStorageKilledIterator struct {
-	Event *DevicesStorageKilled // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *DevicesStorageKilledIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(DevicesStorageKilled)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(DevicesStorageKilled)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *DevicesStorageKilledIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *DevicesStorageKilledIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// DevicesStorageKilled represents a Killed event raised by the DevicesStorage contract.
-type DevicesStorageKilled struct {
-	Owner common.Address
-	Raw   types.Log // Blockchain specific contextual infos
-}
-
-// FilterKilled is a free log retrieval operation binding the contract event 0x4b0bc4f25f8d0b92d2e12b686ba96cd75e4e69325e6cf7b1f3119d14eaf2cbdf.
-//
-// Solidity: e Killed(owner address)
-func (_DevicesStorage *DevicesStorageFilterer) FilterKilled(opts *bind.FilterOpts) (*DevicesStorageKilledIterator, error) {
-
-	logs, sub, err := _DevicesStorage.contract.FilterLogs(opts, "Killed")
-	if err != nil {
-		return nil, err
-	}
-	return &DevicesStorageKilledIterator{contract: _DevicesStorage.contract, event: "Killed", logs: logs, sub: sub}, nil
-}
-
-// WatchKilled is a free log subscription operation binding the contract event 0x4b0bc4f25f8d0b92d2e12b686ba96cd75e4e69325e6cf7b1f3119d14eaf2cbdf.
-//
-// Solidity: e Killed(owner address)
-func (_DevicesStorage *DevicesStorageFilterer) WatchKilled(opts *bind.WatchOpts, sink chan<- *DevicesStorageKilled) (event.Subscription, error) {
-
-	logs, sub, err := _DevicesStorage.contract.WatchLogs(opts, "Killed")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(DevicesStorageKilled)
-				if err := _DevicesStorage.contract.UnpackLog(event, "Killed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
 // DevicesStorageOwnershipRenouncedIterator is returned from FilterOwnershipRenounced and is used to iterate over the raw logs and unpacked data for OwnershipRenounced events raised by the DevicesStorage contract.
 type DevicesStorageOwnershipRenouncedIterator struct {
 	Event *DevicesStorageOwnershipRenounced // Event containing the contract specifics and raw log
@@ -1140,6 +1018,128 @@ func (_DevicesStorage *DevicesStorageFilterer) WatchOwnershipTransferred(opts *b
 				// New log arrived, parse the event and forward to the user
 				event := new(DevicesStorageOwnershipTransferred)
 				if err := _DevicesStorage.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// DevicesStorageSuicideIterator is returned from FilterSuicide and is used to iterate over the raw logs and unpacked data for Suicide events raised by the DevicesStorage contract.
+type DevicesStorageSuicideIterator struct {
+	Event *DevicesStorageSuicide // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *DevicesStorageSuicideIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(DevicesStorageSuicide)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(DevicesStorageSuicide)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *DevicesStorageSuicideIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *DevicesStorageSuicideIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// DevicesStorageSuicide represents a Suicide event raised by the DevicesStorage contract.
+type DevicesStorageSuicide struct {
+	Block *big.Int
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterSuicide is a free log retrieval operation binding the contract event 0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde.
+//
+// Solidity: e Suicide(block uint256)
+func (_DevicesStorage *DevicesStorageFilterer) FilterSuicide(opts *bind.FilterOpts) (*DevicesStorageSuicideIterator, error) {
+
+	logs, sub, err := _DevicesStorage.contract.FilterLogs(opts, "Suicide")
+	if err != nil {
+		return nil, err
+	}
+	return &DevicesStorageSuicideIterator{contract: _DevicesStorage.contract, event: "Suicide", logs: logs, sub: sub}, nil
+}
+
+// WatchSuicide is a free log subscription operation binding the contract event 0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde.
+//
+// Solidity: e Suicide(block uint256)
+func (_DevicesStorage *DevicesStorageFilterer) WatchSuicide(opts *bind.WatchOpts, sink chan<- *DevicesStorageSuicide) (event.Subscription, error) {
+
+	logs, sub, err := _DevicesStorage.contract.WatchLogs(opts, "Suicide")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(DevicesStorageSuicide)
+				if err := _DevicesStorage.contract.UnpackLog(event, "Suicide", log); err != nil {
 					return err
 				}
 				event.Raw = log

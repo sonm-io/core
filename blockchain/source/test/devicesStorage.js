@@ -52,7 +52,7 @@ contract('DevicesStorage', (accounts) => {
 
         it('should be able to be killed', async () => {
             let tx = await devicesStorage.KillDevicesStorage();
-            await eventInTransaction(tx, 'Killed');
+            await eventInTransaction(tx, 'Suicide');
         })
     });
 });
