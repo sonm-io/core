@@ -47,7 +47,7 @@ var devicesLoadRawCmd = &cobra.Command{
 
 		list, err := dev.RawDevices(ctx, sonm.NewEthAddress(ownerAddr))
 		if err != nil {
-			return fmt.Errorf("cannot get blacklist: %v", err)
+			return fmt.Errorf("cannot get worker raw devices: %v", err)
 		}
 		printRawDevices(cmd, list)
 		return nil
@@ -80,7 +80,7 @@ var devicesLoadCmd = &cobra.Command{
 
 		list, err := dev.Devices(ctx, sonm.NewEthAddress(ownerAddr))
 		if err != nil {
-			return fmt.Errorf("cannot get blacklist: %v", err)
+			return fmt.Errorf("cannot get worker devices: %v", err)
 		}
 
 		printStoredDevices(cmd, list)

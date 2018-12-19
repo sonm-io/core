@@ -192,7 +192,7 @@ type DeviceStorageAPI interface {
 	StoreOrUpdate(ctx context.Context, key *ecdsa.PrivateKey, devices interface{}) error
 	Devices(ctx context.Context, address common.Address) (*sonm.StoredDevicesReply, error)
 	// For debug purposes, when something could not be properly unmarshalled for example
-	RawDevices(ctx context.Context, address common.Address) ([]byte, uint64, error)
+	RawDevices(ctx context.Context, address common.Address) (*sonm.RawDevicesReply, error)
 }
 
 type BasicAPI struct {
@@ -2164,7 +2164,13 @@ func (m *BasicDevicesStorage) Devices(ctx context.Context, address common.Addres
 	return devices, nil
 }
 
-func (m *BasicDevicesStorage) RawDevices(ctx context.Context, address common.Address) ([]byte, uint64, error) {
+func (m *BasicDevicesStorage) RawDevices(ctx context.Context, address common.Address) (*sonm.RawDevicesReply, error) {
 	rawDevices, err := m.devicesStorageContract.GetDevices(getCallOptions(ctx), address)
-	return rawDevices.Devices, rawDevices.Timestamp.Uint64(), err
+	if err != nil {
+		return nil, err
+	}
+	return &sonm.RawDevicesReply{
+		Data:      rawDevices.Devices,
+		Timestamp: rawDevices.Timestamp.Uint64(),
+	}, nil
 }

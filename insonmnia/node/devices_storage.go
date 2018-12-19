@@ -3,28 +3,22 @@ package node
 import (
 	"context"
 
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
 )
 
 type devicesStorageAPI struct {
-	remotes *remoteOptions
+	eth blockchain.API
 }
 
 func newDevicesStorageAPI(opts *remoteOptions) sonm.DevicesStorageServer {
-	return &devicesStorageAPI{remotes: opts}
+	return &devicesStorageAPI{eth: opts.eth}
 }
 
 func (m *devicesStorageAPI) Devices(ctx context.Context, address *sonm.EthAddress) (*sonm.StoredDevicesReply, error) {
-	return m.remotes.eth.DeviceStorage().Devices(ctx, address.Unwrap())
+	return m.eth.DeviceStorage().Devices(ctx, address.Unwrap())
 }
 
 func (m *devicesStorageAPI) RawDevices(ctx context.Context, address *sonm.EthAddress) (*sonm.RawDevicesReply, error) {
-	rawDevices, ts, err := m.remotes.eth.DeviceStorage().RawDevices(ctx, address.Unwrap())
-	if err != nil {
-		return nil, err
-	}
-	return &sonm.RawDevicesReply{
-		Data:      rawDevices,
-		Timestamp: ts,
-	}, nil
+	return m.eth.DeviceStorage().RawDevices(ctx, address.Unwrap())
 }
