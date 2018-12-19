@@ -42,7 +42,7 @@ let urls = {
     master: 'https://mainnet.infura.io/',
     rinkeby: 'https://rinkeby.infura.io/',
     privateLive: 'https://sidechain.livenet.sonm.com',
-    private: 'https://sidechain-dev.sonm.com',
+    private: 'https://sidechain-testnet.sonm.com',
 };
 
 let networks = {
