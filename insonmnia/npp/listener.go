@@ -18,7 +18,7 @@ import (
 //
 // Options are: rendezvous server, private IPs usage, relay server(s) if any.
 type Listener struct {
-	metrics *metrics
+	metrics *listeneMetrics
 	ctx     context.Context // Required here, because of gRPC server, which can't stop properly even if "Stop" called.
 	cancel  context.CancelFunc
 	log     *zap.Logger
@@ -62,7 +62,7 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 
 	ctx, cancel := context.WithCancel(ctx)
 	m := &Listener{
-		metrics:         newMetrics(),
+		metrics:         newListenerMetrics(),
 		ctx:             ctx,
 		cancel:          cancel,
 		log:             opts.log,
