@@ -1221,8 +1221,43 @@
       "links": {},
       "address": "0x5dfdf389afca3eff479686a8a141ebcc74151434",
       "transactionHash": "0x786c0c9e8d6eb7a885e827309633ec2c8da680fd6f8817b588b16433a9a045da"
+    },
+    "444": {
+      "events": {
+        "0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipRenounced",
+          "type": "event"
+        },
+        "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0xd1a6f3d1ae33b4b19565a6b283d7a05c5a0decb0"
     }
   },
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-12T15:05:24.986Z"
+  "updatedAt": "2018-12-19T16:46:12.326Z"
 }
