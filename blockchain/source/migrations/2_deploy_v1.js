@@ -1,5 +1,6 @@
 let Multisig = artifacts.require('./MultiSigWallet.sol');
 let OracleMultisig = artifacts.require('./MultiSigWallet.sol');
+let GateKeeperMultisig = artifacts.require('./MultiSigWallet.sol');
 let SNM = artifacts.require('./SNM.sol');
 
 let Market = artifacts.require('./Market.sol');
@@ -134,21 +135,23 @@ async function deploySidechain (deployer, network, accounts) {
     // write
     await ahm.write('sidechainSNMAddress', SNM.address, { gasPrice: 0 });
 
-    await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
-    let multiSig = await Multisig.deployed();
-
     await deployer.deploy(OracleMultisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
     let oracleMS = await OracleMultisig.deployed();
+
+    await deployer.deploy(GateKeeperMultisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
+    let gkMS = await GateKeeperMultisig.deployed();
+
+    await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
+    let multiSig = await Multisig.deployed();
 
     await ahm.write('blacklistAddress', bl.address, { gasPrice: 0 });
     await ahm.write('marketAddress', market.address, { gasPrice: 0 });
     await ahm.write('profileRegistryAddress', pr.address, { gasPrice: 0 });
     await ahm.write('oracleUsdAddress', oracle.address, { gasPrice: 0 });
     await ahm.write('gatekeeperSidechainAddress', gk.address, { gasPrice: 0 });
-    await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
-    // compatibility
-    await ahm.write('migrationMultSigAddress', multiSig.address, { gasPrice: 0 });
+    await ahm.write('migrationMultiSigAddress', multiSig.address, { gasPrice: 0 });
     await ahm.write('oracleMultiSigAddress', oracleMS.address, { gasPrice: 0 });
+    await ahm.write('gateKeeperMultiSigAddress', gkMS.address, { gasPrice: 0 });
 
     // transfer AddressHashMap ownership to `Migration` multisig
     await ahm.transferOwnership(multiSig.address, { gasPrice: 0 });
