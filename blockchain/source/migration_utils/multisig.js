@@ -7,7 +7,7 @@ function sleep (millis) {
 }
 
 class MSWrapper {
-    static async new (msContract, resolver, network, wrappedContract) {
+    static async new (msContract, resolver, network, wrappedContract, multisigKey) {
         let netID = TruffleConfig.networks[network].network_id;
         let msWrapper = new MSWrapper();
         msWrapper.wrappedContract = wrappedContract;
@@ -35,7 +35,10 @@ class MSWrapper {
             }
         }
 
-        msWrapper.ms = await resolver.resolve(alt, 'multiSigAddress');
+        if (multisigKey === undefined) {
+            multisigKey = 'migrationMultiSigAddress';
+        }
+        msWrapper.ms = await resolver.resolve(alt, multisigKey);
         return msWrapper;
     }
 
