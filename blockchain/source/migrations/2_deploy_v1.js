@@ -149,8 +149,6 @@ async function deploySidechain (deployer, network, accounts) {
     await ahm.write('profileRegistryAddress', pr.address, { gasPrice: 0 });
     await ahm.write('oracleUsdAddress', oracle.address, { gasPrice: 0 });
     await ahm.write('gatekeeperSidechainAddress', gk.address, { gasPrice: 0 });
-    await ahm.write('multiSigAddress', multiSig.address, { gasPrice: 0 });
-    // compatibility
     await ahm.write('migrationMultiSigAddress', multiSig.address, { gasPrice: 0 });
     await ahm.write('oracleMultiSigAddress', oracleMS.address, { gasPrice: 0 });
     await ahm.write('gateKeeperMultiSigAddress', gkMS.address, { gasPrice: 0 });
