@@ -9,7 +9,7 @@ async function deploySidechain (deployer, network, accounts) {
     await registry.init();
     await deployer.deploy(DevicesStorage);
     let ds = await DevicesStorage.deployed();
-    registry.write('devicesStorageAddress', ds.address);
+    await registry.write('devicesStorageAddress', ds.address);
     let ms = await registry.resolve(Multisig, 'migrationMultiSigAddress');
     await ds.transferOwnership(ms.address);
 }
