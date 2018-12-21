@@ -43,11 +43,11 @@ class MSWrapper {
     }
 
     async call (method, ...args) {
-        return this.callImpl(false, method, ...args)
+        return this.callImpl(false, method, ...args);
     }
 
-    async callAndWait(method, ...args) {
-        return this.callImpl(true, method, ...args)
+    async callAndWait (method, ...args) {
+        return this.callImpl(true, method, ...args);
     }
 
     async callImpl (shouldWait, method, ...args) {
@@ -59,6 +59,7 @@ class MSWrapper {
         let submitTx = await this.ms.submitTransaction(this.wrappedContract.address, 0, tx);
         let txID = submitTx.logs[0].args.transactionId.toNumber();
         console.log('TX id: ', txID);
+        // eslint-disable-next-line no-unmodified-loop-condition
         while (shouldWait) {
             let confirmed = await this.ms.isConfirmed(txID);
             if (confirmed) {
