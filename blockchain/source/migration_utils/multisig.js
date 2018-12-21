@@ -43,6 +43,14 @@ class MSWrapper {
     }
 
     async call (method, ...args) {
+        return this.callImpl(false, method, ...args)
+    }
+
+    async callAndWait(method, ...args) {
+        return this.callImpl(true, method, ...args)
+    }
+
+    async callImpl (shouldWait, method, ...args) {
         let expandedArgs = '(' + args.join(', ') + ')';
         console.log(`handling ${this.wrappedContract.constructor.contractName}.${method}${expandedArgs}` +
             ` at ${this.wrappedContract.address} via multisig at ${this.ms.address}`);
@@ -51,7 +59,7 @@ class MSWrapper {
         let submitTx = await this.ms.submitTransaction(this.wrappedContract.address, 0, tx);
         let txID = submitTx.logs[0].args.transactionId.toNumber();
         console.log('TX id: ', txID);
-        while (true) {
+        while (shouldWait) {
             let confirmed = await this.ms.isConfirmed(txID);
             if (confirmed) {
                 console.log('transaction has been confirmed');
