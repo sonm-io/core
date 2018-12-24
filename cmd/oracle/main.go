@@ -25,7 +25,6 @@ func run(app cmd.AppContext) error {
 		return fmt.Errorf("failed to build logger insance: %s", err)
 	}
 
-	// ctx := log.WithLogger(context.Background(), logger)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

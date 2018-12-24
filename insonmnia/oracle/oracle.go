@@ -17,6 +17,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const defaultContextTimeout = 30 * time.Second
+
 type Oracle struct {
 	key          *ecdsa.PrivateKey
 	cfg          *Config
@@ -96,7 +98,7 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 
 	if o.cfg.Oracle.FromNow {
 		lastBlock, err = func() (uint64, error) {
-			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			reqCtx, cancel := context.WithTimeout(ctx, defaultContextTimeout)
 			defer cancel()
 
 			return o.bch.Events().GetLastBlock(reqCtx)
@@ -128,7 +130,7 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 				o.logger.Debug("new submission found", zap.Any("event", *event))
 
 				if !o.transactionValid(ctx, value.TransactionId) {
-					o.logger.Info("failed to confirm transaction, transaction invalid",
+					o.logger.Warn("failed to confirm transaction, transaction invalid",
 						zap.Stringer("transaction_id", value.TransactionId))
 					continue
 				}
@@ -142,10 +144,10 @@ func (o *Oracle) Serve(ctx context.Context) error {
 	o.logger.Info("creating USD-SNM Oracle",
 		zap.Bool("is_master", o.cfg.Oracle.IsMaster),
 		zap.String("account", crypto.PubkeyToAddress(o.key.PublicKey).String()),
-		zap.String("price update period:", o.cfg.Oracle.PriceUpdatePeriod.String()),
-		zap.String("contract update period", o.cfg.Oracle.ContractUpdatePeriod.String()),
-		zap.Float64("deviation percent", o.cfg.Oracle.Percent),
-		zap.Bool("from now", o.cfg.Oracle.FromNow))
+		zap.String("price_update_period:", o.cfg.Oracle.PriceUpdatePeriod.String()),
+		zap.String("contract_update_period", o.cfg.Oracle.ContractUpdatePeriod.String()),
+		zap.Float64("deviation_percent", o.cfg.Oracle.Percent),
+		zap.Bool("from_now", o.cfg.Oracle.FromNow))
 
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
