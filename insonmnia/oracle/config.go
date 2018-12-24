@@ -14,6 +14,7 @@ type oracleConfig struct {
 	PriceUpdatePeriod    time.Duration `yaml:"price_update_period" default:"15s"`
 	ContractUpdatePeriod time.Duration `yaml:"contract_update_period" default:"15m"`
 	Percent              float64       `yaml:"deviation_percent" default:"1.0"`
+	FromNow              bool          `yaml:"from_now" default:"true"`
 }
 
 type Config struct {

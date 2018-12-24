@@ -6,16 +6,18 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
+
+const defaultContextTimeout = 30 * time.Second
 
 type Oracle struct {
 	key          *ecdsa.PrivateKey
@@ -27,14 +29,19 @@ type Oracle struct {
 	mu           sync.Mutex
 }
 
-func NewOracle(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Oracle, error) {
+func NewOracle(ctx context.Context, log *zap.Logger, cfg *Config) (*Oracle, error) {
 	bch, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
 	}
 
+	key, err := cfg.Eth.LoadKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load Ethereum keys: %s", err)
+	}
+
 	return &Oracle{
-		logger:       ctxlog.GetLogger(ctx),
+		logger:       log,
 		key:          key,
 		cfg:          cfg,
 		bch:          bch,
@@ -85,8 +92,27 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 	if o.cfg.Oracle.IsMaster {
 		return nil
 	}
-	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter(
-		[]common.Address{o.bch.ContractRegistry().OracleMultiSig()}, big.NewInt(0)))
+
+	var lastBlock uint64 = 0
+	var err error
+
+	if o.cfg.Oracle.FromNow {
+		lastBlock, err = func() (uint64, error) {
+			reqCtx, cancel := context.WithTimeout(ctx, defaultContextTimeout)
+			defer cancel()
+
+			return o.bch.Events().GetLastBlock(reqCtx)
+		}()
+		if err != nil {
+			return err
+		}
+	}
+
+	filter := o.bch.Events().GetMultiSigFilter(
+		[]common.Address{o.bch.ContractRegistry().OracleMultiSig()},
+		big.NewInt(0).SetUint64(lastBlock))
+
+	events, err := o.bch.Events().GetEvents(ctx, filter)
 	if err != nil {
 		return err
 	}
@@ -101,12 +127,14 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 			}
 			switch value := event.Data.(type) {
 			case *blockchain.SubmissionData:
-				o.logger.Debug("new submission found", zap.Any("event", event))
-				if o.transactionValid(ctx, value.TransactionId) {
-					o.confirmChanging(ctx, value.TransactionId)
-				} else {
-					o.logger.Info("failed to confirm transaction, transaction invalid ")
+				o.logger.Debug("new submission found", zap.Any("event", *event))
+
+				if !o.transactionValid(ctx, value.TransactionId) {
+					o.logger.Warn("failed to confirm transaction, transaction invalid",
+						zap.Stringer("transaction_id", value.TransactionId))
+					continue
 				}
+				o.confirmChanging(ctx, value.TransactionId)
 			}
 		}
 	}
@@ -116,38 +144,37 @@ func (o *Oracle) Serve(ctx context.Context) error {
 	o.logger.Info("creating USD-SNM Oracle",
 		zap.Bool("is_master", o.cfg.Oracle.IsMaster),
 		zap.String("account", crypto.PubkeyToAddress(o.key.PublicKey).String()),
-		zap.String("price update period:", o.cfg.Oracle.PriceUpdatePeriod.String()),
-		zap.String("contract update period", o.cfg.Oracle.ContractUpdatePeriod.String()),
-		zap.Float64("deviation percent", o.cfg.Oracle.Percent))
+		zap.String("price_update_period:", o.cfg.Oracle.PriceUpdatePeriod.String()),
+		zap.String("contract_update_period", o.cfg.Oracle.ContractUpdatePeriod.String()),
+		zap.Float64("deviation_percent", o.cfg.Oracle.Percent),
+		zap.Bool("from_now", o.cfg.Oracle.FromNow))
 
-	ctx, cancel := context.WithCancel(ctx)
-
-	errGroup := errgroup.Group{}
-	errGroup.Go(func() error {
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
 		err := o.watchPriceRoutine(ctx)
 		if err != nil {
 			o.logger.Error("price watching routine failed", zap.Error(err))
-			cancel()
 		}
 		return err
 	})
-	errGroup.Go(func() error {
+
+	wg.Go(func() error {
 		err := o.submitPriceRoutine(ctx)
 		if err != nil {
 			o.logger.Error("price submission routine failed", zap.Error(err))
-			cancel()
 		}
 		return err
 	})
-	errGroup.Go(func() error {
+
+	wg.Go(func() error {
 		err := o.listenEventsRoutine(ctx)
 		if err != nil {
 			o.logger.Error("event listening routine failed", zap.Error(err))
-			cancel()
 		}
 		return err
 	})
-	return errGroup.Wait()
+
+	return wg.Wait()
 }
 
 func (o *Oracle) getPriceForSubmit() (*big.Int, error) {
