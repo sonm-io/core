@@ -4,11 +4,6 @@ import "./Administratable.sol";
 
 contract AdministratumCrud is Administratable {
 
-    // events
-    event WorkerAnnounced(address indexed worker, address indexed master);
-    event WorkerConfirmed(address indexed worker, address indexed master);
-    event WorkerRemoved(address indexed worker, address indexed master);
-    event AdminAdded(address indexed admin, address indexed master);
 
     // storage
     mapping(address => address) masterOf;
