@@ -24,6 +24,7 @@ class ContractRegistry {
 
     async resolve (contract, name) {
         let address = await this.hm.read(name);
+        console.log('resolved', name, 'to', address);
         return contract.at(address);
     }
 

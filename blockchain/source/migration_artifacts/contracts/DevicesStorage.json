@@ -5255,6 +5255,90 @@
     "version": "0.4.24+commit.e67f0147.Emscripten.clang"
   },
   "networks": {
+    "444": {
+      "events": {
+        "0xc7582f50a7f5f4ab5898d20e888a592d9338cb6bdd957aa01f89fd3198d0fa96": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "owner",
+              "type": "address"
+            }
+          ],
+          "name": "DevicesHasSet",
+          "type": "event"
+        },
+        "0x1cd3cdf902f594faafe10e417201b346dcfaceed5eb9fc913379951f0d40068f": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "owner",
+              "type": "address"
+            }
+          ],
+          "name": "DevicesUpdated",
+          "type": "event"
+        },
+        "0x84769e7ee13c01432c7d8b384e4a9ba21ead8189731b1049244807be07df834a": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "owner",
+              "type": "address"
+            }
+          ],
+          "name": "DevicesTimestampUpdated",
+          "type": "event"
+        },
+        "0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": false,
+              "name": "block",
+              "type": "uint256"
+            }
+          ],
+          "name": "Suicide",
+          "type": "event"
+        },
+        "0xf8df31144d9c2f0f6b59d69b8b98abd5459d07f2742c4df920b25aae33c64820": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipRenounced",
+          "type": "event"
+        },
+        "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0": {
+          "anonymous": false,
+          "inputs": [
+            {
+              "indexed": true,
+              "name": "previousOwner",
+              "type": "address"
+            },
+            {
+              "indexed": true,
+              "name": "newOwner",
+              "type": "address"
+            }
+          ],
+          "name": "OwnershipTransferred",
+          "type": "event"
+        }
+      },
+      "links": {},
+      "address": "0x1dfaae80ff1ae12595b5b4c84ba469fdffd42b01",
+      "transactionHash": "0x22e448034967968f6c104c2c472af2d216a3d698b6e37a4e350f27a5efb9ac02"
+    },
     "4242": {
       "events": {
         "0xc7582f50a7f5f4ab5898d20e888a592d9338cb6bdd957aa01f89fd3198d0fa96": {
@@ -5341,5 +5425,5 @@
     }
   },
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-12-19T17:40:33.875Z"
+  "updatedAt": "2018-12-24T11:55:10.289Z"
 }

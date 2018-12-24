@@ -36,9 +36,12 @@ class MSWrapper {
         }
 
         if (multisigKey === undefined) {
-            multisigKey = 'migrationMultiSigAddress';
+            // intentional misspelling, as it was deployed in live under this name
+            multisigKey = 'migrationMultSigAddress';
         }
+        console.log('resolving ms');
         msWrapper.ms = await resolver.resolve(alt, multisigKey);
+        console.log('ms resolved');
         return msWrapper;
     }
 

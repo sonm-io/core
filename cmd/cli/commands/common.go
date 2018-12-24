@@ -222,10 +222,7 @@ func initKeystore(reader accounts.PassPhraser) (*accounts.MultiKeystore, error) 
 		return nil, err
 	}
 
-	return accounts.NewMultiKeystore(&accounts.KeystoreConfig{
-		KeyDir:      keyDir,
-		PassPhrases: make(map[string]string),
-	}, reader)
+	return accounts.NewMultiKeystore(accounts.NewKeystoreConfig(keyDir), reader)
 }
 
 // loadKeyStoreWrapper is matching cobra.Command.PreRunE signature.

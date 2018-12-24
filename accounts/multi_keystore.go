@@ -19,6 +19,13 @@ type KeystoreConfig struct {
 	PassPhrases map[string]string `yaml:"pass_phrases"`
 }
 
+func NewKeystoreConfig(path string) *KeystoreConfig {
+	return &KeystoreConfig{
+		KeyDir:      path,
+		PassPhrases: map[string]string{},
+	}
+}
+
 func (cfg *KeystoreConfig) getStateFileDir() string {
 	return path.Join(cfg.KeyDir, "state")
 }

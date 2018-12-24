@@ -13,8 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/opentracing/basictracer-go"
 	"github.com/opentracing/opentracing-go"
-	"github.com/prometheus/client_golang/prometheus"
-	prometheusIO "github.com/prometheus/client_model/go"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
@@ -81,13 +79,13 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 	now := time.Now()
 	metric := m.metricHandle(addr)
-	metric.NumAttempts.Inc()
+	metric.NumAttempts.Mark(1)
 	metric.LastTimeActive.SetToCurrentTime()
 
 	conn, err := m.dialContextExt(ctx, addr, metric)
 	if err != nil {
 		log.Warn("failed to connect using NPP - all methods failed")
-		metric.NumFailed.Inc()
+		metric.NumFailed.Mark(1)
 		return nil, err
 	}
 
@@ -108,7 +106,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 		log.Debug("successfully connected using Relay")
 	}
 
-	metric.NumSuccess.Inc()
+	metric.NumSuccess.Mark(1)
 	metric.SummaryHistogram.Observe(time.Since(now).Seconds())
 	metric.LastTimeSuccess.SetToCurrentTime()
 
@@ -293,7 +291,7 @@ func (m *Dialer) Metrics() (map[string][]*NamedMetric, error) {
 	summary := map[string][]*NamedMetric{}
 	for addr, metric := range m.metrics {
 		metricNames := metric.MetricNames()
-		metricsToCollect := [...]prometheus.Metric{
+		metricsToCollect := [...]toNamedMetrics{
 			metric.NumAttempts,
 			metric.NumSuccess,
 			metric.NumFailed,
@@ -308,11 +306,7 @@ func (m *Dialer) Metrics() (map[string][]*NamedMetric, error) {
 		metricsCollected := make([]*NamedMetric, 0, len(metricsToCollect))
 
 		for id, metricToCollect := range metricsToCollect {
-			value := &prometheusIO.Metric{}
-			if err := metricToCollect.Write(value); err != nil {
-				return nil, err
-			}
-			metricsCollected = append(metricsCollected, &NamedMetric{Name: metricNames[id], Metric: value})
+			metricsCollected = append(metricsCollected, metricToCollect.ToNamedMetrics(metricNames[id])...)
 		}
 
 		summary[addr] = metricsCollected
@@ -340,6 +334,10 @@ func (m *Dialer) metricHandle(addr auth.Addr) *dialMetrics {
 	metric := newDialMetrics()
 	m.metrics[k] = metric
 	return metric
+}
+
+type toNamedMetrics interface {
+	ToNamedMetrics(prefix string) []*NamedMetric
 }
 
 type nppConn struct {
