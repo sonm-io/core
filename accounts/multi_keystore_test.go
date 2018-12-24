@@ -14,13 +14,7 @@ const (
 )
 
 func TestGenerateFirst(t *testing.T) {
-	k, err := NewMultiKeystore(
-		&KeystoreConfig{
-			KeyDir:      testKeystoreDir,
-			PassPhrases: nil,
-		},
-		NewStaticPassPhraser("test"),
-	)
+	k, err := NewMultiKeystore(NewKeystoreConfig(testKeystoreDir), NewStaticPassPhraser("test"))
 	require.NoError(t, err)
 	defer func() { os.RemoveAll(testKeystoreDir) }()
 
@@ -42,13 +36,7 @@ func TestGenerateFirst(t *testing.T) {
 }
 
 func TestSetDefault(t *testing.T) {
-	k, err := NewMultiKeystore(
-		&KeystoreConfig{
-			KeyDir:      testKeystoreDir,
-			PassPhrases: nil,
-		},
-		NewStaticPassPhraser("test"),
-	)
+	k, err := NewMultiKeystore(NewKeystoreConfig(testKeystoreDir), NewStaticPassPhraser("test"))
 	require.NoError(t, err)
 
 	defer func() { os.RemoveAll(testKeystoreDir) }()
@@ -75,13 +63,7 @@ type panicPassphrase struct{}
 func (panicPassphrase) GetPassPhrase() (string, error) { panic("test failed") }
 
 func TestAlreadyKnownPasswords(t *testing.T) {
-	k, err := NewMultiKeystore(
-		&KeystoreConfig{
-			KeyDir:      testKeystoreDir,
-			PassPhrases: map[string]string{},
-		},
-		NewStaticPassPhraser("test"),
-	)
+	k, err := NewMultiKeystore(NewKeystoreConfig(testKeystoreDir), NewStaticPassPhraser("test"))
 	require.NoError(t, err)
 
 	defer func() {
