@@ -7,7 +7,7 @@ contract Administratum is Ownable {
 
     // events
     event WorkerAnnounced(address indexed worker, address indexed master);
-    event WorkerConfirmed(address indexed worker, address indexed master, address indexed confirmator);
+    event WorkerConfirmed(address indexed worker, address indexed master);
     event WorkerRemoved(address indexed worker, address indexed master);
     event AdminAdded(address indexed admin, address indexed master);
 
@@ -16,6 +16,9 @@ contract Administratum is Ownable {
     mapping(address => mapping(address => bool)) masterRequest;
 
     AdministratumCrud crud;
+
+    // exclusivly for old api
+    address market;
 
 
     //constructor
@@ -40,7 +43,7 @@ contract Administratum is Ownable {
         crud.SetMaster(_worker, msg.sender);
         crud.SwitchToMaster(msg.sender);
         delete masterRequest[msg.sender][_worker];
-        emit WorkerConfirmed(_worker, crud.GetMaster(_worker), msg.sender);
+        emit WorkerConfirmed(_worker, crud.GetMaster(_worker));
         return true;
     }
 
@@ -51,18 +54,10 @@ contract Administratum is Ownable {
         return true;
     }
 
-    function RegisterAdmin(address _admin) public returns (bool){
-        require(GetMaster(msg.sender) == msg.sender);
-        require(msg.sender != _admin);
-        crud.SetAdmin(_admin, msg.sender);
-        return true;
-    }
-
     function Migrate (address _newAdministratum) public onlyOwner {
         crud.transferOwnership(_newAdministratum);
         suicide(msg.sender);
     }
-
 
     //INTERNAL
     // check if transaction sended by valid admin
@@ -78,8 +73,42 @@ contract Administratum is Ownable {
         return  crud.GetMaster(_worker);
     }
 
+    // EXTERNAL/OLD API
+
+    modifier OnlyMarket() {
+        require(msg.sender == market);
+        _;
+    }
+
+    function SetMarketAddress(address _market) public onlyOwner {
+        market = _market;
+    }
 
 
+    function ExternalRegisterWorker(address _master, address _worker) external OnlyMarket returns (bool) {
+        require(crud.GetMaster(_worker) == msg.sender);
+        require(!crud.isMaster(_worker));
+        require(crud.GetMaster(_master) == _master);
+        masterRequest[_master][_worker] = true;
+        emit WorkerAnnounced(_worker, _master);
+        return true;
+    }
+
+    function ExternalConfirmWorker(address _worker, address _master)  public OnlyMarket returns (bool) {
+        require(masterRequest[_master][_worker] == true || IsValid(_worker));
+        crud.SetMaster(_worker, _master);
+        crud.SwitchToMaster(_master);
+        delete masterRequest[_master][_worker];
+        emit WorkerConfirmed(_worker, _master);
+        return true;
+    }
+
+    function ExternalRemoveWorker(address _worker, address _master, address _sender) public  OnlyMarket returns (bool) {
+        require(crud.GetMaster(_worker) == _master && (_sender == _worker || _sender == _master));
+        crud.DeleteMaster(_worker);
+        emit WorkerRemoved(_worker, _master);
+        return true;
+    }
 
     //modifiers
 

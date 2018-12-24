@@ -663,4 +663,134 @@ contract Market is Ownable, Pausable {
         pause();
 
     }
+
+    // OLD API
+
+    function RegisterWorker(address _master) public whenNotPaused returns (bool) {
+        administratum.ExternalRegisterWorker(_master, msg.sender);
+        emit WorkerAnnounced(msg.sender, _master);
+        return true;
+    }
+
+    function ConfirmWorker(address _worker) public whenNotPaused returns (bool) {
+        administratum.ExternalConfirmWorker(_worker, msg.sender);
+        emit WorkerConfirmed(_worker, msg.sender);
+        return true;
+    }
+
+    function RemoveWorker(address _worker, address _master) public whenNotPaused returns (bool) {
+        administratum.ExternalRemoveWorker(_worker, _master, msg.sender);
+        emit WorkerRemoved(_worker, _master);
+        return true;
+    }
+
+    function GetDealsAmount() public view returns (uint){
+        return dealsCrud.GetDealsAmount();
+    }
+
+    function GetOrdersAmount() public view returns (uint){
+        return ordersCrud.GetOrdersAmount();
+    }
+
+    function GetChangeRequestsAmount() public view returns (uint){
+        return changeRequestsCrud.GetChangeRequestsAmount();
+    }
+
+    function GetMaster(address _worker) view public returns (address master) {
+        return administratum.GetMaster(_worker);
+    }
+
+
+    function GetChangeRequestInfo(uint changeRequestID) view public
+    returns (
+        uint dealID,
+        Orders.OrderType requestType,
+        uint price,
+        uint duration,
+        ChangeRequests.RequestStatus status
+    ){
+        return (
+        changeRequestsCrud.GetChangeRequestDealID(changeRequestID),
+        changeRequestsCrud.GetChangeRequestType(changeRequestID),
+        changeRequestsCrud.GetChangeRequestPrice(changeRequestID),
+        changeRequestsCrud.GetChangeRequestDuration(changeRequestID),
+        changeRequestsCrud.GetChangeRequestStatus(changeRequestID)
+        );
+    }
+
+    function GetOrderInfo(uint orderID) view public
+    returns (
+        Orders.OrderType orderType,
+        address author,
+        address counterparty,
+        uint duration,
+        uint price,
+        bool[] netflags,
+        ProfileRegistry.IdentityLevel identityLevel,
+        address blacklist,
+        bytes32 tag,
+        uint64[] benchmarks,
+        uint frozenSum
+    ){
+        orderType = ordersCrud.GetOrderType(orderID);
+        author = ordersCrud.GetOrderAuthor(orderID);
+        counterparty = ordersCrud.GetOrderCounterparty(orderID);
+        duration =  ordersCrud.GetOrderDuration(orderID);
+        price = ordersCrud.GetOrderPrice(orderID);
+        netflags = ordersCrud.GetOrderNetflags(orderID);
+        identityLevel = ordersCrud.GetOrderIdentityLevel(orderID);
+        blacklist = ordersCrud.GetOrderBlacklist(orderID);
+        tag = ordersCrud.GetOrderTag(orderID);
+        benchmarks = ordersCrud.GetOrderBenchmarks(orderID);
+        frozenSum = ordersCrud.GetOrderFrozenSum(orderID);
+    }
+
+
+    function GetOrderParams(uint orderID) view public
+    returns (
+        Orders.OrderStatus orderStatus,
+        uint dealID
+    ){
+        orderStatus = ordersCrud.GetOrderStatus(orderID);
+        dealID = ordersCrud.GetOrderDealID(orderID);
+    }
+
+    function GetDealInfo(uint dealID) view public
+    returns (
+        uint64[] benchmarks,
+        address supplierID,
+        address consumerID,
+        address masterID,
+        uint askID,
+        uint bidID,
+        uint startTime
+    ){
+        benchmarks = dealsCrud.GetDealBenchmarks(dealID);
+        supplierID = dealsCrud.GetDealSupplierID(dealID);
+        consumerID = dealsCrud.GetDealConsumerID(dealID);
+        masterID = dealsCrud.GetDealMasterID(dealID);
+        askID = dealsCrud.GetDealAskID(dealID);
+        bidID = dealsCrud.GetDealBidID(dealID);
+        startTime = dealsCrud.GetDealStartTime(dealID);
+    }
+
+    function GetDealParams(uint dealID) view public
+    returns (
+        uint duration,
+        uint price,
+        uint endTime,
+        Deals.DealStatus status,
+        uint blockedBalance,
+        uint totalPayout,
+        uint lastBillTS
+    ){
+        duration = dealsCrud.GetDealDuration(dealID);
+        price = dealsCrud.GetDealPrice(dealID);
+        endTime = dealsCrud.GetDealEndTime(dealID);
+        status = dealsCrud.GetDealStatus(dealID);
+        blockedBalance = dealsCrud.GetDealBlockedBalance(dealID);
+        totalPayout = dealsCrud.GetDealTotalPayout(dealID);
+        lastBillTS = dealsCrud.GetDealLastBillTS(dealID);
+    }
+
 }
