@@ -13,7 +13,7 @@ import "./Deals.sol";
 import "./ChangeRequests.sol";
 
 
-contract Market is Ownable, Pausable {
+contract MarketV2 is Ownable, Pausable {
 
     using SafeMath for uint256;
 
