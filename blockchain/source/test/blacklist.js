@@ -1,6 +1,6 @@
 import assertRevert from './helpers/assertRevert';
 
-const Market = artifacts.require('./Market.sol');
+const Market = artifacts.require('./MarketV2.sol');
 const Blacklist = artifacts.require('./Blacklist.sol');
 const SNM = artifacts.require('./SNM.sol');
 const OracleUSD = artifacts.require('./OracleUSD.sol');
@@ -51,8 +51,7 @@ contract('Blacklist', async function (accounts) {
             deals.address,
             changeRequests.address,
             12,
-            3,
-            { gasLimit: 30000000 });
+            3);
     });
 
     it('test ACL', async function () {
