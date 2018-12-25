@@ -10,7 +10,7 @@ let Deals = artifacts.require('./Deals.sol');
 let AdministratumCrud = artifacts.require('./AdministratumCrud.sol');
 let Administratum = artifacts.require('Administratum.sol');
 let ChangeRequests = artifacts.require('./ChangeRequests.sol');
-let Market = artifacts.require('./Market.sol');
+let Market = artifacts.require('./MarketV2.sol');
 
 const TruffleConfig = require('../truffle');
 const ContractRegistry = require('../migration_utils/address_hashmap');
