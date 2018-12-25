@@ -229,10 +229,6 @@ func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool
 		return false
 	}
 
-	// g.logger.Debug("delay check",
-	// 	zap.Time("time with delay", payinTime.Add(g.cfg.Gatekeeper.Delay)),
-	// 	zap.Time("nowTime", time.Now().UTC()))
-
 	return payinTime.Add(g.cfg.Gatekeeper.Delay).Before(time.Now().UTC())
 }
 
@@ -400,8 +396,7 @@ func (g *Gatekeeper) processScummyTx(ctx context.Context, tx *blockchain.GateTx)
 		return fmt.Errorf("keeper already frozen")
 	}
 
-	// return g.out.FreezeKeeper(ctx, g.key, txState.Keeper)
-	return nil
+	return g.out.FreezeKeeper(ctx, g.key, txState.Keeper)
 }
 
 // loadFreezeTime watch current freezing time in contract

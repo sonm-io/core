@@ -10,23 +10,17 @@ import (
 	"golang.org/x/net/context"
 )
 
-var (
-	configFlag  string
-	versionFlag bool
-	appVersion  string
-)
-
 func main() {
-	cmd.NewCmd("gate", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd(run).Execute()
 }
 
-func run() error {
-	cfg, err := gatekeeper.NewConfig(configFlag)
+func run(app cmd.AppContext) error {
+	cfg, err := gatekeeper.NewConfig(app.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
-	logger := logging.BuildLogger(cfg.Log.LogLevel())
+	logger, err := logging.BuildLogger(cfg.Log)
 	ctx := log.WithLogger(context.Background(), logger)
 
 	key, err := cfg.Eth.LoadKey()

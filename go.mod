@@ -93,6 +93,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.0-20170510074858-97311d9f7767
 	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/miekg/dns v1.0.4
+	github.com/miguelmota/go-solidity-sha3 v0.0.0-20180712214648-92fbf5a798e8
 	github.com/mitchellh/go-homedir v0.0.0-20180523094522-3864e76763d9
 	github.com/mitchellh/mapstructure v0.0.0-20170523030023-d0303fe80992
 	github.com/mmcloughlin/geohash v0.0.0-20180909114810-59020f29e94a
