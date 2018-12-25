@@ -27,7 +27,7 @@ import { Bid } from './helpers/bid';
 import { checkBenchmarks, checkOrderStatus, getDealIdFromOrder, getDealInfoFromOrder } from './helpers/common';
 
 const SNM = artifacts.require('./SNM.sol');
-const Market = artifacts.require('./Market.sol');
+const Market = artifacts.require('./MarketV2.sol');
 const OracleUSD = artifacts.require('./OracleUSD.sol');
 const Blacklist = artifacts.require('./Blacklist.sol');
 const ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
@@ -83,11 +83,10 @@ contract('Market', async (accounts) => {
             changeRequests.address,
             benchmarkQuantity,
             netflagsQuantity,
-            { gasLimit: 30000000 }
         );
 
         await administratumCrud.transferOwnership(administratum.address);
-        await administratum.transferOwnership(market.address);
+        await administratum.SetMarketAddress(market.address);
         await orders.transferOwnership(market.address);
         await deals.transferOwnership(market.address);
         await changeRequests.transferOwnership(market.address);
@@ -1290,53 +1289,53 @@ contract('Market', async (accounts) => {
             });
         });
 
-        // describe('RegisterWorker', () => {
-        //     before(async () => {
-        //         await market.pause();
-        //     });
-        //
-        //     it('should revert', async () => {
-        //         await assertRevert(administratum.RegisterWorker(master, { from: supplier }));
-        //     });
-        //
-        //     after(async () => {
-        //         await market.unpause();
-        //     });
-        // });
-        //
-        // describe('ConfirmWorker', () => {
-        //     before(async () => {
-        //         await administratum.RegisterWorker(master, { from: accounts[0] });
-        //         await market.pause();
-        //     });
-        //
-        //     it('should revert', async () => {
-        //         await assertRevert(administratum.ConfirmWorker(supplier, { from: master }));
-        //     });
-        //
-        //     after(async () => {
-        //         await market.unpause();
-        //         await administratum.ConfirmWorker(accounts[0], { from: master });
-        //         await administratum.RemoveWorker(accounts[0], master, { from: master });
-        //     });
-        // });
-        //
-        // describe('RemoveWorker', () => {
-        //     before(async () => {
-        //         await administratum.RegisterWorker(master, { from: accounts[0] });
-        //         await administratum.ConfirmWorker(accounts[0], { from: master });
-        //         await market.pause();
-        //     });
-        //
-        //     it('should revert', async () => {
-        //         await assertRevert(administratum.RemoveWorker(accounts[0], master, { from: master }));
-        //     });
-        //
-        //     after(async () => {
-        //         await market.unpause();
-        //         await administratum.RemoveWorker(accounts[0], master, { from: master });
-        //     });
-        // });
+        describe('RegisterWorker', () => {
+            before(async () => {
+                await market.pause();
+            });
+
+            it('should revert', async () => {
+                await assertRevert(market.RegisterWorker(master, { from: supplier }));
+            });
+
+            after(async () => {
+                await market.unpause();
+            });
+        });
+
+        describe('ConfirmWorker', () => {
+            before(async () => {
+                await market.RegisterWorker(master, { from: accounts[0] });
+                await market.pause();
+            });
+
+            it('should revert', async () => {
+                await assertRevert(market.ConfirmWorker(supplier, { from: master }));
+            });
+
+            after(async () => {
+                await market.unpause();
+                await market.ConfirmWorker(accounts[0], { from: master });
+                await market.RemoveWorker(accounts[0], master, { from: master });
+            });
+        });
+
+        describe('RemoveWorker', () => {
+            before(async () => {
+                await market.RegisterWorker(master, { from: accounts[0] });
+                await market.ConfirmWorker(accounts[0], { from: master });
+                await market.pause();
+            });
+
+            it('should revert', async () => {
+                await assertRevert(market.RemoveWorker(accounts[0], master, { from: master }));
+            });
+
+            after(async () => {
+                await market.unpause();
+                await market.RemoveWorker(accounts[0], master, { from: master });
+            });
+        });
     });
 
     describe('kill market', () => {
