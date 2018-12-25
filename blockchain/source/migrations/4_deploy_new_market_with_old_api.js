@@ -8,7 +8,7 @@ const Oracle = artifacts.require('./OracleUSD.sol');
 let Orders = artifacts.require('./Orders.sol');
 let Deals = artifacts.require('./Deals.sol');
 let AdministratumCrud = artifacts.require('./AdministratumCrud.sol');
-let Administratum = artifacts.require('Administratum.sol');
+let Administratum = artifacts.require('./Administratum.sol');
 let ChangeRequests = artifacts.require('./ChangeRequests.sol');
 let Market = artifacts.require('./MarketV2.sol');
 
