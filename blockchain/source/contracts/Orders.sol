@@ -111,6 +111,10 @@ contract Orders is Administratable {
         orders[orderID].info.requiredRating = _requiredRating;
     }
 
+    function SetOrderTag(uint orderID, bytes32 _tag) public onlyOwner {
+        orders[orderID].info.tag = _tag;
+    }
+
     function GetOrderInfo(uint orderID) public view
     returns (
         OrderType orderType,
