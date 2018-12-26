@@ -33,7 +33,7 @@ async function deploySidechain (deployer, network, accounts) {
     let snm = await registry.resolve(SNM, 'sidechainSNMAddress');
     console.log('snm initialized');
 
-    let oracle = await registry.resolve(Oracle, 'oracleAddress');
+    let oracle = await registry.resolve(Oracle, 'oracleUsdAddress');
     console.log('oracle initialized');
 
     // deploy crud
@@ -62,7 +62,8 @@ async function deploySidechain (deployer, network, accounts) {
     console.log('deployed object fetched');
 
     // deploy market
-    await deployer.deploy(Market, snm.address, bl.address, oracle.address, pr.address, adm.address, orders.address, deals.address, cr.address, benchmarksNum, netflagsNum )
+    await deployer.deploy(Market, snm.address, bl.address, oracle.address, pr.address, adm.address,
+        orders.address, deals.address, cr.address, benchmarksNum, netflagsNum, { gas: 100000000} );
     console.log('market deployed');
     let market = await Market.deployed();
     console.log('deployed object fetched');
@@ -73,12 +74,12 @@ async function deploySidechain (deployer, network, accounts) {
     console.log('ms resolved');
 
     // link administratum crud to its contract
-    await ac.tranferOwnership(adm.address, { gasPrice: 0 });
+    await ac.transferOwnership(adm.address, { gasPrice: 0 });
 
     //transfer crud ownerships
-    await orders.tranferOwnership(market.address, { gasPrice: 0 });
-    await deals.tranferOwnership(market.address, { gasPrice: 0 });
-    await cr.tranferOwnership(market.address, { gasPrice: 0 });
+    await orders.transferOwnership(market.address, { gasPrice: 0 });
+    await deals.transferOwnership(market.address, { gasPrice: 0 });
+    await cr.transferOwnership(market.address, { gasPrice: 0 });
     await orders.transferAdministratorship(market.address, { gasPrice: 0 });
     await deals.transferAdministratorship(market.address, { gasPrice: 0 });
     await cr.transferAdministratorship(market.address, { gasPrice: 0 });
