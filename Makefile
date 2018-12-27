@@ -108,7 +108,7 @@ build/node:
 
 build/lsgpu:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${LSGPU} ${GOCMD}/lsgpu
+	${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "$(LDFLAGS)" -o ${LSGPU} ${GOCMD}/lsgpu
 
 build/autocli:
 	@echo "+ $@"
