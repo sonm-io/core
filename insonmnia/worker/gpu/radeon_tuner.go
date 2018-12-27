@@ -46,10 +46,10 @@ func collectDRICardsWithOpenCL() ([]*DRICard, error) {
 
 	// match DRI and CL devices by vendor ID
 	var driDevices []*DRICard
-	for _, dev := range cards {
+	for i, dev := range cards {
 		for _, rid := range sonm.Radeons {
 			if dev.VendorID == rid {
-				driDevices = append(driDevices, &dev)
+				driDevices = append(driDevices, &cards[i])
 			}
 		}
 	}
