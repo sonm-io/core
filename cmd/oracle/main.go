@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/sonm-io/core/cmd"

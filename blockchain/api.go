@@ -2107,7 +2107,9 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 	if err != nil {
 		return err
 	}
-	txOpts := m.opts.getTxOpts(ctx, key, m.opts.gasLimit)
+
+	gasLimit := devicesGasLimit(uint64(len(data)))
+	txOpts := m.opts.getTxOpts(ctx, key, gasLimit)
 	if curHash == newHash {
 		ctxlog.S(ctx).Debug("hash is unchanged, touching")
 		tx, err := txRetryWrapper(func() (*types.Transaction, error) {

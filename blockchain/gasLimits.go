@@ -23,3 +23,7 @@ const (
 	payinGasLimit               = 100000
 	payoutGasLimit              = 100000
 )
+
+func devicesGasLimit(size uint64) uint64 {
+	return 200000 + size/32*20000
+}
