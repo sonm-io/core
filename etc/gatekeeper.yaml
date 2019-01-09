@@ -7,9 +7,9 @@ log:
 # Settings for Ethereum keys
 ethereum:
   # path to keystore
-  key_store: "./keys/state/gate/k2/"
+  key_store: "./keys"
   # passphrase for keystore
-  pass_phrase: "111111111"
+  pass_phrase: "any"
 
 blockchain:
   #endpoint: https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb
