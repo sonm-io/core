@@ -1934,16 +1934,16 @@ func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.Private
 		return api.contract.Payout(opts, to, value, txNumber)
 	})
 	if err != nil {
-		return 0, err
+		return UNKNOWN, err
 	}
 
 	rec, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
 	if err != nil {
-		return 0, err
+		return UNKNOWN, err
 	}
 
 	if rec.Status != types.ReceiptStatusSuccessful {
-		return 0, fmt.Errorf("transaction failed, txHash: %s", rec.TxHash.String())
+		return UNKNOWN, fmt.Errorf("transaction failed, txHash: %s", rec.TxHash.String())
 	}
 
 	for _, l := range rec.Logs {

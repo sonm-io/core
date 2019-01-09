@@ -201,9 +201,9 @@ func (m *GasPrice) UnmarshalText(text []byte) error {
 type PayoutResult int
 
 const (
-	UNKNOWN   PayoutResult = 0
-	Committed PayoutResult = 1
-	Payouted  PayoutResult = 2
+	UNKNOWN PayoutResult = iota
+	Committed
+	Payouted
 )
 
 type GateTx struct {
