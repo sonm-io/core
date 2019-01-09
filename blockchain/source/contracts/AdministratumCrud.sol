@@ -26,30 +26,35 @@ contract AdministratumCrud is Administratable {
         masterOf[_worker] = _master;
     }
 
-    function SetAdmin(address _admin, address _master) public onlyOwner {
-        admins[_admin] = _master;
+    function GetMaster(address _worker) public view returns (address) {
+        return masterOf[_worker];
     }
 
     function DeleteMaster(address _worker) public onlyOwner {
         delete masterOf[_worker];
     }
 
-    function SwitchToMaster(address _target) public onlyOwner {
-        flagIsMaster[_target] = true;
-    }
-
-    function GetMaster(address _worker) public view returns (address) {
-        if (masterOf[_worker] == address(0) || flagIsMaster[_worker] == true){
-            return _worker;
-        }
-        return masterOf[_worker];
+    function SetAdmin(address _admin, address _master) public onlyOwner {
+        admins[_admin] = _master;
     }
 
     function GetAdminMaster(address _admin) public view returns (address) {
         return admins[_admin];
     }
 
-    function isMaster(address _address) public view returns (bool) {
+    function DeleteAdmin(address _admin) public onlyOwner {
+        delete admins[_admin];
+    }
+
+    function FlagAsMaster(address _target) public onlyOwner {
+        flagIsMaster[_target] = true;
+    }
+
+    function IsMaster(address _address) public view returns (bool) {
         return flagIsMaster[_address];
+    }
+
+    function UnflagAsMaster(address _target) public onlyOwner {
+        delete flagIsMaster[_target];
     }
 }

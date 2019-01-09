@@ -30,9 +30,9 @@ contract Administratum is Ownable {
     //funcs
 
     function RegisterWorker(address _master) public returns (bool) {
-        require(crud.GetMaster(msg.sender) == msg.sender);
-        require(!crud.isMaster(msg.sender));
-        require(crud.GetMaster(_master) == _master);
+        require(GetMaster(msg.sender) == msg.sender);
+        require(!crud.IsMaster(msg.sender));
+        require(GetMaster(_master) == _master);
         masterRequest[_master][msg.sender] = true;
         emit WorkerAnnounced(msg.sender, _master);
         return true;
@@ -41,14 +41,14 @@ contract Administratum is Ownable {
     function ConfirmWorker(address _worker) public returns (bool) {
         require(masterRequest[msg.sender][_worker] == true || IsValid(_worker));
         crud.SetMaster(_worker, msg.sender);
-        crud.SwitchToMaster(msg.sender);
+        crud.FlagAsMaster(msg.sender);
         delete masterRequest[msg.sender][_worker];
-        emit WorkerConfirmed(_worker, crud.GetMaster(_worker));
+        emit WorkerConfirmed(_worker, GetMaster(_worker));
         return true;
     }
 
     function RemoveWorker(address _worker, address _master) public returns (bool) {
-        require(crud.GetMaster(_worker) == _master && (msg.sender == _worker || msg.sender == _master));
+        require(GetMaster(_worker) == _master && (msg.sender == _worker || msg.sender == _master));
         crud.DeleteMaster(_worker);
         emit WorkerRemoved(_worker, _master);
         return true;
@@ -69,8 +69,17 @@ contract Administratum is Ownable {
 
     //GETTERS
 
-    function GetMaster(address _worker) public view returns (address master) {
-        return  crud.GetMaster(_worker);
+    function GetMaster(address _worker) public view returns (address) {
+        if (crud.IsMaster(_worker)) {
+            return _worker;
+        }
+
+        address master = crud.GetMaster(_worker);
+        if (master == address(0)) {
+            return _worker;
+        }
+
+        return master;
     }
 
     // EXTERNAL/OLD API
@@ -86,9 +95,9 @@ contract Administratum is Ownable {
 
 
     function ExternalRegisterWorker(address _master, address _worker) external OnlyMarket returns (bool) {
-        require(crud.GetMaster(_worker) == _worker);
-        require(!crud.isMaster(_worker));
-        require(crud.GetMaster(_master) == _master);
+        require(GetMaster(_worker) == _worker);
+        require(!crud.IsMaster(_worker));
+        require(GetMaster(_master) == _master);
         masterRequest[_master][_worker] = true;
         emit WorkerAnnounced(_worker, _master);
         return true;
@@ -97,14 +106,14 @@ contract Administratum is Ownable {
     function ExternalConfirmWorker(address _worker, address _master)  external OnlyMarket returns (bool) {
         require(masterRequest[_master][_worker] == true);
         crud.SetMaster(_worker, _master);
-        crud.SwitchToMaster(_master);
+        crud.FlagAsMaster(_master);
         delete masterRequest[_master][_worker];
         emit WorkerConfirmed(_worker, _master);
         return true;
     }
 
     function ExternalRemoveWorker(address _worker, address _master, address _sender) external  OnlyMarket returns (bool) {
-        require(crud.GetMaster(_worker) == _master && (_sender == _worker || _sender == _master));
+        require(GetMaster(_worker) == _master && (_sender == _worker || _sender == _master));
         crud.DeleteMaster(_worker);
         emit WorkerRemoved(_worker, _master);
         return true;
