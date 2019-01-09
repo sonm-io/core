@@ -168,7 +168,7 @@ contract MarketV2 is Ownable, Pausable {
 
 
         require(orderStatus == Orders.OrderStatus.ORDER_ACTIVE);
-        require(author == msg.sender || administratum.GetMaster(author) == msg.sender);
+        require(author == msg.sender || GetMaster(author) == msg.sender);
 
         require(token.transfer(msg.sender, frozenSum));
 
@@ -188,12 +188,12 @@ contract MarketV2 is Ownable, Pausable {
         require(profiles.GetProfileLevel(msg.sender) >= ordersCrud.GetOrderIdentityLevel(askID));
         require(bl.Check(ordersCrud.GetOrderBlacklist(askID), msg.sender) == false);
         require(
-            bl.Check(msg.sender, administratum.GetMaster(ordersCrud.GetOrderAuthor(askID))) == false
+            bl.Check(msg.sender, GetMaster(ordersCrud.GetOrderAuthor(askID))) == false
             && bl.Check(ordersCrud.GetOrderAuthor(askID), msg.sender) == false);
 
         PlaceOrder(
             Orders.OrderType.ORDER_BID,
-            administratum.GetMaster(ordersCrud.GetOrderAuthor(askID)),
+            GetMaster(ordersCrud.GetOrderAuthor(askID)),
             buyoutDuration,
             ordersCrud.GetOrderPrice(askID),
             ordersCrud.GetOrderNetflags(askID),
@@ -214,22 +214,22 @@ contract MarketV2 is Ownable, Pausable {
         require(ordersCrud.GetOrderCounterparty(_askID) == 0x0 || ordersCrud.GetOrderCounterparty(_askID) == ordersCrud.GetOrderAuthor(_bidID));
         require(
             ordersCrud.GetOrderCounterparty(_bidID) == 0x0
-            || ordersCrud.GetOrderCounterparty(_bidID) == administratum.GetMaster(ordersCrud.GetOrderAuthor(_askID))
+            || ordersCrud.GetOrderCounterparty(_bidID) == GetMaster(ordersCrud.GetOrderAuthor(_askID))
             || ordersCrud.GetOrderCounterparty(_bidID) == ordersCrud.GetOrderAuthor(_askID));
         require(ordersCrud.GetOrderType(_askID) == Orders.OrderType.ORDER_ASK);
         require(ordersCrud.GetOrderType(_bidID) == Orders.OrderType.ORDER_BID);
-        require(!bl.Check(ordersCrud.GetOrderBlacklist(_bidID), administratum.GetMaster(ordersCrud.GetOrderAuthor(_askID))));
+        require(!bl.Check(ordersCrud.GetOrderBlacklist(_bidID), GetMaster(ordersCrud.GetOrderAuthor(_askID))));
         require(!bl.Check(ordersCrud.GetOrderBlacklist(_bidID), ordersCrud.GetOrderAuthor(_askID)));
-        require(!bl.Check(ordersCrud.GetOrderAuthor(_bidID), administratum.GetMaster(ordersCrud.GetOrderAuthor(_askID))));
+        require(!bl.Check(ordersCrud.GetOrderAuthor(_bidID), GetMaster(ordersCrud.GetOrderAuthor(_askID))));
         require(!bl.Check(ordersCrud.GetOrderAuthor(_bidID), ordersCrud.GetOrderAuthor(_askID)));
         require(!bl.Check(ordersCrud.GetOrderBlacklist(_askID), ordersCrud.GetOrderAuthor(_bidID)));
-        require(!bl.Check(administratum.GetMaster(ordersCrud.GetOrderAuthor(_askID)), ordersCrud.GetOrderAuthor(_bidID)));
+        require(!bl.Check(GetMaster(ordersCrud.GetOrderAuthor(_askID)), ordersCrud.GetOrderAuthor(_bidID)));
         require(!bl.Check(ordersCrud.GetOrderAuthor(_askID), ordersCrud.GetOrderAuthor(_bidID)));
         require(ordersCrud.GetOrderPrice(_askID) <= ordersCrud.GetOrderPrice(_bidID));
         require(ordersCrud.GetOrderDuration(_askID) >= ordersCrud.GetOrderDuration(_bidID));
         // profile level check
         require(profiles.GetProfileLevel(ordersCrud.GetOrderAuthor(_bidID)) >= ordersCrud.GetOrderIdentityLevel(_askID));
-        require(profiles.GetProfileLevel(administratum.GetMaster(ordersCrud.GetOrderAuthor(_askID))) >= ordersCrud.GetOrderIdentityLevel(_bidID)); //bug
+        require(profiles.GetProfileLevel(GetMaster(ordersCrud.GetOrderAuthor(_askID))) >= ordersCrud.GetOrderIdentityLevel(_bidID)); //bug
 
         bool[] memory askNetflags = ordersCrud.GetOrderNetflags(_askID);
         if (askNetflags.length < netflagsQuantity) {
@@ -283,7 +283,7 @@ contract MarketV2 is Ownable, Pausable {
         dealsCrud.SetDealBenchmarks(dealID, askBenchmarks);
         dealsCrud.SetDealConsumerID(dealID, ordersCrud.GetOrderAuthor(_bidID));
         dealsCrud.SetDealSupplierID(dealID, ordersCrud.GetOrderAuthor(_askID));
-        dealsCrud.SetDealMasterID(dealID, administratum.GetMaster(ordersCrud.GetOrderAuthor(_askID)));
+        dealsCrud.SetDealMasterID(dealID, GetMaster(ordersCrud.GetOrderAuthor(_askID)));
         dealsCrud.SetDealAskID(dealID, _askID);
         dealsCrud.SetDealBidID(dealID, _bidID);
         dealsCrud.SetDealDuration(dealID, ordersCrud.GetOrderDuration(_bidID));
