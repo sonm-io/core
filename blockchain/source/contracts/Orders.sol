@@ -50,13 +50,125 @@ contract Orders is Administratable {
 
     uint ordersAmount = 0;
 
-    //Constructor
-
     constructor() public {
         owner = msg.sender;
         administrator = msg.sender;
     }
 
+    // Accessors, listed in the same order as the appear in `Order` struct
+    function GetOrderType(uint orderID) public view returns (OrderType) {
+        return orders[orderID].info.orderType;
+    }
+
+    function SetOrderType(uint orderID, OrderType newType) public onlyOwner {
+        orders[orderID].info.orderType = newType;
+    }
+
+    function GetOrderAuthor(uint orderID) public view returns (address) {
+        return orders[orderID].info.author;
+    }
+
+    function SetOrderAuthor(uint orderID, address newAuthor) public onlyOwner {
+        orders[orderID].info.author = newAuthor;
+    }
+
+    function GetOrderCounterparty(uint orderID) public view returns (address) {
+        return orders[orderID].info.counterparty;
+    }
+
+    function SetOrderCounterparty(uint orderID, address newCounterparty) public onlyOwner {
+        orders[orderID].info.counterparty = newCounterparty;
+    }
+
+    function GetOrderDuration(uint orderID) public view returns (uint) {
+        return orders[orderID].info.duration;
+    }
+
+    function SetOrderDuration(uint orderID, uint newDuration) public onlyOwner {
+        orders[orderID].info.duration = newDuration;
+    }
+
+    function GetOrderPrice(uint orderID) public view returns (uint) {
+        return orders[orderID].info.price;
+    }
+
+    function SetOrderPrice(uint orderID, uint newPrice) public onlyOwner {
+        orders[orderID].info.price = newPrice;
+    }
+
+    function GetOrderNetflags(uint orderID) public view returns (bool[]) {
+        return orders[orderID].info.netflags;
+    }
+
+    function SetOrderNetflags(uint orderID, bool[] _netflags) public onlyOwner {
+        orders[orderID].info.netflags = _netflags;
+    }
+
+    function GetOrderIdentityLevel(uint orderID) public view returns (ProfileRegistry.IdentityLevel) {
+        return orders[orderID].info.identityLevel;
+    }
+
+    function SetOrderIdentityLevel(uint orderID, ProfileRegistry.IdentityLevel newLevel) public onlyOwner {
+        orders[orderID].info.identityLevel = newLevel;
+    }
+
+    function GetOrderBlacklist(uint orderID) public view returns (address) {
+        return orders[orderID].info.blacklist;
+    }
+
+    function SetOrderBlacklist(uint orderID, address newBlacklist) public onlyOwner {
+        orders[orderID].info.blacklist = newBlacklist;
+    }
+
+    function GetOrderTag(uint orderID) public view returns (bytes32) {
+        return orders[orderID].info.tag;
+    }
+
+    function SetOrderTag(uint orderID, bytes32 _tag) public onlyOwner {
+        orders[orderID].info.tag = _tag;
+    }
+
+    function GetOrderBenchmarks(uint orderID) public view returns (uint64[]) {
+        return orders[orderID].info.benchmarks;
+    }
+
+    function SetOrderBenchmarks(uint orderID, uint64[] _benchmarks) public onlyOwner {
+        orders[orderID].info.benchmarks = _benchmarks;
+    }
+
+    function GetOrderFrozenSum(uint orderID) public view returns (uint) {
+        return orders[orderID].info.frozenSum;
+    }
+
+    function SetOrderFrozenSum(uint orderID, uint newFrozenSum) public onlyOwner {
+        orders[orderID].info.frozenSum = newFrozenSum;
+    }
+
+    function GetOrderRequiredRating(uint orderID) public view returns (uint) {
+        return orders[orderID].info.requiredRating;
+    }
+
+    function SetOrderRequiredRating(uint orderID, uint newRequiredRating) public onlyOwner {
+        orders[orderID].info.requiredRating = newRequiredRating;
+    }
+
+    function GetOrderStatus(uint orderID) public view returns (OrderStatus) {
+        return orders[orderID].params.orderStatus;
+    }
+
+    function SetOrderStatus(uint orderID, OrderStatus _status) public onlyOwner {
+        orders[orderID].params.orderStatus = _status;
+    }
+
+    function GetOrderDealID(uint orderID) public view returns (uint) {
+        return orders[orderID].params.dealID;
+    }
+
+    function SetOrderDealID(uint orderID, uint _dealID) public onlyOwner {
+        orders[orderID].params.dealID = _dealID;
+    }
+
+    // Cummulative Order actions. Those are in fact only helpers.
     function Write(
         OrderType _orderType,
         OrderStatus _orderStatus,
@@ -91,28 +203,8 @@ contract Orders is Administratable {
         return ordersAmount;
     }
 
-    function SetOrderStatus(uint orderID, OrderStatus _status) public onlyOwner {
-        orders[orderID].params.orderStatus = _status;
-    }
-
-    function SetOrderDealID(uint orderID, uint _dealID) public onlyOwner {
-        orders[orderID].params.dealID = _dealID;
-    }
-
-    function SetOrderBenchmarks(uint orderID, uint64[] _benchmarks) public onlyOwner {
-        orders[orderID].info.benchmarks = _benchmarks;
-    }
-
-    function SetOrderNetflags(uint orderID, bool[] _netflags) public onlyOwner {
-        orders[orderID].info.netflags = _netflags;
-    }
-
-    function SetOrderRequiredRating(uint orderID, uint _requiredRating) public onlyOwner {
-        orders[orderID].info.requiredRating = _requiredRating;
-    }
-
-    function SetOrderTag(uint orderID, bytes32 _tag) public onlyOwner {
-        orders[orderID].info.tag = _tag;
+    function DeleteOrder(uint orderID) public onlyOwner {
+        delete orders[orderID];
     }
 
     function GetOrderInfo(uint orderID) public view
@@ -146,56 +238,6 @@ contract Orders is Administratable {
         info.requiredRating
         );
     }
-    function GetOrderType(uint orderID) public view returns (OrderType) {
-        return orders[orderID].info.orderType;
-    }
-
-    function GetOrderAuthor(uint orderID) public view returns (address) {
-        return orders[orderID].info.author;
-    }
-
-    function GetOrderCounterparty(uint orderID) public view returns (address) {
-        return orders[orderID].info.counterparty;
-    }
-
-    function GetOrderDuration(uint orderID) public view returns (uint) {
-        return orders[orderID].info.duration;
-    }
-
-    function GetOrderPrice(uint orderID) public view returns (uint) {
-        return orders[orderID].info.price;
-    }
-
-    function GetOrderNetflags(uint orderID) public view returns (bool[]) {
-        return orders[orderID].info.netflags;
-    }
-
-    function GetOrderIdentityLevel(uint orderID) public view returns (ProfileRegistry.IdentityLevel) {
-        return orders[orderID].info.identityLevel;
-    }
-
-    function GetOrderBlacklist(uint orderID) public view returns (address) {
-        return orders[orderID].info.blacklist;
-    }
-
-    function GetOrderTag(uint orderID) public view returns (bytes32) {
-        return orders[orderID].info.tag;
-    }
-
-    function GetOrderBenchmarks(uint orderID) public view returns (uint64[]) {
-        return orders[orderID].info.benchmarks;
-    }
-    function GetOrderFrozenSum(uint orderID) public view returns (uint) {
-        return orders[orderID].info.frozenSum;
-    }
-
-    function GetOrderRequiredRating(uint orderID) public view returns (uint) {
-        return orders[orderID].info.requiredRating;
-    }
-
-    function GetOrdersAmount() public view returns (uint) {
-        return ordersAmount;
-    }
 
     function GetOrderParams(uint orderID) public view
     returns (
@@ -209,11 +251,12 @@ contract Orders is Administratable {
         );
     }
 
-    function GetOrderStatus(uint orderID) public view returns (OrderStatus) {
-        return orders[orderID].params.orderStatus;
+    // ordersAmount accessors. Generally setter should not be used, but let it be here just in case.
+    function GetOrdersAmount() public view returns (uint) {
+        return ordersAmount;
     }
 
-    function GetOrderDealID(uint orderID) public view returns (uint) {
-        return orders[orderID].params.dealID;
+    function SetOrdersAmount(uint newOrdersAmount) public onlyOwner {
+        ordersAmount = newOrdersAmount;
     }
 }

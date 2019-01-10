@@ -217,6 +217,10 @@ contract Deals is Administratable {
         return dealsAmount;
     }
 
+    function SetDealsAmount(uint newDealsAmount) public onlyOwner {
+        dealsAmount = newDealsAmount;
+    }
+
     function DeleteDeal(uint dealID) public onlyOwner {
         delete deals[dealID];
     }
