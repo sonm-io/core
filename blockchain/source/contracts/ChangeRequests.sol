@@ -76,6 +76,10 @@ contract ChangeRequests is Administratable {
         actualRequests[dealID][role] = _changeRequestID;
     }
 
+    function SetChangeRequestAmount(uint newAmount) public onlyOwner {
+        requestsAmount = newAmount;
+    }
+
     // GETTERS
 
     function GetChangeRequestDealID(uint _changeRequestID) public view returns(uint) {
