@@ -41,8 +41,6 @@ contract Deals is Administratable {
 
     mapping(uint => Deal) deals;
 
-    mapping(address => uint[]) dealsID;
-
     uint dealsAmount = 0;
 
     //Constructor
@@ -80,32 +78,32 @@ contract Deals is Administratable {
         deals[dealID].info.startTime = _startTime;
     }
 
-    function SetDealStatus(uint dealID, DealStatus _status) public onlyOwner {
-        deals[dealID].params.status = _status;
-    }
-
-    function SetDealEndTime(uint dealID, uint _endTime) public onlyOwner {
-        deals[dealID].params.endTime = _endTime;
-    }
-
-    function SetDealBlockedBalance(uint dealID, uint _blockedBalance) public onlyOwner {
-        deals[dealID].params.blockedBalance = _blockedBalance;
-    }
-
-    function SetDealLastBillTS(uint dealID, uint _lastBillTS) public onlyOwner {
-        deals[dealID].params.lastBillTS = _lastBillTS;
-    }
-
-    function SetDealTotalPayout(uint dealID, uint _totalPayout) public onlyOwner {
-        deals[dealID].params.totalPayout = _totalPayout;
+    function SetDealDuration(uint dealID, uint _duration) public onlyOwner {
+        deals[dealID].params.duration = _duration;
     }
 
     function SetDealPrice(uint dealID, uint _price) public onlyOwner {
         deals[dealID].params.price = _price;
     }
 
-    function SetDealDuration(uint dealID, uint _duration) public onlyOwner {
-        deals[dealID].params.duration = _duration;
+    function SetDealEndTime(uint dealID, uint _endTime) public onlyOwner {
+        deals[dealID].params.endTime = _endTime;
+    }
+
+    function SetDealStatus(uint dealID, DealStatus _status) public onlyOwner {
+        deals[dealID].params.status = _status;
+    }
+
+    function SetDealBlockedBalance(uint dealID, uint _blockedBalance) public onlyOwner {
+        deals[dealID].params.blockedBalance = _blockedBalance;
+    }
+
+    function SetDealTotalPayout(uint dealID, uint _totalPayout) public onlyOwner {
+        deals[dealID].params.totalPayout = _totalPayout;
+    }
+
+    function SetDealLastBillTS(uint dealID, uint _lastBillTS) public onlyOwner {
+        deals[dealID].params.lastBillTS = _lastBillTS;
     }
 
     function IncreaseDealsAmount() public onlyOwner {
@@ -163,12 +161,12 @@ contract Deals is Administratable {
         return deals[dealID].info.benchmarks;
     }
 
-    function GetDealConsumerID(uint dealID) public view returns(address) {
-        return deals[dealID].info.consumerID;
-    }
-
     function GetDealSupplierID(uint dealID) public view returns(address) {
         return deals[dealID].info.supplierID;
+    }
+
+    function GetDealConsumerID(uint dealID) public view returns(address) {
+        return deals[dealID].info.consumerID;
     }
 
     function GetDealMasterID(uint dealID) public view returns(address) {
@@ -219,4 +217,7 @@ contract Deals is Administratable {
         return dealsAmount;
     }
 
+    function DeleteDeal(uint dealID) public onlyOwner {
+        delete deals[dealID];
+    }
 }
