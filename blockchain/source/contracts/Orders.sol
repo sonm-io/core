@@ -46,7 +46,7 @@ contract Orders is Administratable {
         uint dealID;
     }
 
-    mapping(uint => Order) public orders;
+    mapping(uint => Order) orders;
 
     uint ordersAmount = 0;
 

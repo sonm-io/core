@@ -2135,6 +2135,7 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 
 	gasLimit := devicesGasLimit(uint64(len(data)))
 	txOpts := m.opts.getTxOpts(ctx, key, gasLimit)
+	ctxlog.S(ctx).Debugf("providing %d gas for storing devices with %d len", gasLimit, len(data))
 	if curHash == newHash {
 		ctxlog.S(ctx).Debug("hash is unchanged, touching")
 		tx, err := txRetryWrapper(func() (*types.Transaction, error) {
@@ -2164,6 +2165,7 @@ func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.Priv
 		if receipt.Status == types.ReceiptStatusFailed {
 			return fmt.Errorf("DevicesStorage::SetDevices transaction failed")
 		}
+		ctxlog.S(ctx).Debugf("used %d gas for storing devices with %d len", receipt.GasUsed, len(data))
 	}
 	return nil
 }

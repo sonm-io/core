@@ -9,8 +9,8 @@ const (
 	approveGasLimit             = 70000
 	placeOrderGasLimit          = 650000
 	cancelOrderGasLimit         = 300000
-	quickBuyGasLimit            = 1200000
-	openDealGasLimit            = 600000
+	quickBuyGasLimit            = 1300000
+	openDealGasLimit            = 800000
 	closeDealGasLimit           = 250000
 	billGasLimit                = 300000
 	createChangeRequestGasLimit = 300000
@@ -25,5 +25,5 @@ const (
 )
 
 func devicesGasLimit(size uint64) uint64 {
-	return 200000 + size/32*20000
+	return 400000 + size/32*31000
 }
