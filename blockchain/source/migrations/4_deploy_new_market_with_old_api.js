@@ -92,13 +92,11 @@ async function deploySidechain (deployer, network, accounts) {
 
     console.log('and submitted all theese addresses to registry');
 
-    await registry.write('migrationMultiSigAddress', ms.address);
     await registry.write('administratumAddress', adm.address);
     await registry.write('ordersCrudAddress', orders.address);
     await registry.write('dealsCrudAddress', deals.address);
     await registry.write('administratumCrudAddress', ac.address);
-    await registry.write('administratumAddress', adm.address);
-    await registry.write('marketAddress', market.address);
+    await registry.write('marketV2Address', market.address);
 }
 
 module.exports = function (deployer, network, accounts) {
