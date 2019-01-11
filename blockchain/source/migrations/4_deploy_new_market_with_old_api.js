@@ -28,7 +28,7 @@ async function deploySidechain (deployer, network, accounts) {
     console.log('profile registry initialized');
 
     let bl = await registry.resolve(Blacklist, 'blacklistAddress');
-    console.log('blacklist initialized')
+    console.log('blacklist initialized');
 
     let snm = await registry.resolve(SNM, 'sidechainSNMAddress');
     console.log('snm initialized');
