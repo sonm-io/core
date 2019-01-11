@@ -6,7 +6,7 @@ const (
 	sidechainSNMAddressKey          = "sidechainSNMAddress"
 	masterchainSNMAddressKey        = "masterchainSNMAddress"
 	blacklistAddressKey             = "blacklistAddress"
-	marketAddressKey                = "marketAddress"
+	marketAddressKey                = "marketV2Address"
 	profileRegistryAddressKey       = "profileRegistryAddress"
 	oracleUsdAddressKey             = "oracleUsdAddress"
 	gatekeeperMasterchainAddressKey = "gatekeeperMasterchainAddress"
