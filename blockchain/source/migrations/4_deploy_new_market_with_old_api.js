@@ -37,7 +37,7 @@ async function deploySidechain (deployer, network, accounts) {
     console.log('oracle initialized');
 
     // deploy crud
-    await deployer.deploy(Orders, { gasPrice:  0 });
+    await deployer.deploy(Orders, { gasPrice: 0 });
     let orders = await Orders.deployed();
     console.log('orders crud deployed');
 
@@ -63,20 +63,20 @@ async function deploySidechain (deployer, network, accounts) {
 
     // deploy market
     await deployer.deploy(Market, snm.address, bl.address, oracle.address, pr.address, adm.address,
-        orders.address, deals.address, cr.address, benchmarksNum, netflagsNum, { gas: 100000000} );
+        orders.address, deals.address, cr.address, benchmarksNum, netflagsNum, { gas: 100000000 });
     console.log('market deployed');
     let market = await Market.deployed();
     console.log('deployed object fetched');
 
     // link market to administratum
-    await adm.SetMarketAddress(market.address, { gasPrice:0 });
+    await adm.SetMarketAddress(market.address, { gasPrice: 0 });
     let ms = await registry.resolve(Multisig, 'migrationMultSigAddress');
     console.log('ms resolved');
 
     // link administratum crud to its contract
     await ac.transferOwnership(adm.address, { gasPrice: 0 });
 
-    //transfer crud ownerships
+    // transfer crud ownerships
     await orders.transferOwnership(market.address, { gasPrice: 0 });
     await deals.transferOwnership(market.address, { gasPrice: 0 });
     await cr.transferOwnership(market.address, { gasPrice: 0 });
@@ -89,14 +89,12 @@ async function deploySidechain (deployer, network, accounts) {
     await market.transferOwnership(ms.address, { gasPrice: 0 });
     console.log('ownerships transferred');
 
-
-    console.log('and submitted all theese addresses to registry');
-
     await registry.write('administratumAddress', adm.address);
     await registry.write('ordersCrudAddress', orders.address);
     await registry.write('dealsCrudAddress', deals.address);
     await registry.write('administratumCrudAddress', ac.address);
     await registry.write('marketV2Address', market.address);
+    console.log('and submitted all theese addresses to registry');
 }
 
 module.exports = function (deployer, network, accounts) {

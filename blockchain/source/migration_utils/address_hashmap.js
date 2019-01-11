@@ -26,7 +26,7 @@ class ContractRegistry {
         let address = await this.hm.read(name);
         console.log('resolved', name, 'to', address);
         if (address === '0x0000000000000000000000000000000000000000') {
-            throw new Error('failed to resolve ' + name + ' in registry')
+            throw new Error('failed to resolve ' + name + ' in registry');
         }
         return contract.at(address);
     }

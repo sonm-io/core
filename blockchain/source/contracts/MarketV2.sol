@@ -112,7 +112,7 @@ contract MarketV2 is Ownable, Pausable {
         address _blacklist,
         bytes32 _tag,
         uint64[] _benchmarks
-    ) whenNotPaused public returns (uint) {
+    ) public whenNotPaused returns (uint) {
 
         require(_identityLevel >= ProfileRegistry.IdentityLevel.ANONYMOUS);
         require(_netflags.length <= netflagsQuantity);
@@ -187,9 +187,8 @@ contract MarketV2 is Ownable, Pausable {
         require(ordersCrud.GetOrderDuration(askID) >= buyoutDuration);
         require(profiles.GetProfileLevel(msg.sender) >= ordersCrud.GetOrderIdentityLevel(askID));
         require(bl.Check(ordersCrud.GetOrderBlacklist(askID), msg.sender) == false);
-        require(
-            bl.Check(msg.sender, GetMaster(ordersCrud.GetOrderAuthor(askID))) == false
-            && bl.Check(ordersCrud.GetOrderAuthor(askID), msg.sender) == false);
+        require(bl.Check(msg.sender, GetMaster(ordersCrud.GetOrderAuthor(askID))) == false);
+        require(bl.Check(ordersCrud.GetOrderAuthor(askID), msg.sender) == false);
 
         PlaceOrder(
             Orders.OrderType.ORDER_BID,
@@ -207,15 +206,18 @@ contract MarketV2 is Ownable, Pausable {
 
     // Deal functions
 
-    function OpenDeal(uint _askID, uint _bidID) whenNotPaused public {
+    function OpenDeal(uint _askID, uint _bidID) public whenNotPaused {
+        require(ordersCrud.GetOrderStatus(_askID) == Orders.OrderStatus.ORDER_ACTIVE);
+        require(ordersCrud.GetOrderStatus(_bidID) == Orders.OrderStatus.ORDER_ACTIVE);
         require(
-            ordersCrud.GetOrderStatus(_askID) == Orders.OrderStatus.ORDER_ACTIVE
-            && ordersCrud.GetOrderStatus(_bidID) == Orders.OrderStatus.ORDER_ACTIVE);
-        require(ordersCrud.GetOrderCounterparty(_askID) == 0x0 || ordersCrud.GetOrderCounterparty(_askID) == ordersCrud.GetOrderAuthor(_bidID));
+            ordersCrud.GetOrderCounterparty(_askID) == 0x0 ||
+            ordersCrud.GetOrderCounterparty(_askID) == ordersCrud.GetOrderAuthor(_bidID)
+        );
         require(
-            ordersCrud.GetOrderCounterparty(_bidID) == 0x0
-            || ordersCrud.GetOrderCounterparty(_bidID) == GetMaster(ordersCrud.GetOrderAuthor(_askID))
-            || ordersCrud.GetOrderCounterparty(_bidID) == ordersCrud.GetOrderAuthor(_askID));
+            ordersCrud.GetOrderCounterparty(_bidID) == 0x0 ||
+            ordersCrud.GetOrderCounterparty(_bidID) == GetMaster(ordersCrud.GetOrderAuthor(_askID)) ||
+            ordersCrud.GetOrderCounterparty(_bidID) == ordersCrud.GetOrderAuthor(_askID)
+        );
         require(ordersCrud.GetOrderType(_askID) == Orders.OrderType.ORDER_ASK);
         require(ordersCrud.GetOrderType(_bidID) == Orders.OrderType.ORDER_BID);
         require(!bl.Check(ordersCrud.GetOrderBlacklist(_bidID), GetMaster(ordersCrud.GetOrderAuthor(_askID))));
@@ -304,8 +306,12 @@ contract MarketV2 is Ownable, Pausable {
     }
 
     function CloseDeal(uint dealID, BlacklistPerson blacklisted) public returns (bool){
-        require((dealsCrud.GetDealStatus(dealID) == Deals.DealStatus.STATUS_ACCEPTED));
-        require(msg.sender == dealsCrud.GetDealSupplierID(dealID) || msg.sender == dealsCrud.GetDealConsumerID(dealID) || msg.sender == dealsCrud.GetDealMasterID(dealID));
+        require(dealsCrud.GetDealStatus(dealID) == Deals.DealStatus.STATUS_ACCEPTED);
+        require(
+            msg.sender == dealsCrud.GetDealSupplierID(dealID) ||
+            msg.sender == dealsCrud.GetDealConsumerID(dealID) ||
+            msg.sender == dealsCrud.GetDealMasterID(dealID)
+        );
 
         if (block.timestamp <= dealsCrud.GetDealStartTime(dealID).add(dealsCrud.GetDealDuration(dealID))) {
             // after endTime
@@ -327,9 +333,10 @@ contract MarketV2 is Ownable, Pausable {
     function CreateChangeRequest(uint dealID, uint newPrice, uint newDuration) public returns (uint changeRequestID) {
 
         require(
-            msg.sender == dealsCrud.GetDealConsumerID(dealID)
-            || msg.sender ==  dealsCrud.GetDealMasterID(dealID)
-            || msg.sender == dealsCrud.GetDealSupplierID(dealID));
+            msg.sender == dealsCrud.GetDealConsumerID(dealID) ||
+            msg.sender == dealsCrud.GetDealMasterID(dealID) ||
+            msg.sender == dealsCrud.GetDealSupplierID(dealID)
+        );
         require(dealsCrud.GetDealStatus(dealID) == Deals.DealStatus.STATUS_ACCEPTED);
 
         if (dealsCrud.GetDealDuration(dealID) == 0) {
@@ -364,9 +371,9 @@ contract MarketV2 is Ownable, Pausable {
                 dealsCrud.SetDealPrice(dealID, newPrice);
                 changeRequestsCrud.SetActualChangeRequest(dealID, 1, 0);
                 emit DealChangeRequestUpdated(requestsAmount);
-            } else if (changeRequestsCrud.GetChangeRequestStatus(matchingID) == ChangeRequests.RequestStatus.REQUEST_CREATED
-                    && changeRequestsCrud.GetChangeRequestDuration(matchingID) >= newDuration
-                    && changeRequestsCrud.GetChangeRequestPrice(matchingID) <= newPrice) {
+            } else if (changeRequestsCrud.GetChangeRequestStatus(matchingID) == ChangeRequests.RequestStatus.REQUEST_CREATED &&
+                    changeRequestsCrud.GetChangeRequestDuration(matchingID) >= newDuration &&
+                    changeRequestsCrud.GetChangeRequestPrice(matchingID) <= newPrice) {
 
                 changeRequestsCrud.SetChangeRequestStatus(currentID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
                 changeRequestsCrud.SetChangeRequestStatus(matchingID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
@@ -402,9 +409,10 @@ contract MarketV2 is Ownable, Pausable {
                 dealsCrud.SetDealPrice(dealID, newPrice);
                 changeRequestsCrud.SetActualChangeRequest(dealID, 0, 0);
                 emit DealChangeRequestUpdated(currentID);
-            } else if (changeRequestsCrud.GetChangeRequestStatus(matchingID) == ChangeRequests.RequestStatus.REQUEST_CREATED
-                && changeRequestsCrud.GetChangeRequestDuration(matchingID) <= newDuration
-                && changeRequestsCrud.GetChangeRequestPrice(matchingID) >= newPrice) {
+            } else if (changeRequestsCrud.GetChangeRequestStatus(matchingID) == ChangeRequests.RequestStatus.REQUEST_CREATED &&
+                changeRequestsCrud.GetChangeRequestDuration(matchingID) <= newDuration &&
+                changeRequestsCrud.GetChangeRequestPrice(matchingID) >= newPrice
+            ) {
 
                 changeRequestsCrud.SetChangeRequestStatus(currentID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
                 changeRequestsCrud.SetChangeRequestStatus(matchingID, ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
@@ -426,7 +434,11 @@ contract MarketV2 is Ownable, Pausable {
 
     function CancelChangeRequest(uint changeRequestID) public returns (bool) {
         uint dealID = changeRequestsCrud.GetChangeRequestDealID(changeRequestID);
-        require(msg.sender == dealsCrud.GetDealSupplierID(dealID) || msg.sender == dealsCrud.GetDealMasterID(dealID) || msg.sender == dealsCrud.GetDealConsumerID(dealID));
+        require(
+            msg.sender == dealsCrud.GetDealSupplierID(dealID) ||
+            msg.sender == dealsCrud.GetDealMasterID(dealID) ||
+            msg.sender == dealsCrud.GetDealConsumerID(dealID)
+        );
         require(changeRequestsCrud.GetChangeRequestStatus(changeRequestID) != ChangeRequests.RequestStatus.REQUEST_ACCEPTED);
 
         if (changeRequestsCrud.GetChangeRequestType(changeRequestID) == Orders.OrderType.ORDER_ASK) {
@@ -476,9 +488,11 @@ contract MarketV2 is Ownable, Pausable {
         if (dealsCrud.GetDealDuration(dealID) != 0 && dealsCrud.GetDealLastBillTS(dealID) >= dealsCrud.GetDealEndTime(dealID)) {
             // means we already billed deal after endTime
             return true;
-        } else if (dealsCrud.GetDealDuration(dealID) != 0
-            && block.timestamp > dealsCrud.GetDealEndTime(dealID)
-            && dealsCrud.GetDealLastBillTS(dealID) < dealsCrud.GetDealEndTime(dealID)) {
+        } else if (
+            dealsCrud.GetDealDuration(dealID) != 0 &&
+            block.timestamp > dealsCrud.GetDealEndTime(dealID) &&
+            dealsCrud.GetDealLastBillTS(dealID) < dealsCrud.GetDealEndTime(dealID)
+        ) {
             paidAmount = CalculatePayment(dealsCrud.GetDealPrice(dealID), dealsCrud.GetDealEndTime(dealID).sub(dealsCrud.GetDealLastBillTS(dealID)));
         } else {
             paidAmount = CalculatePayment(dealsCrud.GetDealPrice(dealID), block.timestamp.sub(dealsCrud.GetDealLastBillTS(dealID)));
@@ -650,7 +664,7 @@ contract MarketV2 is Ownable, Pausable {
         return true;
     }
 
-    function KillMarket() onlyOwner public {
+    function KillMarket() public onlyOwner {
         token.transfer(owner, token.balanceOf(address(this)));
         selfdestruct(owner);
     }
@@ -696,12 +710,12 @@ contract MarketV2 is Ownable, Pausable {
         return changeRequestsCrud.GetChangeRequestsAmount();
     }
 
-    function GetMaster(address _worker) view public returns (address master) {
+    function GetMaster(address _worker) public view returns (address master) {
         return administratum.GetMaster(_worker);
     }
 
 
-    function GetChangeRequestInfo(uint changeRequestID) view public
+    function GetChangeRequestInfo(uint changeRequestID) public view
     returns (
         uint dealID,
         Orders.OrderType requestType,
@@ -718,7 +732,7 @@ contract MarketV2 is Ownable, Pausable {
         );
     }
 
-    function GetOrderInfo(uint orderID) view public
+    function GetOrderInfo(uint orderID) public view
     returns (
         Orders.OrderType orderType,
         address author,
@@ -735,7 +749,7 @@ contract MarketV2 is Ownable, Pausable {
         orderType = ordersCrud.GetOrderType(orderID);
         author = ordersCrud.GetOrderAuthor(orderID);
         counterparty = ordersCrud.GetOrderCounterparty(orderID);
-        duration =  ordersCrud.GetOrderDuration(orderID);
+        duration = ordersCrud.GetOrderDuration(orderID);
         price = ordersCrud.GetOrderPrice(orderID);
         netflags = ordersCrud.GetOrderNetflags(orderID);
         identityLevel = ordersCrud.GetOrderIdentityLevel(orderID);
@@ -746,7 +760,7 @@ contract MarketV2 is Ownable, Pausable {
     }
 
 
-    function GetOrderParams(uint orderID) view public
+    function GetOrderParams(uint orderID) public view
     returns (
         Orders.OrderStatus orderStatus,
         uint dealID
@@ -755,7 +769,7 @@ contract MarketV2 is Ownable, Pausable {
         dealID = ordersCrud.GetOrderDealID(orderID);
     }
 
-    function GetDealInfo(uint dealID) view public
+    function GetDealInfo(uint dealID) public view
     returns (
         uint64[] benchmarks,
         address supplierID,
@@ -774,7 +788,7 @@ contract MarketV2 is Ownable, Pausable {
         startTime = dealsCrud.GetDealStartTime(dealID);
     }
 
-    function GetDealParams(uint dealID) view public
+    function GetDealParams(uint dealID) public view
     returns (
         uint duration,
         uint price,
