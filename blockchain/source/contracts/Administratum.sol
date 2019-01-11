@@ -56,7 +56,7 @@ contract Administratum is Ownable {
 
     function Migrate (address _newAdministratum) public onlyOwner {
         crud.transferOwnership(_newAdministratum);
-        suicide(msg.sender);
+        selfdestruct(msg.sender);
     }
 
     //INTERNAL
