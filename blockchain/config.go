@@ -40,7 +40,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		MasterchainEndpoint  string         `yaml:"endpoint"`
 		SidechainEndpoint    string         `yaml:"sidechain_endpoint"`
 		ContractRegistryAddr common.Address `yaml:"contract_registry"`
-		BlocksBatchSize      uint64         `yaml:"blocks_batch_size" default:"500"`
+		BlocksBatchSize      uint64         `yaml:"blocks_batch_size"`
 		MasterchainGasPrice  GasPrice       `yaml:"masterchain_gas_price"`
 	}
 
@@ -64,6 +64,10 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	sidechainEndpoint, err := url.Parse(cfg.SidechainEndpoint)
 	if err != nil {
 		return err
+	}
+
+	if cfg.BlocksBatchSize == 0 {
+		cfg.BlocksBatchSize = 500
 	}
 
 	m.Endpoint = *endpoint
