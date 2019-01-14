@@ -83,6 +83,10 @@ var dealListCmd = &cobra.Command{
 		}
 
 		deals, err := dwh.GetDeals(ctx, req)
+		if err != nil {
+			return fmt.Errorf("cannot get deal list: %v", err)
+		}
+
 		printDealsList(cmd, addr, deals.GetDeals())
 		return nil
 	},
