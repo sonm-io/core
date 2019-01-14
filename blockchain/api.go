@@ -1498,6 +1498,27 @@ func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpl
 	if err != nil {
 		return err
 	}
+
+	// no logs within the required range,
+	// just push NoEvent data.
+	if len(logs) == 0 {
+		for blockNumber := filter.FromBlock; blockNumber <= filter.ToBlock; blockNumber++ {
+			block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(blockNumber))
+			if err != nil {
+				ctxlog.S(ctx).Warn("failed to get block timestamp", zap.Uint64("block", blockNumber), zap.Error(err))
+				continue
+			}
+
+			receiver <- &Event{
+				BlockNumber: blockNumber,
+				Data:        &NoEventsData{},
+				TS:          block.Time().Uint64(),
+			}
+		}
+
+		return nil
+	}
+
 	var curBlock uint64
 	var curEventTS uint64
 	for _, log := range logs {
@@ -1513,6 +1534,7 @@ func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpl
 		}
 		api.processLog(log, curEventTS, receiver)
 	}
+
 	ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
 	return nil
 }

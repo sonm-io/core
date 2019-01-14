@@ -189,6 +189,7 @@ func (m *L1Processor) processEvents(dispatcher *eventsDispatcher) {
 	m.processEventsAsync(dispatcher.RemovedFromBlacklist)
 	m.processEventsAsync(dispatcher.WorkersRemoved)
 	m.processEventsAsync(dispatcher.Other)
+	m.processEventsAsync(dispatcher.NoData)
 
 	m.saveLastEvent()
 }
@@ -275,6 +276,8 @@ func (m *L1Processor) processEvent(event *blockchain.Event) error {
 		return m.onCertificateCreated(value.ID)
 	case *blockchain.CertificateUpdatedData:
 		return m.onCertificateUpdated(value.ID)
+	case *blockchain.NoEventsData:
+		return m.onEmptyEventData(event)
 	}
 
 	return nil
@@ -828,6 +831,12 @@ func (m *L1Processor) onCertificateUpdated(certID *big.Int) error {
 	return nil
 }
 
+func (m *L1Processor) onEmptyEventData(event *blockchain.Event) error {
+	ts := time.Unix(int64(event.TS), 0)
+	m.logger.Sugar().Debugf("no events at block %d (ts = %s)", event.BlockNumber, ts)
+	return nil
+}
+
 // coldStart waits till last seen block number gets to `w.cfg.ColdStart.UpToBlock` and then tries to create indices.
 func (m *L1Processor) coldStart() error {
 	ticker := time.NewTicker(time.Second * 5)
@@ -947,6 +956,7 @@ type eventsDispatcher struct {
 	WorkersConfirmed          []*blockchain.Event
 	WorkersRemoved            []*blockchain.Event
 	Other                     []*blockchain.Event
+	NoData                    []*blockchain.Event
 }
 
 func newEventDispatcher(logger *zap.Logger) *eventsDispatcher {
@@ -989,6 +999,8 @@ func (m *eventsDispatcher) Add(event *blockchain.Event) {
 		m.WorkersConfirmed = append(m.WorkersConfirmed, event)
 	case *blockchain.WorkerRemovedData:
 		m.WorkersRemoved = append(m.WorkersRemoved, event)
+	case *blockchain.NoEventsData:
+		m.NoData = append(m.NoData, event)
 	case *blockchain.ErrorData:
 		m.logger.Warn("received error from events channel", zap.Error(data.Err), zap.String("topic", data.Topic))
 	default:
