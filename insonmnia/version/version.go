@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -255,6 +256,10 @@ func (m *fs) Open() (File, error) {
 }
 
 func (m *fs) Create() (File, error) {
+	if err := os.MkdirAll(filepath.Dir(m.path), 0750); err != nil {
+		return nil, err
+	}
+
 	return os.Create(m.path)
 }
 
