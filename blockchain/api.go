@@ -2108,9 +2108,13 @@ func NewDevicesStorage(addr common.Address, opts *chainOpts) (*BasicDevicesStora
 }
 
 func (m *BasicDevicesStorage) StoreOrUpdate(ctx context.Context, key *ecdsa.PrivateKey, devices interface{}) error {
-	data, err := json.Marshal(devices)
-	if err != nil {
-		return err
+	var data []byte
+	var err error
+	if devices != nil {
+		data, err = json.Marshal(devices)
+		if err != nil {
+			return err
+		}
 	}
 	bytes32Ty, err := abi.NewType("bytes")
 	if err != nil {
