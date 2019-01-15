@@ -119,7 +119,7 @@ func (m *L1Processor) watchMarketEvents() error {
 	}
 
 	m.logger.Info("starting from block", zap.Uint64("block_number", m.lastEvent.BlockNumber))
-	filter := m.blockchain.Events().GetMarketFilter(big.NewInt(0).SetUint64(m.lastEvent.BlockNumber))
+	filter := m.blockchain.Events().GetMarketFilter(big.NewInt(0).SetUint64(m.lastEvent.BlockNumber)).WithEmitNoEvents()
 	events, err := m.blockchain.Events().GetEvents(m.ctx, filter)
 	if err != nil {
 		return err
