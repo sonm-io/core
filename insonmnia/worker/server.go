@@ -134,7 +134,13 @@ type Worker struct {
 	cfg     *Config
 	storage *state.Storage
 
-	ovs         Overseer
+	ovs Overseer
+	// SSHAuthorization holds information about which ETH address is allowed
+	// or denied to perform login into the host system.
+	// By default master, admin and worker's addresses are allowed, but more
+	// keys can be added using "AddCapability" call.
+	sshAuthorization *SSHAuthorization
+	// SSH represents embedded secure shell server.
 	ssh         SSH
 	key         *ecdsa.PrivateKey
 	publicIPs   []string
@@ -181,11 +187,12 @@ func NewWorker(cfg *Config, storage *state.Storage, options ...Option) (*Worker,
 	}
 
 	m := &Worker{
-		cfg:        cfg,
-		ctx:        opts.ctx,
-		storage:    storage,
-		version:    opts.version,
-		containers: map[string]*ContainerInfo{},
+		cfg:              cfg,
+		ctx:              opts.ctx,
+		storage:          storage,
+		sshAuthorization: NewSSHAuthorization(),
+		version:          opts.version,
+		containers:       map[string]*ContainerInfo{},
 	}
 
 	dg := defergroup.DeferGroup{}
@@ -505,16 +512,15 @@ func (m *Worker) setupSSH(view OverseerView) error {
 			return err
 		}
 
-		sshAuthorization := NewSSHAuthorization()
-		sshAuthorization.Deny(leakedInsecureKey)
-		sshAuthorization.Allow(crypto.PubkeyToAddress(m.key.PublicKey))
-		sshAuthorization.Allow(m.cfg.Master)
+		m.sshAuthorization.Deny(leakedInsecureKey)
+		m.sshAuthorization.Allow(crypto.PubkeyToAddress(m.key.PublicKey))
+		m.sshAuthorization.Allow(m.cfg.Master)
 
 		if m.cfg.Admin != nil {
-			sshAuthorization.Allow(*m.cfg.Admin)
+			m.sshAuthorization.Allow(*m.cfg.Admin)
 		}
 
-		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.credentials, sshAuthorization, view, log.S(m.ctx))
+		ssh, err := NewSSHServer(*m.cfg.SSH, signer, m.credentials, m.sshAuthorization, view, log.S(m.ctx))
 		if err != nil {
 			return err
 		}
@@ -2044,6 +2050,17 @@ func (m *Worker) AskPlanByTaskID(taskID string) (*sonm.AskPlan, error) {
 
 func (m *Worker) Metrics(ctx context.Context, req *sonm.WorkerMetricsRequest) (*sonm.WorkerMetricsResponse, error) {
 	return m.metrics.Get(), nil
+}
+
+func (m *Worker) AddCapability(ctx context.Context, request *sonm.WorkerAddCapabilityRequest) (*sonm.WorkerAddCapabilityResponse, error) {
+	switch request.GetScope() {
+	case sonm.CapabilityScope_SSH:
+		m.sshAuthorization.Allow(request.GetSubject().GetId().Unwrap(), WithExpiration(time.Duration(request.GetTtl())*time.Second))
+	default:
+		return nil, fmt.Errorf("unknown scope: %d", request.GetScope())
+	}
+
+	return &sonm.WorkerAddCapabilityResponse{}, nil
 }
 
 // Close disposes all resources related to the Worker

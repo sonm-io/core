@@ -51,6 +51,8 @@ service WorkerManagement {
     rpc PurgeBenchmarks(Empty) returns (Empty) {}
     // Metrics returns hardware metrics for this worker.
     rpc Metrics(WorkerMetricsRequest) returns (WorkerMetricsResponse) {}
+
+    rpc AddCapability (WorkerAddCapabilityRequest) returns (WorkerAddCapabilityResponse) {}
 }
 
 service Worker {
@@ -207,6 +209,19 @@ message PurgeTasksRequest {
 
 message WorkerMetricsRequest {}
 
-message WorkerMetricsResponse{
+message WorkerMetricsResponse {
     map<string, double> metrics = 1;
 }
+
+enum CapabilityScope {
+    SSH = 0;
+}
+
+message WorkerAddCapabilityRequest {
+    EthID subject = 1;
+    CapabilityScope scope = 2;
+    // TTL represents the capability TTL in seconds.
+    uint32 ttl = 3;
+}
+
+message WorkerAddCapabilityResponse {}
