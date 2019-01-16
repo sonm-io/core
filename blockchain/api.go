@@ -1512,22 +1512,13 @@ func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpl
 	}
 
 	// no logs within the required range,
-	// just push NoEvent data.
+	// just push NoEvent data with last observed
+	// block number.
 	if len(logs) == 0 && filter.EmitNoEvent {
-		for blockNumber := filter.FromBlock; blockNumber <= filter.ToBlock; blockNumber++ {
-			block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(blockNumber))
-			if err != nil {
-				ctxlog.S(ctx).Warn("failed to get block timestamp", zap.Uint64("block", blockNumber), zap.Error(err))
-				continue
-			}
-
-			receiver <- &Event{
-				BlockNumber: blockNumber,
-				Data:        &NoEventsData{},
-				TS:          block.Time().Uint64(),
-			}
+		receiver <- &Event{
+			BlockNumber: filter.ToBlock,
+			Data:        &NoEventsData{},
 		}
-
 		return nil
 	}
 

@@ -832,8 +832,6 @@ func (m *L1Processor) onCertificateUpdated(certID *big.Int) error {
 }
 
 func (m *L1Processor) onEmptyEventData(event *blockchain.Event) error {
-	ts := time.Unix(int64(event.TS), 0)
-	m.logger.Sugar().Debugf("no events at block %d (ts = %s)", event.BlockNumber, ts)
 	return nil
 }
 
