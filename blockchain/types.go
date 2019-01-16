@@ -35,6 +35,8 @@ func (m *Event) PrecedesOrEquals(other *Event) bool {
 	return false
 }
 
+type NoEventsData struct{}
+
 type DealOpenedData struct {
 	ID *big.Int
 }

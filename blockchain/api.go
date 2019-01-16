@@ -1298,6 +1298,16 @@ type EventFilter struct {
 	topics    [][]common.Hash
 	addresses []common.Address
 	fromBlock *big.Int
+	// emitNoEvent should be enabled
+	// if you want to receive `NoEventsData`.
+	// NoEventsData will be emitted when blocks
+	// does not contain any events of given topics.
+	emitNoEvent bool
+}
+
+func (m *EventFilter) WithEmitNoEvents() *EventFilter {
+	m.emitNoEvent = true
+	return m
 }
 
 func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSize uint64) (EventsAPI, error) {
@@ -1401,8 +1411,9 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (
 	}
 	// we are mutating filter, so prevent some strange behaviour on client side
 	sFilter := simpleFilter{
-		Addresses: filter.addresses,
-		Topics:    filter.topics,
+		Addresses:   filter.addresses,
+		Topics:      filter.topics,
+		EmitNoEvent: filter.emitNoEvent,
 	}
 	if filter.fromBlock != nil {
 		sFilter.FromBlock = filter.fromBlock.Uint64()
@@ -1420,10 +1431,11 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (
 }
 
 type simpleFilter struct {
-	FromBlock uint64
-	ToBlock   uint64
-	Addresses []common.Address
-	Topics    [][]common.Hash
+	FromBlock   uint64
+	ToBlock     uint64
+	Addresses   []common.Address
+	Topics      [][]common.Hash
+	EmitNoEvent bool
 }
 
 func (m *simpleFilter) EthFilter() ethereum.FilterQuery {
@@ -1498,6 +1510,18 @@ func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpl
 	if err != nil {
 		return err
 	}
+
+	// no logs within the required range,
+	// just push NoEvent data with last observed
+	// block number.
+	if len(logs) == 0 && filter.EmitNoEvent {
+		receiver <- &Event{
+			BlockNumber: filter.ToBlock,
+			Data:        &NoEventsData{},
+		}
+		return nil
+	}
+
 	var curBlock uint64
 	var curEventTS uint64
 	for _, log := range logs {
@@ -1513,6 +1537,7 @@ func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpl
 		}
 		api.processLog(log, curEventTS, receiver)
 	}
+
 	ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
 	return nil
 }
