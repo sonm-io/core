@@ -8,8 +8,12 @@ VERSION = v0.4.20
 # different commits.
 BUILD = $(shell git rev-parse --short HEAD)
 
-# Full version includes both semantic version and git ref.
-FULL_VERSION = $(VERSION)-$(BUILD)
+# Full version includes both semantic version and git ref if present.
+ifeq (${BUILD},)
+	FULL_VERSION = $(VERSION)
+else
+	FULL_VERSION = $(VERSION)-$(BUILD)
+endif
 
 # NOTE: variables defined with := in GNU make are expanded when they are
 # defined rather than when they are used.
