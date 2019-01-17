@@ -36,7 +36,6 @@ func DefaultQUICConfig() *quic.Config {
 		Versions: []quic.VersionNumber{
 			quic.VersionGQUIC39,
 			quic.VersionGQUIC43,
-			quic.VersionMilestone0_10_0,
 		},
 		KeepAlive: true,
 	}
