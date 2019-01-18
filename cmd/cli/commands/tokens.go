@@ -72,7 +72,7 @@ var tokenBalanceCmd = &cobra.Command{
 
 var tokenDepositCmd = &cobra.Command{
 	Use:   "deposit <amount>",
-	Short: "Transfer funds from masterchain to SONM blockchain",
+	Short: "Transfer <amount> SNM tokens from masterchain to SONM blockchain",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
@@ -83,7 +83,7 @@ var tokenDepositCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		amount, err := sonm.NewBigIntFromString(args[0])
+		amount, err := parseSNMValueInput(args[0])
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ var tokenDepositCmd = &cobra.Command{
 
 var tokenWithdrawCmd = &cobra.Command{
 	Use:   "withdraw <amount>",
-	Short: "Transfer funds from SONM blockchain to masterchain",
+	Short: "Transfer <amount> SNM tokens from SONM blockchain to masterchain",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
@@ -110,7 +110,7 @@ var tokenWithdrawCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		amount, err := sonm.NewBigIntFromString(args[0])
+		amount, err := parseSNMValueInput(args[0])
 		if err != nil {
 			return err
 		}
@@ -160,13 +160,10 @@ var tokenTransferCmd = &cobra.Command{
 			return fmt.Errorf("failed to parse `to` address: %v", err)
 		}
 
-		amount, _, err := big.ParseFloat(args[1], 10, 256, big.ToNearestEven)
+		amountSNM, err := parseSNMValueInput(args[1])
 		if err != nil {
-			return fmt.Errorf("failed to parse amount: %v", err)
+			return err
 		}
-
-		amountInt, _ := new(big.Float).Mul(amount, big.NewFloat(1e18)).Int(nil)
-		amountSNM := sonm.NewBigInt(amountInt)
 
 		if !forceTransferFlag {
 			if err := showTransferPrompt(amountSNM, to); err != nil {
@@ -232,4 +229,14 @@ func showTransferPrompt(amount *sonm.BigInt, to *sonm.EthAddress) error {
 	}
 
 	return nil
+}
+
+func parseSNMValueInput(arg string) (*sonm.BigInt, error) {
+	amount, _, err := big.ParseFloat(arg, 10, 256, big.ToNearestEven)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse amount: %v", err)
+	}
+
+	amountInt, _ := new(big.Float).Mul(amount, big.NewFloat(1e18)).Int(nil)
+	return sonm.NewBigInt(amountInt), nil
 }
