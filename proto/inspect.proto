@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+import "net.proto";
+
+package sonm;
+
+// secured by capabilities.
+service Inspect {
+    // Config returns the inspected server's configuration.
+    rpc Config(InspectConfigRequest) returns (InspectConfigResponse) {}
+    // OpenFiles returns the list of open files of the inspected process.
+    rpc OpenFiles(InspectOpenFilesRequest) returns (InspectOpenFilesResponse) {}
+    // Network returns host's network configuration and open connections of
+    // the inspected process.
+    rpc Network(InspectNetworkRequest) returns (InspectNetworkResponse) {}
+    // HostInfo returns information about inspected host.
+    rpc HostInfo(InspectHostInfoRequest) returns (InspectHostInfoResponse) {}
+    // DockerInfo returns information about Docker on the inspected host.
+    rpc DockerInfo(InspectDockerInfoRequest) returns (InspectDockerInfoResponse) {}
+    // DockerNetwork returns information about Docker network on the inspected
+    // host.
+    rpc DockerNetwork(InspectDockerNetworkRequest) returns (InspectDockerNetworkResponse) {}
+    // DockerVolumes returns information about Docker volumes on the inspected
+    // host.
+    rpc DockerVolumes(InspectDockerVolumesRequest) returns (InspectDockerVolumesResponse) {}
+    // WatchLogs subscribes for logs of the inspected process.
+    rpc WatchLogs(InspectWatchLogsRequest) returns (stream InspectWatchLogsChunk) {}
+    // todo: rpc Logs - read journal.
+    // todo: rpc DevicesInfo - dump devices info.
+    // todo: rpc Dump - execute all methods above (except log streaming).
+}
+
+message InspectConfigRequest {}
+
+message InspectConfigResponse {
+    // Config represents JSON encoded configuration of the inspected entity.
+    bytes config = 1;
+}
+
+message InspectOpenFilesRequest {}
+
+message InspectOpenFilesResponse {
+    repeated FileStat openFiles = 1;
+}
+
+message FileStat {
+    // Fd shows the file descriptor number.
+    uint64 fd = 1;
+    // Path shows either real path on the filesystem or its description if the
+    // file is not a real file, i.e. a socket for example.
+    string path = 2;
+}
+
+message InspectNetworkRequest {}
+
+message InspectNetworkResponse {
+    repeated InterfaceStat interfaces = 1;
+    repeated ConnectionStat connections = 2;
+}
+
+message InterfaceStat {
+    // MTU represents the maximum transmission unit.
+    int32 mtu = 1;
+    // Name represents the network interface name, for example "en0", "lo0", "eth0.100".
+    string name = 2;
+    // HardwareAddr is the interface address in IEEE MAC-48, EUI-48 and EUI-64 form.
+    string hardwareAddr = 3;
+    // Flags provides additional interface info, like FlagUp, FlagLoopback, FlagMulticast.
+    repeated string flags = 4;
+    // Addrs represents IP addresses and its subnet assigned to this interface.
+    repeated string addrs = 5;
+}
+
+message ConnectionStat {
+    // Fd shows the file descriptor number.
+    uint64 fd = 1;
+    uint32 family = 2;
+    uint32 type = 3;
+    SocketAddr localAddr = 4;
+    SocketAddr remoteAddr = 5;
+    string status = 6;
+    int32 pid = 7;
+}
+
+message InspectDockerInfoRequest {}
+
+message InspectDockerInfoResponse {
+    bytes info = 1;
+}
+
+message InspectDockerNetworkRequest {}
+
+message InspectDockerNetworkResponse {
+    bytes info = 1;
+}
+
+message InspectDockerVolumesRequest {}
+
+message InspectDockerVolumesResponse {
+    bytes info = 1;
+}
+
+message InspectHostInfoRequest {}
+
+message InspectHostInfoResponse {
+    string hostname = 1;
+    uint64 uptime = 2;
+    uint64 bootTime = 3;
+    uint64 processesNumber = 4;
+    string os = 5;
+    string platform = 6;
+    string platformFamily = 7;
+    string platformVersion = 8;
+    string kernelVersion = 9;
+    string virtualizationSystem = 10;
+    string virtualizationRole = 11;
+    string hostID = 12;
+}
+
+message InspectWatchLogsRequest {}
+
+message InspectWatchLogsChunk {
+    string message = 1;
+}

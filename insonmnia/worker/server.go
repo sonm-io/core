@@ -42,6 +42,8 @@ import (
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/disk"
+	"github.com/sonm-io/core/insonmnia/inspect"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/resource"
@@ -72,6 +74,7 @@ import (
 
 const (
 	workerAPIPrefix       = "/sonm.WorkerManagement/"
+	inspectServicePrefix  = "/sonm.Inspect/"
 	taskAPIPrefix         = "/sonm.Worker/"
 	sshPrivateKeyKey      = "ssh_private_key"
 	ethereumPrivateKeyKey = "ethereum_private_key"
@@ -93,6 +96,18 @@ var (
 		workerAPIPrefix + "DebugState",
 		workerAPIPrefix + "RemoveBenchmark",
 		workerAPIPrefix + "PurgeBenchmarks",
+		workerAPIPrefix + "AddCapability",
+	}
+
+	inspectMethods = []string{
+		inspectServicePrefix + "Config",
+		inspectServicePrefix + "OpenFiles",
+		inspectServicePrefix + "Network",
+		inspectServicePrefix + "HostInfo",
+		inspectServicePrefix + "DockerInfo",
+		inspectServicePrefix + "DockerNetwork",
+		inspectServicePrefix + "DockerVolumes",
+		inspectServicePrefix + "WatchLogs",
 	}
 
 	leakedInsecureKey = common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd")
@@ -128,6 +143,14 @@ func (m *overseerView) Exec(ctx context.Context, id string, cmd []string, env []
 	return m.worker.ovs.Exec(ctx, id, cmd, env, isTty, wCh)
 }
 
+type workerConfigProvider struct {
+	cfg *Config
+}
+
+func (m *workerConfigProvider) Config() interface{} {
+	return m.cfg
+}
+
 // Worker holds information about jobs, make orders to Observer and communicates with Worker
 type Worker struct {
 	ctx     context.Context
@@ -153,7 +176,8 @@ type Worker struct {
 	resources *resource.Scheduler
 	salesman  *salesman.Salesman
 
-	eventAuthorization *auth.AuthRouter
+	eventAuthorization   *auth.AuthRouter
+	inspectAuthorization *auth.AnyOfTransportCredentialsAuthorization
 
 	// Maps StartRequest's IDs to containers' IDs
 	// TODO: It's doubtful that we should keep this map here instead in the Overseer.
@@ -172,6 +196,8 @@ type Worker struct {
 	country *geoip2.Country
 	// Hardware metrics for various hardware types.
 	metrics *metrics.Handler
+	// Embedded inspection service.
+	*inspect.InspectService
 }
 
 func NewWorker(cfg *Config, storage *state.Storage, options ...Option) (*Worker, error) {
@@ -242,6 +268,10 @@ func NewWorker(cfg *Config, storage *state.Storage, options ...Option) (*Worker,
 	}
 
 	if err := m.setupSSH(&overseerView{worker: m}); err != nil {
+		return nil, err
+	}
+
+	if err := m.setupInspectService(cfg, m.inspectAuthorization, opts.logWatcher); err != nil {
 		return nil, err
 	}
 
@@ -530,6 +560,17 @@ func (m *Worker) setupSSH(view OverseerView) error {
 	return nil
 }
 
+func (m *Worker) setupInspectService(cfg *Config, authWatcher *auth.AnyOfTransportCredentialsAuthorization, loggingWatcher *logging.Watcher) error {
+	inspectService, err := inspect.NewInspectService(&workerConfigProvider{cfg: cfg}, authWatcher, loggingWatcher)
+	if err != nil {
+		return err
+	}
+
+	m.InspectService = inspectService
+
+	return nil
+}
+
 func (m *Worker) loadOrGenerateSSHSigner() (ssh.Signer, error) {
 	var privateKeyData []byte
 	ok, err := m.storage.Load(sshPrivateKeyKey, &privateKeyData)
@@ -712,15 +753,24 @@ func (m *Worker) setupGeoIP() error {
 }
 
 func (m *Worker) setupAuthorization() error {
+	inspectAuthorization := auth.NewAnyOfTransportCredentialsAuthorization(m.ctx)
+	inspectAuthOptions := []auth.Authorization{
+		auth.NewTransportAuthorization(m.ethAddr()),
+		auth.NewTransportAuthorization(m.cfg.Master),
+		inspectAuthorization,
+	}
+
 	managementAuthOptions := []auth.Authorization{
 		auth.NewTransportAuthorization(m.ethAddr()),
 		auth.NewTransportAuthorization(m.cfg.Master),
 	}
 
 	if m.cfg.Admin != nil {
+		inspectAuthOptions = append(inspectAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
 		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
 	}
 
+	inspectAuth := newAnyOfAuth(inspectAuthOptions...)
 	managementAuth := newAnyOfAuth(managementAuthOptions...)
 
 	// master, admin, and metrics collector service is allowed to obtain metrics
@@ -760,10 +810,12 @@ func (m *Worker) setupAuthorization() error {
 		}))),
 		auth.Allow(workerAPIPrefix+"Metrics").With(newAnyOfAuth(metricsCollectorAuth...)),
 		auth.Allow(workerAPIPrefix+"Devices").With(newAnyOfAuth(metricsCollectorAuth...)),
+		auth.Allow(inspectMethods...).With(inspectAuth),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 
 	m.eventAuthorization = authorization
+	m.inspectAuthorization = inspectAuthorization
 	return nil
 }
 
@@ -1555,6 +1607,7 @@ func (m *Worker) setupServer() error {
 
 	sonm.RegisterWorkerServer(m.externalGrpc, m)
 	sonm.RegisterWorkerManagementServer(m.externalGrpc, m)
+	sonm.RegisterInspectServer(m.externalGrpc, m)
 	grpc_prometheus.Register(m.externalGrpc)
 
 	if m.cfg.Debug != nil {
@@ -2044,6 +2097,32 @@ func (m *Worker) Metrics(ctx context.Context, req *sonm.WorkerMetricsRequest) (*
 	return m.metrics.Get(), nil
 }
 
+func (m *Worker) AddCapability(ctx context.Context, request *sonm.WorkerAddCapabilityRequest) (*sonm.WorkerAddCapabilityResponse, error) {
+	switch request.GetScope() {
+	case sonm.CapabilityScope_CAPABILITY_NONE:
+	case sonm.CapabilityScope_CAPABILITY_SSH:
+		return nil, fmt.Errorf("not implemented yet")
+	case sonm.CapabilityScope_CAPABILITY_INSPECTION:
+		m.inspectAuthorization.Add(request.GetSubject().Unwrap(), time.Duration(request.GetTtl())*time.Second)
+	default:
+		return nil, fmt.Errorf("unknown scope: %d", request.GetScope())
+	}
+
+	return &sonm.WorkerAddCapabilityResponse{}, nil
+}
+
+func (m *Worker) RemoveCapability(ctx context.Context, request *sonm.WorkerRemoveCapabilityRequest) (*sonm.WorkerRemoveCapabilityResponse, error) {
+	switch request.GetScope() {
+	case sonm.CapabilityScope_CAPABILITY_NONE:
+	case sonm.CapabilityScope_CAPABILITY_INSPECTION:
+		m.inspectAuthorization.Remove(request.GetSubject().Unwrap())
+	default:
+		return nil, fmt.Errorf("unknown scope: %d", request.GetScope())
+	}
+
+	return &sonm.WorkerRemoveCapabilityResponse{}, nil
+}
+
 // Close disposes all resources related to the Worker
 func (m *Worker) Close() {
 	log.G(m.ctx).Info("closing worker")
@@ -2066,6 +2145,7 @@ func (m *Worker) Close() {
 	if m.certRotator != nil {
 		m.certRotator.Close()
 	}
+	m.InspectService.Close()
 }
 
 func newStatusAuthorization(ctx context.Context) *auth.AuthRouter {

@@ -9,8 +9,9 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// BuildLogger return new zap.Logger instance with given severity and debug settings
-func BuildLogger(cfg Config) (*zap.Logger, error) {
+// BuildLogger return new zap.Logger instance with given severity and debug
+// settings.
+func BuildLogger(cfg Config, options ...zap.Option) (*zap.Logger, error) {
 	encoder := zap.NewDevelopmentEncoderConfig()
 	if isatty.IsTerminal(fdFromString(cfg.Output).Fd()) {
 		encoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
@@ -25,7 +26,7 @@ func BuildLogger(cfg Config) (*zap.Logger, error) {
 		EncoderConfig:    encoder,
 	}
 
-	return loggerConfig.Build()
+	return loggerConfig.Build(options...)
 }
 
 type Leveler interface {

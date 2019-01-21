@@ -2,12 +2,13 @@ package auth
 
 import (
 	"context"
+	"math"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -52,10 +53,14 @@ func (r *AuthRouter) addAuthorization(event Event, auth Authorization) {
 }
 
 func (r *AuthRouter) Authorize(ctx context.Context, event Event, request interface{}) error {
+	r.log.Debug("authorizing request", zap.Stringer("method", event))
+
+	return r.AuthorizeNoLog(ctx, event, request)
+}
+
+func (r *AuthRouter) AuthorizeNoLog(ctx context.Context, event Event, request interface{}) error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
-	r.log.Debug("authorizing request", zap.Stringer("method", event))
 
 	verify, ok := r.verifiers[event]
 	if !ok {
@@ -155,18 +160,138 @@ type transportCredentialsAuthorization struct {
 }
 
 func (a *transportCredentialsAuthorization) Authorize(ctx context.Context, request interface{}) error {
-	peerInfo, ok := peer.FromContext(ctx)
-	if !ok {
-		return status.Error(codes.Unauthenticated, "no peer info")
+	peerInfo, err := FromContext(ctx)
+	if err != nil {
+		return err
 	}
 
-	switch authInfo := peerInfo.AuthInfo.(type) {
-	case EthAuthInfo:
-		if equalAddresses(authInfo.Wallet, a.ethAddr) {
-			return nil
-		}
-		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", authInfo.Wallet.Hex())
-	default:
-		return status.Error(codes.Unauthenticated, "unknown auth info")
+	if equalAddresses(peerInfo.Addr, a.ethAddr) {
+		return nil
 	}
+
+	return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", peerInfo.Addr.Hex())
+}
+
+type watchedEntry struct {
+	subscribers    []chan<- struct{}
+	expirationTime time.Time
+}
+
+func (m *watchedEntry) IsExpired() bool {
+	return time.Now().After(m.expirationTime)
+}
+
+func (m *watchedEntry) AddSubscriber(tx chan<- struct{}) {
+	m.subscribers = append(m.subscribers, tx)
+}
+
+func (m *watchedEntry) NotifySubscribers() {
+	for _, channel := range m.subscribers {
+		close(channel)
+	}
+
+	m.subscribers = nil
+}
+
+// Like "anyOfAuthorization", but allows to dynamically add and remove ETH
+// addresses.
+type AnyOfTransportCredentialsAuthorization struct {
+	mu      sync.RWMutex
+	entries map[common.Address]*watchedEntry
+}
+
+func NewAnyOfTransportCredentialsAuthorization(ctx context.Context) *AnyOfTransportCredentialsAuthorization {
+	m := &AnyOfTransportCredentialsAuthorization{
+		entries: map[common.Address]*watchedEntry{},
+	}
+
+	go m.run(ctx)
+
+	return m
+}
+
+func (m *AnyOfTransportCredentialsAuthorization) run(ctx context.Context) {
+	timer := time.NewTicker(time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			m.checkExpired()
+		}
+	}
+}
+
+func (m *AnyOfTransportCredentialsAuthorization) checkExpired() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, entry := range m.entries {
+		if entry.IsExpired() {
+			entry.NotifySubscribers()
+		}
+	}
+}
+
+func (m *AnyOfTransportCredentialsAuthorization) Subscribe(addr common.Address) <-chan struct{} {
+	txrx := make(chan struct{})
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if entry, ok := m.entries[addr]; ok {
+		entry.AddSubscriber(txrx)
+	} else {
+		close(txrx)
+	}
+
+	return txrx
+}
+
+func (m *AnyOfTransportCredentialsAuthorization) Add(addr common.Address, ttl time.Duration) {
+	expirationTime := m.expirationTimeFromDuration(ttl)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.entries[addr] = &watchedEntry{
+		expirationTime: expirationTime,
+	}
+}
+
+func (m *AnyOfTransportCredentialsAuthorization) Remove(addr common.Address) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if entry, ok := m.entries[addr]; ok {
+		entry.NotifySubscribers()
+	}
+	delete(m.entries, addr)
+}
+
+func (m *AnyOfTransportCredentialsAuthorization) Authorize(ctx context.Context, request interface{}) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	peerInfo, err := FromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if entry, ok := m.entries[peerInfo.Addr]; ok && !entry.IsExpired() {
+		return nil
+	}
+
+	return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", peerInfo.Addr.Hex())
+}
+
+func (m *AnyOfTransportCredentialsAuthorization) expirationTimeFromDuration(duration time.Duration) time.Time {
+	expirationTime := time.Unix(math.MaxInt32, 0)
+	if duration != 0 {
+		expirationTime = time.Now().Add(duration)
+	}
+
+	return expirationTime
 }

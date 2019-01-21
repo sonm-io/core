@@ -204,11 +204,56 @@ func authUnaryInterceptor(router *auth.AuthRouter) grpc.UnaryServerInterceptor {
 	}
 }
 
+func authStreamInterceptor(router *auth.AuthRouter) grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if err := router.Authorize(ss.Context(), auth.Event(info.FullMethod), srv); err != nil {
+			return err
+		}
+
+		ss = &authWrappedStream{
+			ServerStream: ss,
+
+			authorizeFn: func(ctx context.Context) error {
+				// Use "AuthorizeNoLog" here, because otherwise logging will produce another authorization
+				// step, which produces logging, etc. which results in forever loop.
+				if err := router.AuthorizeNoLog(ctx, auth.Event(info.FullMethod), srv); err != nil {
+					return err
+				}
+
+				return nil
+			},
+		}
+
+		return handler(srv, ss)
+	}
+}
+
+type authWrappedStream struct {
+	grpc.ServerStream
+
+	authorizeFn func(ctx context.Context) error
+}
+
+func (m *authWrappedStream) RecvMsg(msg interface{}) error {
+	if err := m.authorizeFn(m.Context()); err != nil {
+		return err
+	}
+
+	return m.ServerStream.RecvMsg(msg)
+}
+
+func (m *authWrappedStream) SendMsg(msg interface{}) error {
+	if err := m.authorizeFn(m.Context()); err != nil {
+		return err
+	}
+
+	return m.ServerStream.SendMsg(msg)
+}
+
 func AuthorizationInterceptor(router *auth.AuthRouter) ServerOption {
 	return func(o *options) {
 		o.interceptors.u = append(o.interceptors.u, authUnaryInterceptor(router))
-		// TODO: Stream interceptors.
-		// o.interceptors.s = append(o.interceptors.s, authStreamInterceptor(router))
+		o.interceptors.s = append(o.interceptors.s, authStreamInterceptor(router))
 	}
 }
 

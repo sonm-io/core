@@ -13,6 +13,7 @@ It is generated from these files:
 	dwh.proto
 	geoip.proto
 	insonmnia.proto
+	inspect.proto
 	marketplace.proto
 	net.proto
 	node.proto
@@ -104,6 +105,25 @@ It has these top-level messages:
 	DataSize
 	DataSizeRate
 	Price
+	InspectConfigRequest
+	InspectConfigResponse
+	InspectOpenFilesRequest
+	InspectOpenFilesResponse
+	FileStat
+	InspectNetworkRequest
+	InspectNetworkResponse
+	InterfaceStat
+	ConnectionStat
+	InspectDockerInfoRequest
+	InspectDockerInfoResponse
+	InspectDockerNetworkRequest
+	InspectDockerNetworkResponse
+	InspectDockerVolumesRequest
+	InspectDockerVolumesResponse
+	InspectHostInfoRequest
+	InspectHostInfoResponse
+	InspectWatchLogsRequest
+	InspectWatchLogsChunk
 	ErrorByID
 	ErrorByStringID
 	OrderIDs
@@ -170,6 +190,10 @@ It has these top-level messages:
 	PurgeTasksRequest
 	WorkerMetricsRequest
 	WorkerMetricsResponse
+	WorkerAddCapabilityRequest
+	WorkerAddCapabilityResponse
+	WorkerRemoveCapabilityRequest
+	WorkerRemoveCapabilityResponse
 */
 package sonm
 

@@ -30,7 +30,8 @@ func run(app cmd.AppContext) error {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
-	logger, err := logging.BuildLogger(cfg.Logging)
+	watcher := logging.NewWatcher()
+	logger, err := logging.BuildLogger(cfg.Logging, zap.Hooks(watcher.OnLog))
 	if err != nil {
 		return fmt.Errorf("failed to build logger instance: %s", err)
 	}
@@ -57,7 +58,7 @@ func run(app cmd.AppContext) error {
 		return nil
 	})
 
-	w, err := worker.NewWorker(cfg, storage, worker.WithContext(ctx), worker.WithVersion(app.Version))
+	w, err := worker.NewWorker(cfg, storage, worker.WithContext(ctx), worker.WithVersion(app.Version), worker.WithLogWatcher(watcher))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}

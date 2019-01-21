@@ -2,13 +2,16 @@ package worker
 
 import (
 	"context"
+
+	"github.com/sonm-io/core/insonmnia/logging"
 )
 
 type Option func(*options)
 
 type options struct {
-	ctx     context.Context
-	version string
+	ctx        context.Context
+	version    string
+	logWatcher *logging.Watcher
 }
 
 func newOptions() *options {
@@ -27,5 +30,11 @@ func WithContext(ctx context.Context) Option {
 func WithVersion(v string) Option {
 	return func(o *options) {
 		o.version = v
+	}
+}
+
+func WithLogWatcher(watcher *logging.Watcher) Option {
+	return func(o *options) {
+		o.logWatcher = watcher
 	}
 }

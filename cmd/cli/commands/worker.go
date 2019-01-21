@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -74,6 +76,9 @@ func init() {
 		workerScheduleMaintenanceCmd,
 		workerNextMaintenanceCmd,
 		workerDebugStateCmd,
+		workerLogs,
+		workerAddCapabilityCmd,
+		workerRemoveCapabilityCmd,
 		workerMetricsCmd,
 	)
 }
@@ -240,6 +245,103 @@ var workerDebugStateCmd = &cobra.Command{
 		} else {
 			showJSON(cmd, reply)
 		}
+
+		return nil
+	},
+}
+
+var workerLogs = &cobra.Command{
+	Use:   "logs",
+	Short: "Subscribe for worker's logs",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := workerCtx
+
+		cc, err := newClientConn(ctx)
+		if err != nil {
+			return err
+		}
+
+		steam, err := sonm.NewInspectClient(cc).WatchLogs(ctx, &sonm.InspectWatchLogsRequest{})
+		if err != nil {
+			return err
+		}
+
+		for {
+			message, err := steam.Recv()
+			if err != nil {
+				if err == io.EOF {
+					return nil
+				}
+
+				return err
+			}
+
+			cmd.Printf("%s\n", message.GetMessage())
+		}
+	},
+}
+
+var workerAddCapabilityCmd = &cobra.Command{
+	Use:   "add-capability ETH_ADDR CAPABILITY TTL",
+	Short: "Add the given worker-specific capability to another user",
+	Args:  cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		addr, err := sonm.NewEthAddressFromHex(args[0])
+		if err != nil {
+			return err
+		}
+
+		scope, err := strconv.ParseUint(args[1], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		ttl, err := strconv.ParseUint(args[2], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		request := &sonm.WorkerAddCapabilityRequest{
+			Subject: sonm.NewEthAddress(addr.Unwrap()),
+			Scope:   sonm.CapabilityScope(scope),
+			Ttl:     uint32(ttl),
+		}
+
+		if _, err := worker.AddCapability(workerCtx, request); err != nil {
+			return fmt.Errorf("failed to add capability: %v", err)
+		}
+
+		showOk(cmd)
+
+		return nil
+	},
+}
+
+var workerRemoveCapabilityCmd = &cobra.Command{
+	Use:   "remove-capability ETH_ADDR CAPABILITY",
+	Short: "Revoke the given worker-specific capability from another user",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		addr, err := sonm.NewEthAddressFromHex(args[0])
+		if err != nil {
+			return err
+		}
+
+		scope, err := strconv.ParseUint(args[1], 10, 32)
+		if err != nil {
+			return err
+		}
+
+		request := &sonm.WorkerRemoveCapabilityRequest{
+			Subject: sonm.NewEthAddress(addr.Unwrap()),
+			Scope:   sonm.CapabilityScope(scope),
+		}
+
+		if _, err := worker.RemoveCapability(workerCtx, request); err != nil {
+			return fmt.Errorf("failed to remove capability: %v", err)
+		}
+
+		showOk(cmd)
 
 		return nil
 	},
