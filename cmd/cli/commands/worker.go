@@ -20,6 +20,7 @@ import (
 var (
 	workerAddressFlag string
 	worker            sonm.WorkerManagementClient
+	workerAddr        string
 	workerCtx         context.Context
 	workerCancel      context.CancelFunc
 )
@@ -30,7 +31,7 @@ func workerPreRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	workerCtx, workerCancel = newTimeoutContext()
-	workerAddr := cfg.WorkerAddr
+	workerAddr = cfg.WorkerAddr
 	if len(workerAddressFlag) != 0 {
 		workerAddr = workerAddressFlag
 	}
@@ -254,7 +255,9 @@ var workerLogs = &cobra.Command{
 	Use:   "logs",
 	Short: "Subscribe for worker's logs",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := workerCtx
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.MD{
+			util.WorkerAddressHeader: []string{workerAddr},
+		})
 
 		cc, err := newClientConn(ctx)
 		if err != nil {
@@ -276,7 +279,7 @@ var workerLogs = &cobra.Command{
 				return err
 			}
 
-			cmd.Printf("%s\n", message.GetMessage())
+			cmd.Printf("%s", message.GetMessage())
 		}
 	},
 }

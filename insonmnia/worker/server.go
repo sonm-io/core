@@ -754,9 +754,10 @@ func (m *Worker) setupGeoIP() error {
 
 func (m *Worker) setupAuthorization() error {
 	inspectAuthorization := auth.NewAnyOfTransportCredentialsAuthorization(m.ctx)
+	inspectAuthorization.Add(m.ethAddr(), time.Duration(0))
+	inspectAuthorization.Add(m.cfg.Master, time.Duration(0))
+
 	inspectAuthOptions := []auth.Authorization{
-		auth.NewTransportAuthorization(m.ethAddr()),
-		auth.NewTransportAuthorization(m.cfg.Master),
 		inspectAuthorization,
 	}
 

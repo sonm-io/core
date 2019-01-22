@@ -6,12 +6,41 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 type Watcher struct {
+	zapcore.Core
+
 	mu        sync.RWMutex
 	observers map[string]chan<- string
+}
+
+func (m *Watcher) With(fields []zapcore.Field) zapcore.Core {
+	m.Core.With(fields)
+	return m
+}
+
+func (m *Watcher) Check(entry zapcore.Entry, checkedEntry *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	return checkedEntry.AddCore(entry, m)
+}
+
+func (m *Watcher) Write(entry zapcore.Entry, fields []zapcore.Field) error {
+	encoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
+	buf, err := encoder.EncodeEntry(entry, fields)
+	if err != nil {
+		return err
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, observer := range m.observers {
+		observer <- buf.String()
+	}
+
+	return m.Core.Write(entry, fields)
 }
 
 func NewWatcher() *Watcher {

@@ -15,6 +15,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker"
 	"github.com/sonm-io/core/util/metrics"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -31,7 +32,10 @@ func run(app cmd.AppContext) error {
 	}
 
 	watcher := logging.NewWatcher()
-	logger, err := logging.BuildLogger(cfg.Logging, zap.Hooks(watcher.OnLog))
+	logger, err := logging.BuildLogger(cfg.Logging, zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+		watcher.Core = core
+		return watcher
+	}))
 	if err != nil {
 		return fmt.Errorf("failed to build logger instance: %s", err)
 	}
