@@ -1,3 +1,7 @@
+migration_dwh:
+  endpoint:
+
+
 # Local Node settings
 node:
   # Node's port to listen for client connection

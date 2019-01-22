@@ -231,7 +231,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 }
 
 func (api *BasicAPI) setupContractRegistry(ctx context.Context) error {
-	registry, err := NewRegistry(ctx, api.options.contractRegistry, api.options.sidechain)
+	registry, err := NewRegistry(ctx, api.options.version, api.options.contractRegistry, api.options.sidechain)
 	if err != nil {
 		return fmt.Errorf("failed to setup contract registry: %s", err)
 	}
@@ -405,7 +405,7 @@ func NewRegistry(ctx context.Context, address common.Address, opts *chainOpts) (
 	registry := &BasicContractRegistry{
 		registryContract: contract,
 	}
-	if err := registry.setup(ctx); err != nil {
+	if err := registry.setup(ctx, version); err != nil {
 		return nil, err
 	}
 	return registry, nil
@@ -444,7 +444,11 @@ func (m *BasicContractRegistry) readContract(ctx context.Context, key string, ta
 	return nil
 }
 
-func (m *BasicContractRegistry) setup(ctx context.Context) error {
+func (m *BasicContractRegistry) setup(ctx context.Context, version uint) error {
+	marketKey, err := marketAddressKey(version)
+	if err != nil {
+		return err
+	}
 	addresses := []struct {
 		key    string
 		target *common.Address
@@ -452,7 +456,7 @@ func (m *BasicContractRegistry) setup(ctx context.Context) error {
 		{sidechainSNMAddressKey, &m.sidechainSNMAddress},
 		{masterchainSNMAddressKey, &m.masterchainSNMAddress},
 		{blacklistAddressKey, &m.blacklistAddress},
-		{marketAddressKey, &m.marketAddress},
+		{marketKey, &m.marketAddress},
 		{profileRegistryAddressKey, &m.profileRegistryAddress},
 		{oracleUsdAddressKey, &m.oracleUsdAddress},
 		{gatekeeperMasterchainAddressKey, &m.gatekeeperMasterchainAddress},
