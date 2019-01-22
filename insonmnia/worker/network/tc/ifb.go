@@ -3,6 +3,7 @@ package tc
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 const (
@@ -44,5 +45,9 @@ func execModProbe(args ...string) error {
 
 	cmd := exec.Command(bin, args...)
 
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to execute `modprobe %s`: %v", strings.Join(args, " "), err)
+	}
+
+	return nil
 }
