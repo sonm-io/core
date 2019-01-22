@@ -762,6 +762,7 @@ func (m *Worker) setupAuthorization() error {
 			return sonm.NewBigIntFromString(request.(*sonm.ID).GetId())
 		}))),
 		auth.Allow(workerAPIPrefix+"Metrics").With(newAnyOfAuth(metricsCollectorAuth...)),
+		auth.Allow(workerAPIPrefix+"Devices").With(newAnyOfAuth(metricsCollectorAuth...)),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 
