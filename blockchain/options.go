@@ -19,7 +19,8 @@ const (
 	defaultLogParsePeriod             = time.Second
 	defaultMasterchainGasLimit        = 500000
 	defaultSidechainGasLimit          = 2000000
-	defaultBlockBatchSize             = 50
+	defaultBlockBatchSize             = 500
+	defaultVersion                    = 1
 )
 
 // chainOpts describes common options
@@ -60,6 +61,7 @@ type options struct {
 	contractRegistry common.Address
 	blocksBatchSize  uint64
 	niceMarket       bool
+	version          uint
 }
 
 func defaultOptions() *options {
@@ -125,6 +127,7 @@ func WithConfig(cfg *Config) Option {
 			}
 			o.blocksBatchSize = cfg.BlocksBatchSize
 			o.masterchain.gasPrice = cfg.MasterchainGasPrice
+			o.version = cfg.Version
 		}
 	}
 }
@@ -163,5 +166,11 @@ func WithContractRegistry(address common.Address) Option {
 func WithNiceMarket() Option {
 	return func(o *options) {
 		o.niceMarket = true
+	}
+}
+
+func WithVersion(version uint) Option {
+	return func(o *options) {
+		o.version = version
 	}
 }
