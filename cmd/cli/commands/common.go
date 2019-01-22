@@ -115,7 +115,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&configFlag, "config", "", "Configuration file")
 
 	rootCmd.AddCommand(workerMgmtCmd, orderRootCmd, dealRootCmd, taskRootCmd, blacklistRootCmd)
-	rootCmd.AddCommand(loginCmd, tokenRootCmd, versionCmd, autoCompleteCmd, masterRootCmd, profileRootCmd, devicesRootCmd)
+	rootCmd.AddCommand(loginCmd, tokenRootCmd, versionCmd, autoCompleteCmd, masterRootCmd, profileRootCmd)
 }
 
 // Root configure and return root command

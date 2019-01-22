@@ -579,9 +579,6 @@ func (m *Worker) Serve() error {
 		return err
 	}
 
-	if err := m.eth.DeviceStorage().StoreOrUpdate(m.ctx, m.key, m.hardware); err != nil {
-		return fmt.Errorf("failed to store or update devices: %s", err)
-	}
 	log.S(m.ctx).Info("updated hardware in blockchain")
 
 	wg, ctx := errgroup.WithContext(m.ctx)
