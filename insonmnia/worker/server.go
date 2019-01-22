@@ -560,7 +560,7 @@ func (m *Worker) setupSSH(view OverseerView) error {
 	return nil
 }
 
-func (m *Worker) setupInspectService(cfg *Config, authWatcher *auth.AnyOfTransportCredentialsAuthorization, loggingWatcher *logging.Watcher) error {
+func (m *Worker) setupInspectService(cfg *Config, authWatcher *auth.AnyOfTransportCredentialsAuthorization, loggingWatcher *logging.WatcherCore) error {
 	inspectService, err := inspect.NewInspectService(&workerConfigProvider{cfg: cfg}, authWatcher, loggingWatcher)
 	if err != nil {
 		return err

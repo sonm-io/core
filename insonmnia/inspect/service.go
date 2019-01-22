@@ -34,10 +34,10 @@ type InspectService struct {
 	dockerClient   *docker.Client
 	configProvider ConfigProvider
 	authWatcher    AuthSubscriber
-	loggingWatcher *logging.Watcher
+	loggingWatcher *logging.WatcherCore
 }
 
-func NewInspectService(configProvider ConfigProvider, authWatcher AuthSubscriber, loggingWatcher *logging.Watcher) (*InspectService, error) {
+func NewInspectService(configProvider ConfigProvider, authWatcher AuthSubscriber, loggingWatcher *logging.WatcherCore) (*InspectService, error) {
 	ps, err := process.NewProcess(int32(os.Getpid()))
 	if err != nil {
 		return nil, err

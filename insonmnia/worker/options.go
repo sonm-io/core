@@ -11,7 +11,7 @@ type Option func(*options)
 type options struct {
 	ctx        context.Context
 	version    string
-	logWatcher *logging.Watcher
+	logWatcher *logging.WatcherCore
 }
 
 func newOptions() *options {
@@ -33,7 +33,7 @@ func WithVersion(v string) Option {
 	}
 }
 
-func WithLogWatcher(watcher *logging.Watcher) Option {
+func WithLogWatcher(watcher *logging.WatcherCore) Option {
 	return func(o *options) {
 		o.logWatcher = watcher
 	}
