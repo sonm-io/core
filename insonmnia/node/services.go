@@ -20,7 +20,6 @@ type services struct {
 	blacklist      sonm.BlacklistServer
 	profile        sonm.ProfilesServer
 	monitoring     sonm.MonitoringServer
-	devicesStorage sonm.DevicesStorageServer
 	orderPredictor *optimus.PredictorService
 }
 
@@ -35,7 +34,6 @@ func newServices(options *remoteOptions) *services {
 		blacklist:      newBlacklistAPI(options),
 		profile:        newProfileAPI(options),
 		monitoring:     newMonitoringAPI(options),
-		devicesStorage: newDevicesStorageAPI(options),
 		orderPredictor: optimus.NewPredictorService(options.cfg.Predictor, options.eth.Market(), options.benchList, options.dwh, options.log),
 	}
 }
@@ -56,7 +54,6 @@ func (m *services) RegisterGRPC(server *grpc.Server) error {
 	sonm.RegisterBlacklistServer(server, m.blacklist)
 	sonm.RegisterProfilesServer(server, m.profile)
 	sonm.RegisterMonitoringServer(server, m.monitoring)
-	sonm.RegisterDevicesStorageServer(server, m.devicesStorage)
 	if m.orderPredictor != nil {
 		sonm.RegisterOrderPredictorServer(server, m.orderPredictor)
 	}
@@ -100,9 +97,6 @@ func (m *services) RegisterREST(server *rest.Server) error {
 		return err
 	}
 	if err := server.RegisterService((*sonm.DWHServer)(nil), m.intercepted); err != nil {
-		return err
-	}
-	if err := server.RegisterService((*sonm.DevicesStorageServer)(nil), m.devicesStorage); err != nil {
 		return err
 	}
 	if m.orderPredictor != nil {

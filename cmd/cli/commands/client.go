@@ -113,12 +113,3 @@ func newDWHClient(ctx context.Context) (sonm.DWHClient, error) {
 
 	return sonm.NewDWHClient(cc), nil
 }
-
-func newDevicesClient(ctx context.Context) (sonm.DevicesStorageClient, error) {
-	cc, err := newClientConn(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return sonm.NewDevicesStorageClient(cc), nil
-}

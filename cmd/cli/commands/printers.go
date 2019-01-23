@@ -179,30 +179,6 @@ func printBenchmarkGroup(cmd Printer, benchmarks map[uint64]*sonm.Benchmark) {
 	cmd.Println()
 }
 
-func printRawDevices(printer Printer, dev *sonm.RawDevicesReply) {
-	if isSimpleFormat() {
-		printer.Printf("Update timestamp:\n  %d\n", dev.Timestamp)
-		printer.Printf("Devices:\n%s\n", string(dev.Data))
-	} else {
-		showJSON(printer, dev)
-	}
-}
-
-func printStoredDevices(printer Printer, dev *sonm.StoredDevicesReply) {
-	if isSimpleFormat() {
-		printer.Printf("Update timestamp:\n  %s\n", dev.Timestamp)
-		printer.Printf("Devices:\n")
-		printer = &IndentPrinter{
-			Subprinter: printer,
-			IdentCount: 2,
-			Ident:      ' ',
-		}
-		printDeviceList(printer, dev.Devices)
-	} else {
-		showJSON(printer, dev)
-	}
-}
-
 func printDeviceList(cmd Printer, dev *sonm.DevicesReply) {
 	if isSimpleFormat() {
 		cpu := dev.GetCPU().GetDevice()
