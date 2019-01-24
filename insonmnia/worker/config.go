@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -9,6 +11,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
+	"github.com/sonm-io/core/insonmnia/migration"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
@@ -37,26 +40,27 @@ type DevConfig struct {
 }
 
 type Config struct {
-	Endpoint          string              `yaml:"endpoint" required:"true"`
-	Logging           logging.Config      `yaml:"logging"`
-	Resources         *ResourcesConfig    `yaml:"resources" required:"false"`
-	Blockchain        *blockchain.Config  `yaml:"blockchain"`
-	NPP               npp.Config          `yaml:"npp"`
-	SSH               *SSHConfig          `yaml:"ssh" required:"false" `
-	PublicIPs         []string            `yaml:"public_ip_addrs" required:"false" `
-	Plugins           plugin.Config       `yaml:"plugins"`
-	Storage           state.StorageConfig `yaml:"store"`
-	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`
-	Whitelist         WhitelistConfig     `yaml:"whitelist"`
-	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
-	DWH               dwh.YAMLConfig      `yaml:"dwh"`
-	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
-	Salesman          salesman.YAMLConfig `yaml:"salesman"`
-	Master            common.Address      `yaml:"master" required:"true"`
-	Development       DevConfig           `yaml:"development"`
-	Admin             *common.Address     `yaml:"admin"`
-	MetricsCollector  *common.Address     `yaml:"metrics_collector"`
-	Debug             *debug.Config       `yaml:"debug"`
+	Endpoint          string                     `yaml:"endpoint" required:"true"`
+	Logging           logging.Config             `yaml:"logging"`
+	Resources         *ResourcesConfig           `yaml:"resources" required:"false"`
+	Blockchain        *blockchain.Config         `yaml:"blockchain"`
+	NPP               npp.Config                 `yaml:"npp"`
+	SSH               *SSHConfig                 `yaml:"ssh" required:"false" `
+	PublicIPs         []string                   `yaml:"public_ip_addrs" required:"false" `
+	Plugins           plugin.Config              `yaml:"plugins"`
+	Storage           state.StorageConfig        `yaml:"store"`
+	Benchmarks        benchmarks.Config          `yaml:"benchmarks"`
+	Whitelist         WhitelistConfig            `yaml:"whitelist"`
+	MetricsListenAddr string                     `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
+	DWH               dwh.YAMLConfig             `yaml:"dwh"`
+	Matcher           *matcher.YAMLConfig        `yaml:"matcher"`
+	Salesman          salesman.YAMLConfig        `yaml:"salesman"`
+	Master            common.Address             `yaml:"master" required:"true"`
+	Development       DevConfig                  `yaml:"development"`
+	Admin             *common.Address            `yaml:"admin"`
+	MetricsCollector  *common.Address            `yaml:"metrics_collector"`
+	Debug             *debug.Config              `yaml:"debug"`
+	Migration         *migration.MigrationConfig `yaml:"migration" required:"true"`
 }
 
 // NewConfig creates a new Worker config from the specified YAML file.
@@ -71,6 +75,10 @@ func NewConfig(path string) (*Config, error) {
 	// TODO: drop in next major version. Breaking issue #1470.
 	if !*cfg.Whitelist.Enabled {
 		cfg.Whitelist.PrivilegedIdentityLevel = sonm.IdentityLevel_ANONYMOUS
+	}
+
+	if cfg.Migration.MigrationDWH == nil && *cfg.Migration.Enabled {
+		return nil, fmt.Errorf("dwh config is required for enabled migrartion")
 	}
 
 	return cfg, nil

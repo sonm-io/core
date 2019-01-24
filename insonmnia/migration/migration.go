@@ -3,6 +3,7 @@ package migration
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
@@ -10,35 +11,61 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
+	"google.golang.org/grpc/credentials"
 )
 
-type MarketShredder struct {
+type MarketShredder interface {
+	WeDontNeedNoWaterLetTheMothefuckerBurn(ctx context.Context, pKey *ecdsa.PrivateKey) error
+}
+
+type nilMarketShredder struct {
+}
+
+func (m *nilMarketShredder) WeDontNeedNoWaterLetTheMothefuckerBurn(ctx context.Context, pKey *ecdsa.PrivateKey) error {
+	return nil
+}
+
+type marketShredder struct {
 	api blockchain.API
 	dwh sonm.DWHClient
 }
 
-func NewV1MarketShredder(ctx context.Context, bcCfg *blockchain.Config, dwhCfg dwh.YAMLConfig) (*MarketShredder, error) {
-	api, err := blockchain.NewAPI(ctx, blockchain.WithConfig(bcCfg), blockchain.WithVersion(1))
+type MigrationConfig struct {
+	Blockchain   *blockchain.Config
+	MigrationDWH *dwh.YAMLConfig
+	Enabled      *bool `default:"true"`
+	Version      uint
+}
+
+func NewV1MarketShredder(ctx context.Context, cfg *MigrationConfig, credentials credentials.TransportCredentials) (MarketShredder, error) {
+	if !*cfg.Enabled {
+		return &nilMarketShredder{}, nil
+	}
+	if cfg.MigrationDWH == nil {
+		return nil, fmt.Errorf("dwh config is required for enabled migrartion")
+	}
+	api, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain), blockchain.WithVersion(1))
 	if err != nil {
 		return nil, err
 	}
 
-	cc, err := xgrpc.NewClient(ctx, dwhCfg.Endpoint, credentials)
+	cc, err := xgrpc.NewClient(ctx, cfg.MigrationDWH.Endpoint, credentials)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	dwh := sonm.NewDWHClient(cc)
+	return NewMarketShredder(api, dwh), nil
 }
 
-func NewMarketShredder(api blockchain.API, dwh sonm.DWHClient) *MarketShredder {
-	return &MarketShredder{
+func NewMarketShredder(api blockchain.API, dwh sonm.DWHClient) *marketShredder {
+	return &marketShredder{
 		api: api,
 		dwh: dwh,
 	}
 }
 
-func (m *MarketShredder) WeDontNeedNoWaterLetTheMothefuckerBurn(ctx context.Context, pKey *ecdsa.PrivateKey) error {
+func (m *marketShredder) WeDontNeedNoWaterLetTheMothefuckerBurn(ctx context.Context, pKey *ecdsa.PrivateKey) error {
 	author := crypto.PubkeyToAddress(pKey.PublicKey)
 	ordersRequest := &sonm.OrdersRequest{
 		AuthorID: sonm.NewEthAddress(author),

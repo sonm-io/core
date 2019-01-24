@@ -45,6 +45,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/inspect"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
+	"github.com/sonm-io/core/insonmnia/migration"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/state"
@@ -198,6 +199,8 @@ type Worker struct {
 	metrics *metrics.Handler
 	// Embedded inspection service.
 	*inspect.InspectService
+
+	shredder migration.MarketShredder
 }
 
 func NewWorker(cfg *Config, storage *state.Storage, options ...Option) (*Worker, error) {
@@ -272,6 +275,10 @@ func NewWorker(cfg *Config, storage *state.Storage, options ...Option) (*Worker,
 	}
 
 	if err := m.setupInspectService(cfg, m.inspectAuthorization, opts.logWatcher); err != nil {
+		return nil, err
+	}
+
+	if err := m.setupMarketShredder(); err != nil {
 		return nil, err
 	}
 
@@ -571,6 +578,15 @@ func (m *Worker) setupInspectService(cfg *Config, authWatcher *auth.AnyOfTranspo
 	return nil
 }
 
+func (m *Worker) setupMarketShredder() error {
+	shredder, err := migration.NewV1MarketShredder(m.ctx, m.cfg.Migration, m.credentials)
+	if err != nil {
+		return err
+	}
+	m.shredder = shredder
+	return nil
+}
+
 func (m *Worker) loadOrGenerateSSHSigner() (ssh.Signer, error) {
 	var privateKeyData []byte
 	ok, err := m.storage.Load(sshPrivateKeyKey, &privateKeyData)
@@ -631,6 +647,15 @@ func (m *Worker) Serve() error {
 		defer log.S(m.ctx).Infof("finished listening for gRPC API connections on %s", m.listener.Addr())
 
 		return m.externalGrpc.Serve(m.listener)
+	})
+	wg.Go(func() error {
+		log.S(ctx).Infof("shredding old market")
+		if err := m.shredder.WeDontNeedNoWaterLetTheMothefuckerBurn(ctx, m.key); err != nil {
+			log.S(ctx).Warnf("failed to shred old market")
+			return err
+		}
+		log.S(ctx).Infof("successfully shredded old market")
+		return nil
 	})
 
 	<-ctx.Done()
