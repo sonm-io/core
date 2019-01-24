@@ -24,6 +24,8 @@ contract Orders is Administratable {
     struct Order {
         OrderInfo info;
         OrderParams params;
+        uint[] ratingInfo;
+        uint[] slaInfo;
     }
 
     struct OrderInfo {
@@ -45,6 +47,13 @@ contract Orders is Administratable {
         OrderStatus orderStatus;
         uint dealID;
     }
+
+    struct RatingInfo {
+        uint counterpartyRating;
+        uint supplierVolume;
+        uint workerRating;
+    }
+
 
     mapping(uint => Order) orders;
 
@@ -116,6 +125,14 @@ contract Orders is Administratable {
         return orders[orderID].info.blacklist;
     }
 
+    function GetOrderRatingInfo(uint orderID, uint index) public view returns (uint) {
+        return orders[orderID].ratingInfo[index];
+    }
+
+    function GetOrderSlaInfo(uint orderID, uint index) public view returns (uint) {
+        return orders[orderID].slaInfo[index];
+    }
+
     function SetOrderBlacklist(uint orderID, address newBlacklist) public onlyOwner {
         orders[orderID].info.blacklist = newBlacklist;
     }
@@ -167,6 +184,11 @@ contract Orders is Administratable {
     function SetOrderDealID(uint orderID, uint _dealID) public onlyOwner {
         orders[orderID].params.dealID = _dealID;
     }
+
+    function SetOrderRatingInfo(uint orderID, uint index, uint _value) public onlyOwner {
+        orders[orderID].ratingInfo[index] = _value;
+    }
+
 
     // Cummulative Order actions. Those are in fact only helpers.
     function Write(
