@@ -27,6 +27,7 @@ service Inspect {
     rpc WatchLogs(InspectWatchLogsRequest) returns (stream InspectWatchLogsChunk) {}
     // todo: rpc Logs - read journal.
     // todo: rpc DevicesInfo - dump devices info.
+    // todo: rpc DockerPs.
     // todo: rpc Dump - execute all methods above (except log streaming).
 }
 

@@ -24,7 +24,14 @@ func (m *watcher) Notify(message string) {
 	defer m.mu.RUnlock()
 
 	for _, observer := range m.observers {
-		observer <- message
+		select {
+		case observer <- message:
+		default:
+			// Seems like the receiver side is blocked. If the channel capacity
+			// is large enough it may still receive missing messages. Otherwise
+			// trying to block above results in freezing the entire worker,
+			// which is not what we want.
+		}
 	}
 }
 

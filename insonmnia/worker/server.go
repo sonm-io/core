@@ -757,21 +757,16 @@ func (m *Worker) setupAuthorization() error {
 	inspectAuthorization.Add(m.ethAddr(), time.Duration(0))
 	inspectAuthorization.Add(m.cfg.Master, time.Duration(0))
 
-	inspectAuthOptions := []auth.Authorization{
-		inspectAuthorization,
-	}
-
 	managementAuthOptions := []auth.Authorization{
 		auth.NewTransportAuthorization(m.ethAddr()),
 		auth.NewTransportAuthorization(m.cfg.Master),
 	}
 
 	if m.cfg.Admin != nil {
-		inspectAuthOptions = append(inspectAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
+		inspectAuthorization.Add(*m.cfg.Admin, time.Duration(0))
 		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
 	}
 
-	inspectAuth := newAnyOfAuth(inspectAuthOptions...)
 	managementAuth := newAnyOfAuth(managementAuthOptions...)
 
 	// master, admin, and metrics collector service is allowed to obtain metrics
@@ -811,7 +806,7 @@ func (m *Worker) setupAuthorization() error {
 		}))),
 		auth.Allow(workerAPIPrefix+"Metrics").With(newAnyOfAuth(metricsCollectorAuth...)),
 		auth.Allow(workerAPIPrefix+"Devices").With(newAnyOfAuth(metricsCollectorAuth...)),
-		auth.Allow(inspectMethods...).With(inspectAuth),
+		auth.Allow(inspectMethods...).With(inspectAuthorization),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 

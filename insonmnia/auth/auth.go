@@ -228,9 +228,10 @@ func (m *AnyOfTransportCredentialsAuthorization) checkExpired() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, entry := range m.entries {
+	for addr, entry := range m.entries {
 		if entry.IsExpired() {
 			entry.NotifySubscribers()
+			delete(m.entries, addr)
 		}
 	}
 }
@@ -256,8 +257,13 @@ func (m *AnyOfTransportCredentialsAuthorization) Add(addr common.Address, ttl ti
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.entries[addr] = &watchedEntry{
-		expirationTime: expirationTime,
+	entry, ok := m.entries[addr]
+	if ok {
+		entry.expirationTime = expirationTime
+	} else {
+		m.entries[addr] = &watchedEntry{
+			expirationTime: expirationTime,
+		}
 	}
 }
 
@@ -272,13 +278,13 @@ func (m *AnyOfTransportCredentialsAuthorization) Remove(addr common.Address) {
 }
 
 func (m *AnyOfTransportCredentialsAuthorization) Authorize(ctx context.Context, request interface{}) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	peerInfo, err := FromContext(ctx)
 	if err != nil {
 		return err
 	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	if entry, ok := m.entries[peerInfo.Addr]; ok && !entry.IsExpired() {
 		return nil
