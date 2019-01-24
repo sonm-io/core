@@ -24,6 +24,7 @@ contract Orders is Administratable {
     struct Order {
         OrderInfo info;
         OrderParams params;
+        RatingInfo ratingInfo;
     }
 
     struct OrderInfo {
@@ -44,6 +45,13 @@ contract Orders is Administratable {
     struct OrderParams {
         OrderStatus orderStatus;
         uint dealID;
+    }
+
+    struct RatingInfo {
+        uint counterpartyRating;
+        uint supplierVolume;
+        uint workerRating;
+        uint unavialSla;
     }
 
     mapping(uint => Order) orders;
@@ -116,6 +124,22 @@ contract Orders is Administratable {
         return orders[orderID].info.blacklist;
     }
 
+    function GetOrderWorkerrating(uint orderID) public view returns (uint) {
+        return orders[orderID].ratingInfo.workerRating;
+    }
+
+    function GetOrderCounterpartyrating(uint orderID) public view returns (uint) {
+        return orders[orderID].ratingInfo.counterpartyRating;
+    }
+
+    function GetOrderSupplierVolume(uint orderID) public view returns (uint) {
+        return orders[orderID].ratingInfo.supplierVolume;
+    }
+
+    function GetOrderSla(uint orderID) public view returns (uint) {
+        return orders[orderID].ratingInfo.unavialSla;
+    }
+
     function SetOrderBlacklist(uint orderID, address newBlacklist) public onlyOwner {
         orders[orderID].info.blacklist = newBlacklist;
     }
@@ -167,6 +191,24 @@ contract Orders is Administratable {
     function SetOrderDealID(uint orderID, uint _dealID) public onlyOwner {
         orders[orderID].params.dealID = _dealID;
     }
+
+    function SetOrderWorkerrating(uint orderID, uint _workerRating) public onlyOwner {
+        orders[orderID].ratingInfo.workerRating = _workerRating;
+    }
+
+    function SetOrderCounterpartyrating(uint orderID, uint _counterpartyRating) public onlyOwner {
+        orders[orderID].ratingInfo.counterpartyRating = _counterpartyRating;
+    }
+
+    function SetOrderSupplierVolume(uint orderID, uint _supplierVolume) public onlyOwner {
+        orders[orderID].ratingInfo.supplierVolume = _supplierVolume;
+    }
+
+    function SetOrderSla(uint orderID, uint _unavialSla) public onlyOwner {
+        orders[orderID].ratingInfo.unavialSla = _unavialSla;
+    }
+
+
 
     // Cummulative Order actions. Those are in fact only helpers.
     function Write(
@@ -248,6 +290,22 @@ contract Orders is Administratable {
         return (
         params.orderStatus,
         params.dealID
+        );
+    }
+
+    function GetOrderratingInfo(uint orderID) public view
+    returns (
+        uint counterpartyRating,
+        uint supplierVolume,
+        uint workerRating,
+        uint unavialSla
+    ){
+        RatingInfo memory rInfo = orders[orderID].ratingInfo;
+        return (
+        rInfo.counterpartyRating,
+        rInfo.supplierVolume,
+        rInfo.workerRating,
+        rInfo.unavialSla
         );
     }
 
