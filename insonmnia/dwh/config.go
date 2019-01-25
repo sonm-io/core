@@ -7,6 +7,7 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util/debug"
 )
 
 type DWHConfig struct {
@@ -19,6 +20,7 @@ type DWHConfig struct {
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14004"`
 	ColdStart         bool               `yaml:"cold_start"`
 	NumWorkers        int                `yaml:"num_workers" default:"64"`
+	Debug             *debug.Config      `yaml:"debug"`
 }
 
 type storageConfig struct {
