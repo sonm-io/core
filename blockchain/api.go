@@ -391,7 +391,7 @@ func (api *BasicAPI) ContractRegistry() ContractRegistry {
 	return api.contractRegistry
 }
 
-func NewRegistry(ctx context.Context, address common.Address, opts *chainOpts) (*BasicContractRegistry, error) {
+func NewRegistry(ctx context.Context, version uint, address common.Address, opts *chainOpts) (*BasicContractRegistry, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
