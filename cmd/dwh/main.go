@@ -62,9 +62,11 @@ func run(app cmd.AppContext) error {
 	wg.Go(func() error {
 		return metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)
 	})
-	wg.Go(func() error {
-		return debug.ServePProf(ctx, debug.Config{Port: 6060}, logger)
-	})
+	if cfg.Debug != nil {
+		wg.Go(func() error {
+			return debug.ServePProf(ctx, *cfg.Debug, logger)
+		})
+	}
 	wg.Go(func() error {
 		logger.Info("starting L1 events processor")
 		defer logger.Info("stopping L1 events processor")
