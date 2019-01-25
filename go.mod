@@ -146,7 +146,8 @@ require (
 	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc
 	github.com/yandex/pandora v0.1.3
 	go.uber.org/atomic v0.0.0-20170719224650-70bd1261d36b
-	go.uber.org/zap v1.4.0
+	go.uber.org/multierr v1.1.0 // indirect
+	go.uber.org/zap v1.9.1
 	golang.org/x/crypto v0.0.0-20180927165925-5295e8364332
 	golang.org/x/net v0.0.0-20180926154720-4dfa2610cdf3
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f

@@ -24,6 +24,7 @@ type interceptedAPI struct {
 	sonm.WorkerServer
 	sonm.WorkerManagementServer
 	sonm.DWHServer
+	sonm.InspectServer
 	remotes *remoteOptions
 	log     *zap.SugaredLogger
 }
@@ -87,6 +88,9 @@ func (m *interceptedAPI) intercept(ctx context.Context, req interface{}, info *g
 		cli, closer, err = m.getWorkerManagementClient(ctx)
 	case "sonm.DWH":
 		cli = m.remotes.dwh
+	case "sonm.Inspect":
+		ctx = util.ForwardMetadata(ctx)
+		cli, closer, err = m.getWorkerManagementClient(ctx)
 	default:
 		return handler(ctx, req)
 	}
@@ -173,6 +177,9 @@ func (m *interceptedAPI) streamIntercept(srv interface{}, ss grpc.ServerStream, 
 	case "sonm.WorkerManagement":
 		ctx = util.ForwardMetadata(ss.Context())
 		cli, closer, err = m.getWorkerClient(ctx)
+	case "sonm.Inspect":
+		ctx = util.ForwardMetadata(ss.Context())
+		cli, closer, err = m.getWorkerManagementClient(ctx)
 	default:
 		return handler(srv, ss)
 	}

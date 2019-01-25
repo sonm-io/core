@@ -46,6 +46,7 @@ func (m *services) RegisterGRPC(server *grpc.Server) error {
 	sonm.RegisterWorkerManagementServer(server, m.intercepted)
 	sonm.RegisterWorkerServer(server, m.intercepted)
 	sonm.RegisterDWHServer(server, m.intercepted)
+	sonm.RegisterInspectServer(server, m.intercepted)
 	sonm.RegisterMarketServer(server, m.market)
 	sonm.RegisterDealManagementServer(server, m.deals)
 	sonm.RegisterTaskManagementServer(server, m.tasks)

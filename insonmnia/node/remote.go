@@ -23,6 +23,7 @@ type workerClientCreator func(ctx context.Context, addr *auth.Addr) (*workerClie
 type workerClient struct {
 	sonm.WorkerClient
 	sonm.WorkerManagementClient
+	sonm.InspectClient
 }
 
 // remoteOptions describe options related to remove gRPC services
@@ -112,6 +113,7 @@ func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, c
 		m := &workerClient{
 			sonm.NewWorkerClient(cc),
 			sonm.NewWorkerManagementClient(cc),
+			sonm.NewInspectClient(cc),
 		}
 
 		return m, cc, nil

@@ -51,6 +51,10 @@ service WorkerManagement {
     rpc PurgeBenchmarks(Empty) returns (Empty) {}
     // Metrics returns hardware metrics for this worker.
     rpc Metrics(WorkerMetricsRequest) returns (WorkerMetricsResponse) {}
+    // AddCapability allows to temporary provide admin capabilities to another subject.
+    rpc AddCapability(WorkerAddCapabilityRequest) returns (WorkerAddCapabilityResponse) {}
+    // RemoveCapability allows to revoke provided admin capabilities from another subject.
+    rpc RemoveCapability(WorkerRemoveCapabilityRequest) returns (WorkerRemoveCapabilityResponse) {}
 }
 
 service Worker {
@@ -207,6 +211,32 @@ message PurgeTasksRequest {
 
 message WorkerMetricsRequest {}
 
-message WorkerMetricsResponse{
+message WorkerMetricsResponse {
     map<string, double> metrics = 1;
 }
+
+enum CapabilityScope {
+    CAPABILITY_NONE = 0x0;
+    CAPABILITY_SSH = 0x01;
+    CAPABILITY_INSPECTION = 0x02;
+}
+
+message WorkerAddCapabilityRequest {
+    // Subject is the ETH address of a subject whose capabilities are extended.
+    EthAddress subject = 1;
+    // Scope shows the capability scope.
+    CapabilityScope scope = 2;
+    // TTL represents the capability TTL in seconds.
+    uint32 ttl = 3;
+}
+
+message WorkerAddCapabilityResponse {}
+
+message WorkerRemoveCapabilityRequest {
+    // Subject is the ETH address of a subject whose capabilities are removed.
+    EthAddress subject = 1;
+    // Scope shows the capability scope.
+    CapabilityScope scope = 2;
+}
+
+message WorkerRemoveCapabilityResponse {}
