@@ -10,7 +10,9 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/sonm-io/core/insonmnia/worker/network/tc"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 )
 
@@ -118,43 +120,97 @@ type PruneReply struct {
 }
 
 type NetworkManagerConfig struct {
-	DockerClient *client.Client
-	Log          *zap.SugaredLogger
+	RemoteManagerAddr string
+	DockerClient      *client.Client
+	Log               *zap.SugaredLogger
+}
+
+type networkManager interface {
+	Init() error
+	Close() error
+	NewActions(network *Network) []Action
 }
 
 type NetworkManager struct {
-	dockerClient *client.Client
-	tc           tc.TC
-	log          *zap.SugaredLogger
+	networkManager networkManager
+	dockerClient   *client.Client
+	log            *zap.SugaredLogger
+}
+
+type options struct {
+	NetworkManager networkManager
+	DockerClient   *client.Client
+	Log            *zap.SugaredLogger
+}
+
+func newOptions() (*options, error) {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+
+	m := &options{
+		NetworkManager: &localNetworkManager{
+			dockerClient: dockerClient,
+		},
+		DockerClient: dockerClient,
+		Log:          zap.NewNop().Sugar(),
+	}
+
+	return m, nil
+}
+
+type Option func(o *options) error
+
+func WithRemote(addr string) Option {
+	return func(o *options) error {
+		if len(addr) > 0 {
+			conn, err := xgrpc.NewClient(context.Background(), addr, nil)
+			if err != nil {
+				return err
+			}
+
+			o.NetworkManager = &remoteNetworkManager{
+				client:       sonm.NewQOSClient(conn),
+				dockerClient: o.DockerClient,
+			}
+		}
+
+		return nil
+	}
+}
+
+func WithLog(log *zap.SugaredLogger) Option {
+	return func(o *options) error {
+		o.Log = log
+		return nil
+	}
 }
 
 // NewNetworkManager constructs a new network manager.
 //
 // Some basic checks are performed during execution of this function, like
 // checking whether the host OS is capable to limit network bandwidth etc.
-func NewNetworkManager() (*NetworkManager, error) {
-	return NewNetworkManagerWithConfig(NetworkManagerConfig{})
-}
+func NewNetworkManager(options ...Option) (*NetworkManager, error) {
+	opts, err := newOptions()
+	if err != nil {
+		return nil, err
+	}
 
-func NewNetworkManagerWithConfig(cfg NetworkManagerConfig) (*NetworkManager, error) {
-	var err error
-	if cfg.DockerClient == nil {
-		cfg.DockerClient, err = client.NewEnvClient()
-		if err != nil {
+	for _, o := range options {
+		if err := o(opts); err != nil {
 			return nil, err
 		}
 	}
-	if cfg.Log == nil {
-		cfg.Log = zap.NewNop().Sugar()
+
+	if err := opts.NetworkManager.Init(); err != nil {
+		return nil, err
 	}
 
 	m := &NetworkManager{
-		dockerClient: cfg.DockerClient,
-		log:          cfg.Log,
-	}
-
-	if err := m.init(); err != nil {
-		return nil, err
+		networkManager: opts.NetworkManager,
+		dockerClient:   opts.DockerClient,
+		log:            opts.Log,
 	}
 
 	return m, nil
@@ -176,7 +232,7 @@ func (m *NetworkManager) CreateNetwork(ctx context.Context, request *CreateNetwo
 
 	actionQueue := NewActionQueue()
 
-	for _, action := range m.newActions(network) {
+	for _, action := range m.networkManager.NewActions(network) {
 		err, errs := actionQueue.Execute(ctx, action)
 		if err != nil {
 			m.log.Errorw("failed to setup network", zap.Error(err))
@@ -192,7 +248,7 @@ func (m *NetworkManager) CreateNetwork(ctx context.Context, request *CreateNetwo
 }
 
 func (m *NetworkManager) RemoveNetwork(network *Network) error {
-	return NewActionQueue(m.newActions(network)...).Rollback()
+	return NewActionQueue(m.networkManager.NewActions(network)...).Rollback()
 }
 
 // Prune tries to remove all unused networks that look like a SONM networks.
@@ -232,7 +288,7 @@ func (m *NetworkManager) Prune(ctx context.Context, request *PruneRequest) (*Pru
 }
 
 func (m *NetworkManager) Close() error {
-	return m.tc.Close()
+	return m.networkManager.Close()
 }
 
 type DockerNetworkCreateAction struct {
@@ -289,4 +345,13 @@ func truncLinkName(v string) (string, bool) {
 		return v[:maxLinkNameLen], true
 	}
 	return v, false
+}
+
+type localNetworkManager struct {
+	tc           tc.TC
+	dockerClient *client.Client
+}
+
+func (m *localNetworkManager) Close() error {
+	return m.tc.Close()
 }

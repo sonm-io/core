@@ -1491,6 +1491,7 @@ func (m *Worker) setupSalesman() error {
 		salesman.WithMatcher(m.matcher),
 		salesman.WithEthkey(m.key),
 		salesman.WithConfig(&m.cfg.Salesman),
+		salesman.WithNetworkConfig(m.cfg.Network),
 		salesman.WithDealDestroyer(m),
 	)
 	if err != nil {

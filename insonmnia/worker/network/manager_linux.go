@@ -6,9 +6,12 @@ import (
 	"syscall"
 
 	"github.com/sonm-io/core/insonmnia/worker/network/tc"
+	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/vishvananda/netlink"
 )
+
+var _ sonm.QOSServer = &RemoteQOS{}
 
 // NetworkAliasAction represents an action that is capable of creating an alias
 // to the created bridge network.
@@ -292,15 +295,19 @@ func (m *HTBShapingAction) Rollback() error {
 }
 
 func (m *HTBShapingAction) newIFBLink() *netlink.Ifb {
+	return NewIFBLink(m.Network.Name)
+}
+
+func NewIFBLink(name string) *netlink.Ifb {
 	return &netlink.Ifb{
 		LinkAttrs: netlink.LinkAttrs{
-			Name:   fmt.Sprintf("%s%s", networkIfbPrefix, m.Network.Name[len(networkPrefix):]),
+			Name:   fmt.Sprintf("%s%s", networkIfbPrefix, name[len(networkPrefix):]),
 			TxQLen: 32,
 		},
 	}
 }
 
-func (m *NetworkManager) init() error {
+func (m *localNetworkManager) Init() error {
 	if err := tc.IFBFlush(); err != nil {
 		return err
 	}
@@ -315,7 +322,7 @@ func (m *NetworkManager) init() error {
 	return nil
 }
 
-func (m *NetworkManager) newActions(network *Network) []Action {
+func (m *localNetworkManager) NewActions(network *Network) []Action {
 	return []Action{
 		&DockerNetworkCreateAction{
 			DockerClient: m.dockerClient,
@@ -329,4 +336,85 @@ func (m *NetworkManager) newActions(network *Network) []Action {
 			tc:      m.tc,
 		},
 	}
+}
+
+type RemoteQOS struct {
+	tc tc.TC
+}
+
+func NewRemoteQOS() (*RemoteQOS, error) {
+	tcDefault, err := tc.NewDefaultTC()
+	if err != nil {
+		return nil, err
+	}
+
+	return &RemoteQOS{
+		tc: tcDefault,
+	}, nil
+}
+
+func (m *RemoteQOS) SetAlias(ctx context.Context, request *sonm.QOSSetAliasRequest) (*sonm.QOSSetAliasResponse, error) {
+	action := NetworkAliasAction{
+		Network: &Network{
+			Name:  request.GetLinkName(),
+			Alias: request.GetLinkAlias(),
+		},
+	}
+
+	if err := action.Execute(ctx); err != nil {
+		return nil, err
+	}
+
+	return &sonm.QOSSetAliasResponse{}, nil
+}
+
+func (m *RemoteQOS) AddHTBShaping(ctx context.Context, request *sonm.QOSAddHTBShapingRequest) (*sonm.QOSAddHTBShapingResponse, error) {
+	action := HTBShapingAction{
+		Network: &Network{
+			Name:             request.GetLinkName(),
+			Alias:            request.GetLinkAlias(),
+			RateLimitEgress:  request.GetRateLimitEgress(),
+			RateLimitIngress: request.GetRateLimitIngress(),
+		},
+		tc: m.tc,
+	}
+
+	if err := action.Execute(ctx); err != nil {
+		return nil, err
+	}
+
+	return &sonm.QOSAddHTBShapingResponse{}, nil
+}
+
+func (m *RemoteQOS) RemoveHTBShaping(ctx context.Context, request *sonm.QOSRemoveHTBShapingRequest) (*sonm.QOSRemoveHTBShapingResponse, error) {
+	linkName := request.GetLinkName()
+
+	link, err := netlink.LinkByName(linkName)
+	if err != nil {
+		return nil, err
+	}
+
+	rootQDisc := &tc.HTBQDisc{
+		QDiscAttrs: tc.QDiscAttrs{
+			Link:   link,
+			Handle: tc.NewHandle(0x8001, 0),
+			Parent: tc.HandleRoot,
+		},
+	}
+
+	action := HTBShapingAction{
+		Network: &Network{
+			Name: linkName,
+		},
+		tc:              m.tc,
+		rootQDiscHandle: rootQDisc,
+		ifbLink:         NewIFBLink(linkName),
+	}
+	action.ifbLink = action.newIFBLink()
+
+	if err := action.Rollback(); err != nil {
+		return nil, err
+	}
+
+	return &sonm.QOSRemoveHTBShapingResponse{}, nil
 }

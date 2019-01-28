@@ -23,7 +23,7 @@ type Volume struct {
 func (m *Volume) Reset()                    { *m = Volume{} }
 func (m *Volume) String() string            { return proto.CompactTextString(m) }
 func (*Volume) ProtoMessage()               {}
-func (*Volume) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{0} }
+func (*Volume) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{0} }
 
 func (m *Volume) GetType() string {
 	if m != nil {
@@ -43,9 +43,9 @@ func init() {
 	proto.RegisterType((*Volume)(nil), "sonm.Volume")
 }
 
-func init() { proto.RegisterFile("volume.proto", fileDescriptor16) }
+func init() { proto.RegisterFile("volume.proto", fileDescriptor17) }
 
-var fileDescriptor16 = []byte{
+var fileDescriptor17 = []byte{
 	// 146 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x29, 0xcb, 0xcf, 0x29,
 	0xcd, 0x4d, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x55, 0xea,
