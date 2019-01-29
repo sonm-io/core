@@ -1,6 +1,7 @@
 package salesman
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 
@@ -17,7 +18,7 @@ import (
 )
 
 type DealDestroyer interface {
-	CancelDealTasks(dealID *sonm.BigInt) error
+	CancelDealTasks(ctx context.Context, dealID *sonm.BigInt) error
 }
 
 type options struct {

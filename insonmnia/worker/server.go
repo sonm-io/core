@@ -60,6 +60,7 @@ import (
 	"github.com/sonm-io/core/util/defergroup"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
+	"github.com/sonm-io/core/util/xconcurrency"
 	"github.com/sonm-io/core/util/xdocker"
 	"github.com/sonm-io/core/util/xgrpc"
 	"github.com/sonm-io/core/util/xnet"
@@ -855,8 +856,8 @@ func (m *Worker) setupHardware() error {
 	return nil
 }
 
-func (m *Worker) CancelDealTasks(dealID *sonm.BigInt) error {
-	log.S(m.ctx).Debugf("canceling deal's %s tasks", dealID)
+func (m *Worker) CancelDealTasks(ctx context.Context, dealID *sonm.BigInt) error {
+	log.S(ctx).Debugf("canceling deal's %s tasks", dealID)
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
@@ -868,18 +869,19 @@ func (m *Worker) CancelDealTasks(dealID *sonm.BigInt) error {
 	}
 	m.mu.Unlock()
 
-	result := multierror.NewMultiError()
-	for _, container := range toDelete {
-		if err := m.ovs.OnDealFinish(m.ctx, container.ID); err != nil {
-			result = multierror.Append(result, err)
+	result := multierror.NewTSMultiError()
+	xconcurrency.Run(32, toDelete, func(elem interface{}) {
+		container := elem.(*ContainerInfo)
+		if err := m.ovs.OnDealFinish(ctx, container.ID); err != nil {
+			result.Append(err)
 		}
 		if err := m.resources.OnDealFinish(container.TaskId); err != nil {
-			result = multierror.Append(result, err)
+			result.Append(err)
 		}
 		if _, err := m.storage.Remove(container.ID); err != nil {
-			result = multierror.Append(result, err)
+			result.Append(err)
 		}
-	}
+	})
 	return result.ErrorOrNil()
 }
 
@@ -1278,7 +1280,7 @@ func (m *Worker) StartTask(ctx context.Context, request *sonm.StartTaskRequest) 
 	deal, err := m.salesman.Deal(dealID)
 	if err != nil || deal.Status != sonm.DealStatus_DEAL_ACCEPTED {
 		log.G(m.ctx).Warn("deal was closed before task was spawned")
-		if err := m.CancelDealTasks(dealID); err != nil {
+		if err := m.CancelDealTasks(ctx, dealID); err != nil {
 			log.S(m.ctx).Errorf("failed to drop tasks of closed deals: %s", err)
 		}
 		return nil, status.Errorf(codes.Internal, "failed to start task: corresponding deal was closed")
@@ -1585,7 +1587,7 @@ func (m *Worker) setupRunningContainers() error {
 	}
 
 	for _, deal := range closedDeals {
-		if err := m.CancelDealTasks(deal.GetId()); err != nil {
+		if err := m.CancelDealTasks(m.ctx, deal.GetId()); err != nil {
 			return fmt.Errorf("failed to cancel tasks for deal %s: %v", deal.Id.Unwrap().String(), err)
 		}
 	}

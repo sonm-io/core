@@ -44,11 +44,12 @@ type Config struct {
 }
 
 type YAMLConfig struct {
-	RegularBillPeriod    time.Duration `yaml:"regular_deal_bill_period" default:"24h"`
-	SpotBillPeriod       time.Duration `yaml:"spot_deal_bill_period" default:"1h"`
-	SyncStepTimeout      time.Duration `yaml:"sync_step_timeout" default:"2m"`
-	SyncInterval         time.Duration `yaml:"sync_interval" default:"10s"`
-	MatcherRetryInterval time.Duration `yaml:"matcher_retry_interval" default:"10s"`
+	RegularBillPeriod       time.Duration `yaml:"regular_deal_bill_period" default:"24h"`
+	SpotBillPeriod          time.Duration `yaml:"spot_deal_bill_period" default:"1h"`
+	SyncStepTimeout         time.Duration `yaml:"sync_step_timeout" default:"5m"`
+	SyncInterval            time.Duration `yaml:"sync_interval" default:"10s"`
+	MatcherRetryInterval    time.Duration `yaml:"matcher_retry_interval" default:"10s"`
+	DealCancellationTimeout time.Duration `yaml:"deal_cancellation_timeout" default:"3m"`
 }
 
 type Salesman struct {
@@ -216,11 +217,25 @@ func (m *Salesman) PurgeAskPlans(ctx context.Context) (*sonm.ErrorByStringID, er
 	return status.Unwrap(), nil
 }
 
+func (m *Salesman) markAskPlanForDeletion(planID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	ask, ok := m.askPlans[planID]
+	if !ok {
+		return
+	}
+	ask.Status = sonm.AskPlan_PENDING_DELETION
+	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+		m.log.Errorf("failed to mark ask plan %s for deletion: failed to save ask plans state in storage: %s", planID, err)
+	}
+}
+
 func (m *Salesman) RemoveAskPlan(ctx context.Context, planID string) error {
 	ask, err := m.AskPlan(planID)
 	if err != nil {
 		return err
 	}
+	m.markAskPlanForDeletion(planID)
 
 	wasEmpty := false
 	if !ask.DealID.IsZero() {
@@ -328,7 +343,11 @@ func (m *Salesman) syncPlanWithBlockchain(ctx context.Context, plan *sonm.AskPla
 	dealId := plan.GetDealID()
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, m.config.SyncStepTimeout)
 	defer cancel()
-	if !dealId.IsZero() {
+	if plan.Status == sonm.AskPlan_PENDING_DELETION {
+		if err := m.RemoveAskPlan(ctx, plan.GetID()); err != nil {
+			m.log.Warnf("could not remove ask plan %s which was pending deletion: %s", plan.ID, err)
+		}
+	} else if !dealId.IsZero() {
 		if err := m.checkDeal(ctxWithTimeout, plan); err != nil {
 			m.log.Warnf("could not check deal %s for plan %s: %s", dealId.Unwrap().String(), plan.ID, err)
 		}
@@ -468,7 +487,9 @@ func (m *Salesman) closeDeal(ctx context.Context, dealID *sonm.BigInt) error {
 		}
 	}
 
-	if err := m.dealDestroyer.CancelDealTasks(dealID); err != nil {
+	cancellationCtx, cancel := context.WithTimeout(ctx, m.config.DealCancellationTimeout)
+	defer cancel()
+	if err := m.dealDestroyer.CancelDealTasks(cancellationCtx, dealID); err != nil {
 		return fmt.Errorf("failed to cancel deal's %s tasks: %s", dealID, err)
 	}
 	m.mu.Lock()
@@ -612,18 +633,8 @@ func (m *Salesman) onDealOpened(ctx context.Context, planID string, deal *sonm.D
 func (m *Salesman) ejectAskPlans(ctx context.Context, ejectedPlans []string) error {
 	// Anyway check if any plans were ejected
 	for _, planID := range ejectedPlans {
-		m.RemoveAskPlan(ctx, planID)
-		plan, ok := m.askPlans[planID]
-		if !ok {
-			m.log.Errorf("ejected ask plan with ID %s is not found", planID)
-			continue
-		}
-		if !plan.GetDealID().IsZero() {
-			m.RemoveAskPlan(ctx, planID)
-			plan.Status = sonm.AskPlan_PENDING_DELETION
-			m.closeDeal(ctx, plan.DealID)
-		} else {
-			m.log.Errorf("ejected ask plan with ID %s has no deal", planID)
+		if err := m.RemoveAskPlan(ctx, planID); err != nil {
+			m.log.Errorf("failed to eject ask-plan %s: %s", planID, err)
 		}
 	}
 
