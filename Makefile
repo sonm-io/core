@@ -53,7 +53,7 @@ PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
 ORACLE     := ${TARGETDIR}/sonmoracle_$(OS_ARCH)
 CONNOR     := ${TARGETDIR}/sonmconnor_$(OS_ARCH)
 SONMMON    := ${TARGETDIR}/sonmmon_$(OS_ARCH)
-RHQOS      := ${TARGETDIR}/sonmqos_$(OS_ARCH)
+QOS        := ${TARGETDIR}/sonmqos_$(OS_ARCH)
 
 TAGS = nocgo
 
@@ -148,9 +148,7 @@ endif
 
 build/qos:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS) nl" -ldflags "$(LDFLAGS)" -o ${RHQOS} ${GOCMD}/qos
-
-build/rhqos: build/qos
+	${GO} build -tags "$(TAGS) nl" -ldflags "$(LDFLAGS)" -o ${QOS} ${GOCMD}/qos
 
 build/insomnia: build/worker build/cli build/node
 
