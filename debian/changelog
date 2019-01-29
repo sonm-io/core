@@ -40,7 +40,6 @@ sonm-core (0.4.21) unstable; urgency=low
   * Fixed: create directory with version file if not exists (#1828).
   * Fixed: do not forget about an error (#1825).
   * Fixed: default blocks batch size in blockchain config (#1822).
-  * Fixed: proper gas limit for device storage (#1820).
   * Fixed: proper processing for collected DRI devices (#1818).
     Now I know how to make a slice of pointers from the slice of values.
     More on this https://github.com/golang/go/issues/22791#issuecomment-345391395.
