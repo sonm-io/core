@@ -27,10 +27,15 @@ import { Bid } from './helpers/bid';
 import { checkBenchmarks, checkOrderStatus, getDealIdFromOrder, getDealInfoFromOrder } from './helpers/common';
 
 const SNM = artifacts.require('./SNM.sol');
-const Market = artifacts.require('./Market.sol');
+const Market = artifacts.require('./MarketV2.sol');
 const OracleUSD = artifacts.require('./OracleUSD.sol');
 const Blacklist = artifacts.require('./Blacklist.sol');
 const ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
+const Orders = artifacts.require('./Orders.sol');
+const Deals = artifacts.require('./Deals.sol');
+const ChangeRequests = artifacts.require('./ChangeRequests.sol');
+const AdministratumCrud = artifacts.require('./AdministratumCrud.sol');
+const Administratum = artifacts.require('./Administratum.sol');
 
 const ONE_MILLION_TOKEN = 1e6 * 1e18;
 
@@ -40,6 +45,11 @@ contract('Market', async (accounts) => {
     let oracle;
     let blacklist;
     let profileRegistry;
+    let administratumCrud;
+    let administratum;
+    let orders;
+    let deals;
+    let changeRequests;
     let supplier = accounts[1];
     let consumer = accounts[2];
     let master = accounts[3];
@@ -57,14 +67,30 @@ contract('Market', async (accounts) => {
         await oracle.setCurrentPrice(oraclePrice);
         blacklist = await Blacklist.new();
         profileRegistry = await ProfileRegistry.new();
+        administratumCrud = await AdministratumCrud.new();
+        administratum = await Administratum.new(administratumCrud.address);
+        orders = await Orders.new();
+        deals = await Deals.new();
+        changeRequests = await ChangeRequests.new();
         market = await Market.new(
             token.address,
             blacklist.address,
             oracle.address,
             profileRegistry.address,
+            administratum.address,
+            orders.address,
+            deals.address,
+            changeRequests.address,
             benchmarkQuantity,
             netflagsQuantity,
         );
+
+        await administratumCrud.transferOwnership(administratum.address);
+        await administratum.SetMarketAddress(market.address);
+        await orders.transferOwnership(market.address);
+        await deals.transferOwnership(market.address);
+        await changeRequests.transferOwnership(market.address);
+
         await blacklist.SetMarketAddress(market.address);
 
         await token.transfer(consumer, oraclePrice / 1e7, { from: accounts[0] });
@@ -88,7 +114,7 @@ contract('Market', async (accounts) => {
             // TODO: test above normal deal
             let oid = await Ask({ market, supplier });
 
-            let info = await market.GetOrderInfo(oid, { from: supplier });
+            let info = await orders.GetOrderInfo(oid, { from: supplier });
             assert.equal(OrderType.ASK, info[orderInfo.type]);
             assert.equal(supplier, info[orderInfo.author]);
             assert.equal('0x0000000000000000000000000000000000000000', info[orderInfo.counterparty]);
@@ -110,7 +136,7 @@ contract('Market', async (accounts) => {
         it('CreateOrder forward bid', async () => {
             let balanceBefore = await token.balanceOf(consumer);
             let oid = await Bid({ market, consumer });
-            let info = await market.GetOrderInfo(oid, { from: consumer });
+            let info = await orders.GetOrderInfo(oid, { from: consumer });
             assert.equal(OrderType.BID, info[orderInfo.type]);
             assert.equal(consumer, info[orderInfo.author]);
             assert.equal('0x0000000000000000000000000000000000000000', info[orderInfo.counterparty]);
@@ -146,7 +172,7 @@ contract('Market', async (accounts) => {
             let marketBalanceAfter = await token.balanceOf(market.address);
             let marketDifference = marketBalanceAfter.toNumber() - marketBalanceBefore.toNumber();
 
-            let info = await market.GetOrderInfo(oid, { from: consumer });
+            let info = await orders.GetOrderInfo(oid, { from: consumer });
             let frozenSum = info[orderInfo.frozenSum];
 
             assert.equal(balanceBefore.toNumber() - frozenSum, balanceAfter.toNumber());
@@ -155,7 +181,7 @@ contract('Market', async (accounts) => {
 
         it('CreateOrder spot ask', async () => {
             let oid = await Ask({ market, supplier, duration: 0 });
-            let info = await market.GetOrderInfo(oid, { from: supplier });
+            let info = await orders.GetOrderInfo(oid, { from: supplier });
             assert.equal(0, info[orderInfo.duration]);
         });
 
@@ -177,7 +203,7 @@ contract('Market', async (accounts) => {
             let balanceAfter = await token.balanceOf(supplier);
             assert.equal(balanceBefore.toNumber(), balanceAfter.toNumber());
 
-            let res = await market.GetOrderParams(oid, { from: supplier });
+            let res = await orders.GetOrderParams(oid, { from: supplier });
             assert.equal(OrderStatus.INACTIVE, res[OrderParams.status]);
             assert.equal(0, res[OrderParams.dealId]);
         });
@@ -191,7 +217,7 @@ contract('Market', async (accounts) => {
             let balanceAfter = await token.balanceOf(consumer);
             assert.equal(balanceBefore.toNumber(), balanceAfter.toNumber());
 
-            let res = await market.GetOrderParams(oid, { from: consumer });
+            let res = await orders.GetOrderParams(oid, { from: consumer });
             assert.equal(OrderStatus.INACTIVE, res[OrderParams.status]);
             assert.equal(0, res[OrderParams.dealId]);
         });
@@ -212,17 +238,18 @@ contract('Market', async (accounts) => {
         it('OpenDeal forward', async () => {
             let askId = await Ask({ market, supplier });
             let bidId = await Bid({ market, consumer });
-            let dealsAmountBefore = await market.GetDealsAmount({ from: consumer });
+            let dealsAmountBefore = await deals.GetDealsAmount({ from: consumer });
             await market.OpenDeal(askId, bidId, { from: consumer });
 
-            let askParams = await market.GetOrderParams(askId, { from: supplier });
-            let bidParams = await market.GetOrderParams(bidId, { from: consumer });
+            let askParams = await orders.GetOrderParams(askId, { from: supplier });
+            let bidParams = await orders.GetOrderParams(bidId, { from: consumer });
             assert.equal(OrderStatus.INACTIVE, askParams[OrderParams.status]);
             assert.equal(OrderStatus.INACTIVE, bidParams[OrderParams.status]);
             let dealId = bidParams[1];
-            let dealsAmountAfter = await market.GetDealsAmount({ from: consumer });
-            let dealInfo = await market.GetDealInfo(dealId, { from: consumer });
-            let dealParams = await market.GetDealParams(dealId, { from: consumer });
+            let dealsAmountAfter = await deals.GetDealsAmount({ from: consumer });
+            let dealInfo = await deals.GetDealInfo(dealId, { from: consumer });
+            let dealParams = await deals.GetDealParams(dealId, { from: consumer });
+
             assert.equal(dealsAmountBefore.toNumber() + 1, dealsAmountAfter.toNumber());
             assert.equal(DealStatus.ACCEPTED, dealParams[DealParams.status]);
             assert.ok(dealInfo[DealInfo.startTime].toNumber() === dealParams[DealParams.lastBillTs].toNumber(),
@@ -247,14 +274,14 @@ contract('Market', async (accounts) => {
             let bidId = await Bid({ market, consumer, duration: 0 });
             await market.OpenDeal(askId, bidId, { from: consumer });
 
-            let askParams = await market.GetOrderParams(askId, { from: supplier });
-            let bidParams = await market.GetOrderParams(bidId, { from: consumer });
+            let askParams = await orders.GetOrderParams(askId, { from: supplier });
+            let bidParams = await orders.GetOrderParams(bidId, { from: consumer });
             assert.equal(OrderStatus.INACTIVE, askParams[OrderParams.status]);
             assert.equal(OrderStatus.INACTIVE, bidParams[OrderParams.status]);
 
             let dealId = bidParams[OrderParams.dealId];
-            let dealInfo = await market.GetDealInfo(dealId, { from: consumer });
-            let dealParams = await market.GetDealParams(dealId, { from: consumer });
+            let dealInfo = await deals.GetDealInfo(dealId, { from: consumer });
+            let dealParams = await deals.GetDealParams(dealId, { from: consumer });
             assert.equal(DealStatus.ACCEPTED, dealParams[DealParams.status]);
             assert.ok(dealInfo[DealInfo.startTime].toNumber() === dealParams[DealParams.lastBillTs].toNumber(),
                 'lastBillTs not equal to startTime');
@@ -278,43 +305,43 @@ contract('Market', async (accounts) => {
             await market.OpenDeal(askId, bidId, { from: consumer });
             await increaseTime(duration + 1);
 
-            let bidParams = await market.GetOrderParams(bidId, { from: consumer });
+            let bidParams = await orders.GetOrderParams(bidId, { from: consumer });
             let dealId = bidParams[OrderParams.dealId];
 
             await market.CloseDeal(dealId, BlackListPerson.NOBODY, { from: consumer });
-            let dealParams = await market.GetDealParams(dealId, { from: consumer });
+            let dealParams = await deals.GetDealParams(dealId, { from: consumer });
             assert.equal(DealStatus.CLOSED, dealParams[DealParams.status]);
         });
     });
 
     describe('Workers:', () => {
         it('Register worker', async () => {
-            let tx = await market.RegisterWorker(master, { from: supplier });
+            let tx = await administratum.RegisterWorker(master, { from: supplier });
             await eventInTransaction(tx, 'WorkerAnnounced');
         });
 
         it('Confirm worker', async () => {
-            let masterBefore = await market.GetMaster(supplier);
-            let tx = await market.ConfirmWorker(supplier, { from: master });
-            let masterAfter = await market.GetMaster(supplier);
+            let masterBefore = await administratum.GetMaster(supplier);
+            let tx = await administratum.ConfirmWorker(supplier, { from: master });
+            let masterAfter = await administratum.GetMaster(supplier);
             assert.ok(masterBefore !== masterAfter && masterAfter === master);
             await eventInTransaction(tx, 'WorkerConfirmed');
         });
 
         it('Remove worker from master', async () => {
-            let tx = await market.RemoveWorker(supplier, master, { from: master });
-            let masterAfter = await market.GetMaster(supplier);
+            let tx = await administratum.RemoveWorker(supplier, master, { from: master });
+            let masterAfter = await administratum.GetMaster(supplier);
             assert.equal(masterAfter, supplier);
             await eventInTransaction(tx, 'WorkerRemoved');
         });
 
         it('Register/confirm worker, remove master from worker', async () => {
-            await market.RegisterWorker(master, { from: supplier });
-            await market.ConfirmWorker(supplier, { from: master });
+            await administratum.RegisterWorker(master, { from: supplier });
+            await administratum.ConfirmWorker(supplier, { from: master });
 
-            let txRemove = await market.RemoveWorker(supplier, master, { from: supplier });
+            let txRemove = await administratum.RemoveWorker(supplier, master, { from: supplier });
             await eventInTransaction(txRemove, 'WorkerRemoved');
-            let masterAfter = await market.GetMaster(supplier);
+            let masterAfter = await administratum.GetMaster(supplier);
             assert.equal(masterAfter, supplier);
         });
     });
@@ -332,24 +359,24 @@ contract('Market', async (accounts) => {
             let askId = await Ask({ market, supplier });
             let bidId = await Bid({ market, consumer });
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let bidParams = await market.GetOrderParams(bidId, { from: consumer });
+            let bidParams = await orders.GetOrderParams(bidId, { from: consumer });
             presetFwdDealId = bidParams[OrderParams.dealId];
-            presetFwdDealParams = await market.GetDealParams(presetFwdDealId, { from: consumer });
+            presetFwdDealParams = await deals.GetDealParams(presetFwdDealId, { from: consumer });
 
-            await market.RegisterWorker(master, { from: supplierWithMaster });
-            await market.ConfirmWorker(supplierWithMaster, { from: master });
+            await administratum.RegisterWorker(master, { from: supplierWithMaster });
+            await administratum.ConfirmWorker(supplierWithMaster, { from: master });
             let maskId = await Ask({ market, supplier: supplierWithMaster });
             let mbidId = await Bid({ market, consumer });
             await market.OpenDeal(maskId, mbidId, { from: consumer });
-            let mbidParams = await market.GetOrderParams(mbidId, { from: consumer });
+            let mbidParams = await orders.GetOrderParams(mbidId, { from: consumer });
             presetMasterFwdDealId = mbidParams[OrderParams.dealId];
 
             let saskId = await Ask({ market, supplier, duration: 0 });
             let sbidId = await Bid({ market, consumer, duration: 0 });
             await market.OpenDeal(saskId, sbidId, { from: consumer });
-            let sbidParams = await market.GetOrderParams(sbidId, { from: consumer });
+            let sbidParams = await orders.GetOrderParams(sbidId, { from: consumer });
             presetSpotDealId = sbidParams[OrderParams.dealId];
-            presetSpotDealParams = await market.GetDealParams(presetSpotDealId, { from: consumer });
+            presetSpotDealParams = await deals.GetDealParams(presetSpotDealId, { from: consumer });
 
             await increaseTime(secInHour / 2);
         });
@@ -375,7 +402,7 @@ contract('Market', async (accounts) => {
             let supplierBalanceAfter = await token.balanceOf(supplier);
             let marketBalanceAfter = await token.balanceOf(market.address);
 
-            let dealParamsAfter = await market.GetDealParams(presetSpotDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetSpotDealId);
 
             let lastBillTSAfter = dealParamsAfter[DealParams.lastBillTs];
 
@@ -394,7 +421,7 @@ contract('Market', async (accounts) => {
         });
 
         it('Billing forward deal', async () => {
-            let deal = await market.GetDealParams(presetFwdDealId);
+            let deal = await deals.GetDealParams(presetFwdDealId);
             let consumerBalanceBefore = await token.balanceOf(consumer);
             let supplierBalanceBefore = await token.balanceOf(supplier);
             let marketBalanceBefore = await token.balanceOf(market.address);
@@ -407,7 +434,7 @@ contract('Market', async (accounts) => {
             let supplierBalanceAfter = await token.balanceOf(supplier);
             let marketBalanceAfter = await token.balanceOf(market.address);
 
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
 
             let lastBillTSAfter = dealParamsAfter[DealParams.lastBillTs];
 
@@ -426,7 +453,7 @@ contract('Market', async (accounts) => {
         });
 
         it('Billing forward deal, with master', async () => {
-            let deal = await market.GetDealParams(presetMasterFwdDealId);
+            let deal = await deals.GetDealParams(presetMasterFwdDealId);
             let consumerBalanceBefore = await token.balanceOf(consumer);
             let masterBalanceBefore = await token.balanceOf(master);
             let marketBalanceBefore = await token.balanceOf(market.address);
@@ -438,7 +465,7 @@ contract('Market', async (accounts) => {
             let consumerBalanceAfter = await token.balanceOf(consumer);
             let masterBalanceAfter = await token.balanceOf(master);
             let marketBalanceAfter = await token.balanceOf(market.address);
-            let dealParamsAfter = await market.GetDealParams(presetMasterFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetMasterFwdDealId);
 
             let lastBillTSAfter = dealParamsAfter[DealParams.lastBillTs];
 
@@ -455,7 +482,7 @@ contract('Market', async (accounts) => {
                 masterBalanceBefore.toNumber() + event.paidAmount.toNumber());
             assert.equal(marketBalanceAfter.toNumber() - marketBalanceBefore.toNumber(), 0);
 
-            await market.RemoveWorker(supplierWithMaster, master, { from: master });
+            await administratum.RemoveWorker(supplierWithMaster, master, { from: master });
         });
 
         it('Billing forward deal: not billed if deal.lastBillTS >= deal.endTime', async () => {
@@ -477,18 +504,18 @@ contract('Market', async (accounts) => {
             let askId = await Ask({ market, supplier, price: testPrice });
             let bidId = await Bid({ market, consumer, price: testPrice });
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let bidParams = await market.GetOrderParams(bidId, { from: consumer });
+            let bidParams = await orders.GetOrderParams(bidId, { from: consumer });
             presetFwdDealId = bidParams[OrderParams.dealId];
 
             let saskId = await Ask({ market, supplier, price: testPrice, duration: 0 });
             let sbidId = await Bid({ market, consumer, price: testPrice, duration: 0 });
             await market.OpenDeal(saskId, sbidId, { from: consumer });
-            let sbidParams = await market.GetOrderParams(sbidId, { from: consumer });
+            let sbidParams = await orders.GetOrderParams(sbidId, { from: consumer });
             presetSpotDealId = sbidParams[OrderParams.dealId];
         });
 
         it('Create change request as supplier and close', async () => {
-            let chReqsBefore = await market.GetChangeRequestsAmount();
+            let chReqsBefore = await changeRequests.GetChangeRequestsAmount();
 
             // raising price
             let newPrice = 1e6;
@@ -499,26 +526,26 @@ contract('Market', async (accounts) => {
                 { from: supplier });
 
             // price not changed
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(testPrice, priceAfter);
 
-            let chReqsAfter = await market.GetChangeRequestsAmount();
+            let chReqsAfter = await changeRequests.GetChangeRequestsAmount();
             let currentChReq = chReqsBefore.toNumber() + 1;
             assert.equal(currentChReq, chReqsAfter.toNumber());
 
-            let chReqInfoBefore = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoBefore = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_CREATED, chReqInfoBefore[ChangeRequestInfo.status]);
 
             await market.CancelChangeRequest(currentChReq, { from: supplier });
 
-            let chReqInfoAfter = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoAfter = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_CANCELED,
                 chReqInfoAfter[ChangeRequestInfo.status]);
         });
 
         it('Create change request as consumer and close', async () => {
-            let chReqsBefore = await market.GetChangeRequestsAmount();
+            let chReqsBefore = await changeRequests.GetChangeRequestsAmount();
 
             // lowering price
             let newPrice = 1e2;
@@ -529,26 +556,26 @@ contract('Market', async (accounts) => {
                 { from: consumer });
 
             // price not changed
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(testPrice, priceAfter);
 
-            let chReqsAfter = await market.GetChangeRequestsAmount();
+            let chReqsAfter = await changeRequests.GetChangeRequestsAmount();
             let currentChReq = chReqsBefore.toNumber() + 1;
             assert.equal(currentChReq, chReqsAfter.toNumber());
 
-            let chReqInfoBefore = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoBefore = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_CREATED, chReqInfoBefore[ChangeRequestInfo.status]);
 
             await market.CancelChangeRequest(currentChReq, { from: consumer });
 
-            let chReqInfoAfter = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoAfter = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_CANCELED,
                 chReqInfoAfter[ChangeRequestInfo.status]);
         });
 
         it('Create change request as consumer and reject as supplier', async () => {
-            let chReqsBefore = await market.GetChangeRequestsAmount();
+            let chReqsBefore = await changeRequests.GetChangeRequestsAmount();
 
             // lowering price
             let newPrice = 1e2;
@@ -559,27 +586,27 @@ contract('Market', async (accounts) => {
                 { from: consumer });
 
             // price not changed
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(testPrice, priceAfter);
 
-            let chReqsAfter = await market.GetChangeRequestsAmount();
+            let chReqsAfter = await changeRequests.GetChangeRequestsAmount();
             let currentChReq = chReqsBefore.toNumber() + 1;
             assert.equal(currentChReq, chReqsAfter.toNumber());
 
-            let chReqInfoBefore = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoBefore = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_CREATED, chReqInfoBefore[ChangeRequestInfo.status]);
 
             // rejecting
             await market.CancelChangeRequest(currentChReq, { from: supplier });
 
-            let chReqInfoAfter = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoAfter = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_REJECTED,
                 chReqInfoAfter[ChangeRequestInfo.status]);
         });
 
         it('Create change request as supplier and reject as consumer', async () => {
-            let chReqsBefore = await market.GetChangeRequestsAmount();
+            let chReqsBefore = await changeRequests.GetChangeRequestsAmount();
 
             // raising price
             let newPrice = 1e6;
@@ -590,21 +617,21 @@ contract('Market', async (accounts) => {
                 { from: supplier });
 
             // price not changed
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(testPrice, priceAfter);
 
-            let chReqsAfter = await market.GetChangeRequestsAmount();
+            let chReqsAfter = await changeRequests.GetChangeRequestsAmount();
             let currentChReq = chReqsBefore.toNumber() + 1;
             assert.equal(currentChReq, chReqsAfter.toNumber());
 
-            let chReqInfoBefore = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoBefore = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_CREATED, chReqInfoBefore[ChangeRequestInfo.status]);
 
             // rejecting
             await market.CancelChangeRequest(currentChReq, { from: consumer });
 
-            let chReqInfoAfter = await market.GetChangeRequestInfo(currentChReq);
+            let chReqInfoAfter = await changeRequests.GetChangeRequestInfo(currentChReq);
             assert.equal(RequestStatus.REQUEST_REJECTED,
                 chReqInfoAfter[ChangeRequestInfo.status]);
         });
@@ -625,7 +652,7 @@ contract('Market', async (accounts) => {
                 testDuration,
                 { from: supplier });
 
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId, { from: consumer });
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId, { from: consumer });
 
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(newPrice, priceAfter);
@@ -646,7 +673,7 @@ contract('Market', async (accounts) => {
                 newDuration,
                 { from: supplier });
 
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let durationAfter = dealParamsAfter[DealParams.duration].toNumber();
             assert.equal(newDuration, durationAfter);
         });
@@ -667,7 +694,7 @@ contract('Market', async (accounts) => {
                 0,
                 { from: supplier });
 
-            let dealParamsAfter = await market.GetDealParams(presetSpotDealId, { from: consumer });
+            let dealParamsAfter = await deals.GetDealParams(presetSpotDealId, { from: consumer });
 
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(newPrice, priceAfter);
@@ -692,7 +719,7 @@ contract('Market', async (accounts) => {
                 { from: consumer });
 
             // price changed
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(newPrice, priceAfter);
         });
@@ -706,7 +733,7 @@ contract('Market', async (accounts) => {
                 { from: supplier });
 
             // price changed
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(newPrice, priceAfter);
         });
@@ -727,7 +754,7 @@ contract('Market', async (accounts) => {
                 newDuration,
                 { from: consumer });
 
-            let dealParamsAfter = await market.GetDealParams(presetFwdDealId);
+            let dealParamsAfter = await deals.GetDealParams(presetFwdDealId);
             let durationAfter = dealParamsAfter[DealParams.duration].toNumber();
             let priceAfter = dealParamsAfter[DealParams.price].toNumber();
             assert.equal(newDuration, durationAfter);
@@ -748,8 +775,8 @@ contract('Market', async (accounts) => {
             assert.equal(balConsBefore.toNumber() - balConsInterm.toNumber(), 3600, 'incorrect consumer balance');
 
             await market.OpenDeal(askId, bidId, { from: specialConsumer2 });
-            let dealId = await getDealIdFromOrder(market, specialConsumer2, askId);
-            let paramsBeforeBill = await market.GetDealParams(dealId);
+            let dealId = await getDealIdFromOrder(orders, specialConsumer2, askId);
+            let paramsBeforeBill = await deals.GetDealParams(dealId);
             await increaseTime(secInHour - 3);
 
             assert.equal(paramsBeforeBill[DealParams.status].toNumber(),
@@ -761,8 +788,8 @@ contract('Market', async (accounts) => {
             let balMarketAfter = await token.balanceOf(market.address);
             let balSuppAfter = await token.balanceOf(specialSupplier);
             let balConsAfter = await token.balanceOf(specialConsumer2);
-            let pAfterBill = await market.GetDealParams(dealId);
-            let iAfterBill = await market.GetDealInfo(dealId);
+            let pAfterBill = await deals.GetDealParams(dealId);
+            let iAfterBill = await deals.GetDealInfo(dealId);
             let dealTime = pAfterBill[DealParams.endTime].toNumber() - iAfterBill[DealInfo.startTime].toNumber();
             assert.equal(pAfterBill[DealParams.totalPayout].toNumber(), dealTime, 'incorrect total payout');
             assert.equal(balSuppAfter.toNumber() - balSuppBefore.toNumber(),
@@ -782,7 +809,7 @@ contract('Market', async (accounts) => {
             let bidId = await Bid({ market, consumer: specialConsumer, price: 1e6, duration: 0 });
 
             await market.OpenDeal(askId, bidId, { from: specialConsumer });
-            let dealId = await getDealIdFromOrder(market, supplier, askId);
+            let dealId = await getDealIdFromOrder(orders, supplier, askId);
 
             await increaseTime(secInHour - 3);
 
@@ -792,7 +819,7 @@ contract('Market', async (accounts) => {
             let balMarketAfter = await token.balanceOf(market.address);
             let balSuppAfter = await token.balanceOf(supplier);
             let balConsAfter = await token.balanceOf(specialConsumer);
-            let pAfterBill = await market.GetDealParams(dealId);
+            let pAfterBill = await deals.GetDealParams(dealId);
             assert.equal(pAfterBill[DealParams.totalPayout].toNumber(), 3600, 'incorrect total payout');
             assert.equal(balSuppAfter.toNumber() - balSuppBefore.toNumber(),
                 pAfterBill[DealParams.totalPayout].toNumber(),
@@ -815,7 +842,7 @@ contract('Market', async (accounts) => {
             let bidId = await Bid({ market, consumer, price: 1e6, duration: 0 });
 
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
             await increaseTime(secInHour - 3);
 
             await oracle.setCurrentPrice(priceAfter);
@@ -824,8 +851,8 @@ contract('Market', async (accounts) => {
             let balSuppAfter = await token.balanceOf(supplier);
             let balConsAfter = await token.balanceOf(consumer);
             let balMarketAfter = await token.balanceOf(market.address);
-            let pAfterBill = await market.GetDealParams(dealId);
-            let iAfterBill = await market.GetDealInfo(dealId);
+            let pAfterBill = await deals.GetDealParams(dealId);
+            let iAfterBill = await deals.GetDealInfo(dealId);
             let dealTime = pAfterBill[DealParams.lastBillTs].toNumber() - iAfterBill[DealInfo.startTime].toNumber();
 
             assert.equal(pAfterBill[DealParams.totalPayout].toNumber(),
@@ -854,7 +881,7 @@ contract('Market', async (accounts) => {
             let bidId = await Bid({ market, consumer, price: 1e6, duration: 0 });
 
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
             await increaseTime(secInHour - 3);
 
             await oracle.setCurrentPrice(priceAfter);
@@ -863,8 +890,8 @@ contract('Market', async (accounts) => {
             let balSuppAfter = await token.balanceOf(supplier);
             let balConsAfter = await token.balanceOf(consumer);
             let balMarketAfter = await token.balanceOf(market.address);
-            let pAfterBill = await market.GetDealParams(dealId);
-            let iAfterBill = await market.GetDealInfo(dealId);
+            let pAfterBill = await deals.GetDealParams(dealId);
+            let iAfterBill = await deals.GetDealInfo(dealId);
             let dealTime = pAfterBill[DealParams.endTime].toNumber() - iAfterBill[DealInfo.startTime].toNumber();
             assert.equal(pAfterBill[DealParams.totalPayout].toNumber(),
                 priceAfter / priceBefore * dealTime,
@@ -891,8 +918,8 @@ contract('Market', async (accounts) => {
             assert.equal(balConsBefore.toNumber() - balConsInterm.toNumber(), 3600, 'incorrect consumer balance');
 
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
-            let paramsBeforeBill = await market.GetDealParams(dealId);
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
+            let paramsBeforeBill = await deals.GetDealParams(dealId);
             await increaseTime(secInHour + 3);
 
             assert.equal(paramsBeforeBill[DealParams.status].toNumber(), DealStatus.ACCEPTED, 'deal must be ACCEPTED');
@@ -902,7 +929,7 @@ contract('Market', async (accounts) => {
             let balMarketAfter = await token.balanceOf(market.address);
             let balSuppAfter = await token.balanceOf(supplier);
             let balConsAfter = await token.balanceOf(consumer);
-            let pAfterBill = await market.GetDealParams(dealId);
+            let pAfterBill = await deals.GetDealParams(dealId);
             assert.equal(pAfterBill[DealParams.totalPayout].toNumber(), 3600, 'incorrect total payout');
             assert.equal(balSuppAfter.toNumber() - balSuppBefore.toNumber(),
                 pAfterBill[DealParams.totalPayout].toNumber(),
@@ -926,8 +953,8 @@ contract('Market', async (accounts) => {
             assert.equal(balConsBefore.toNumber() - balConsInterm.toNumber(), 3600, 'incorrect consumer balance');
 
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
-            let paramsBeforeBill = await market.GetDealParams(dealId);
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
+            let paramsBeforeBill = await deals.GetDealParams(dealId);
             await increaseTime(secInHour / 2);
 
             assert.equal(paramsBeforeBill[DealParams.status].toNumber(), DealStatus.ACCEPTED,
@@ -938,8 +965,8 @@ contract('Market', async (accounts) => {
             let balMarketAfter = await token.balanceOf(market.address);
             let balSuppAfter = await token.balanceOf(supplier);
             let balConsAfter = await token.balanceOf(consumer);
-            let pAfterBill = await market.GetDealParams(dealId);
-            let iAfterBill = await market.GetDealInfo(dealId);
+            let pAfterBill = await deals.GetDealParams(dealId);
+            let iAfterBill = await deals.GetDealInfo(dealId);
             let dealTime = pAfterBill[DealParams.endTime].toNumber() - iAfterBill[DealInfo.startTime].toNumber();
             assert.equal(pAfterBill[DealParams.totalPayout].toNumber(), dealTime, 'incorrect total payout');
             assert.equal(balSuppAfter.toNumber() - balSuppBefore.toNumber(),
@@ -957,7 +984,7 @@ contract('Market', async (accounts) => {
             let bidId = await Bid({ market, consumer: consumer, price: 1e6, duration: 3600 });
             let askId = await Ask({ market, supplier: supplier, price: 1e6, duration: 3600 });
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
             await increaseTime(secInHour / 2);
             await assertRevert(market.CloseDeal(dealId, 0, { from: supplier }));
         });
@@ -965,12 +992,12 @@ contract('Market', async (accounts) => {
 
     describe('Blacklist', async () => {
         it('Prepare workers', async () => {
-            await market.RegisterWorker(blacklistMaster, { from: blacklistWorker1 });
-            await market.RegisterWorker(blacklistMaster, { from: blacklistWorker2 });
-            await market.ConfirmWorker(blacklistWorker1, { from: blacklistMaster });
-            await market.ConfirmWorker(blacklistWorker2, { from: blacklistMaster });
-            let master1 = await market.GetMaster(blacklistWorker1);
-            let master2 = await market.GetMaster(blacklistWorker2);
+            await administratum.RegisterWorker(blacklistMaster, { from: blacklistWorker1 });
+            await administratum.RegisterWorker(blacklistMaster, { from: blacklistWorker2 });
+            await administratum.ConfirmWorker(blacklistWorker1, { from: blacklistMaster });
+            await administratum.ConfirmWorker(blacklistWorker2, { from: blacklistMaster });
+            let master1 = await administratum.GetMaster(blacklistWorker1);
+            let master2 = await administratum.GetMaster(blacklistWorker2);
 
             assert.equal(master1, blacklistMaster, 'Worker not confirmed');
             assert.equal(master2, blacklistMaster, 'Worker not confirmed');
@@ -986,15 +1013,15 @@ contract('Market', async (accounts) => {
             let bidId = await Bid({ market, consumer, price: 1e6, duration: 0 });
 
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
             await increaseTime(secInHour - 3);
             // close deal with blacklist worker blacklistWorker1
             await market.CloseDeal(dealId, 1, { from: consumer });
             let balSuppAfter = await token.balanceOf(blacklistMaster);
             let balConsAfter = await token.balanceOf(consumer);
             let balMarketAfter = await token.balanceOf(market.address);
-            let pAfterClose = await market.GetDealParams(dealId);
-            let iAfterClose = await market.GetDealInfo(dealId);
+            let pAfterClose = await deals.GetDealParams(dealId);
+            let iAfterClose = await deals.GetDealInfo(dealId);
             let dealTime = pAfterClose[DealParams.lastBillTs].toNumber() - iAfterClose[DealInfo.startTime].toNumber();
             assert.equal(pAfterClose[DealParams.totalPayout].toNumber(), dealTime, 'incorrect total payout');
             assert.equal(balSuppAfter.toNumber() - balSuppBefore.toNumber(),
@@ -1029,15 +1056,15 @@ contract('Market', async (accounts) => {
             let bidId = await Bid({ market, consumer, price: 1e6, duration: 0 });
 
             await market.OpenDeal(askId, bidId, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
             await increaseTime(secInHour - 3);
             // close deal with blacklist master
             await market.CloseDeal(dealId, 2, { from: consumer });
             let balSuppAfter = await token.balanceOf(blacklistMaster);
             let balConsAfter = await token.balanceOf(consumer);
             let balMarketAfter = await token.balanceOf(market.address);
-            let pAfterClose = await market.GetDealParams(dealId);
-            let iAfterClose = await market.GetDealInfo(dealId);
+            let pAfterClose = await deals.GetDealParams(dealId);
+            let iAfterClose = await deals.GetDealInfo(dealId);
             let dealTime = pAfterClose[DealParams.lastBillTs].toNumber() - iAfterClose[DealInfo.startTime].toNumber();
             assert.equal(pAfterClose[DealParams.totalPayout].toNumber(), dealTime, 'incorrect total payout');
             assert.equal(balSuppAfter.toNumber() - balSuppBefore.toNumber(),
@@ -1072,9 +1099,9 @@ contract('Market', async (accounts) => {
             await oracle.setCurrentPrice(1e12);
             let askId = await Ask({ market, supplier, price: 1e6, duration: 3600 });
             await market.QuickBuy(askId, 1800, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
-            let dealInfo = await market.GetDealInfo(dealId, { from: consumer });
-            let dealParams = await market.GetDealParams(dealId, { from: consumer });
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
+            let dealInfo = await deals.GetDealInfo(dealId, { from: consumer });
+            let dealParams = await deals.GetDealParams(dealId, { from: consumer });
             assert.equal(DealStatus.ACCEPTED, dealParams[DealParams.status]);
             assert.ok(dealInfo[DealInfo.startTime].toNumber() === dealParams[DealParams.lastBillTs].toNumber(),
                 'lastBillTs not equal to startTime');
@@ -1093,13 +1120,13 @@ contract('Market', async (accounts) => {
         });
 
         it('QuickBuy forward with master', async () => {
-            await market.RegisterWorker(master, { from: supplier });
-            await market.ConfirmWorker(supplier, { from: master });
+            await administratum.RegisterWorker(master, { from: supplier });
+            await administratum.ConfirmWorker(supplier, { from: master });
             let askId = await Ask({ market, supplier, price: 1e6, duration: 3600 });
             await market.QuickBuy(askId, 10, { from: consumer });
-            let dealId = await getDealIdFromOrder(market, consumer, askId);
-            let dealInfo = await market.GetDealInfo(dealId, { from: consumer });
-            let dealParams = await market.GetDealParams(dealId, { from: consumer });
+            let dealId = await getDealIdFromOrder(orders, consumer, askId);
+            let dealInfo = await deals.GetDealInfo(dealId, { from: consumer });
+            let dealParams = await deals.GetDealParams(dealId, { from: consumer });
             assert.equal(DealStatus.ACCEPTED, dealParams[DealParams.status]);
             assert.ok(dealInfo[DealInfo.startTime].toNumber() === dealParams[DealParams.lastBillTs].toNumber(),
                 'lastBillTs not equal to startTime');
@@ -1131,22 +1158,22 @@ contract('Market', async (accounts) => {
             let bidNew = await Bid({ market, consumer, netFlags: [0, 0], benchmarks: newBenchmarksWZero });
             let askNew = await Ask({ market, supplier, netFlags: [0, 0], benchmarks: newBenchmarks });
 
-            let bidInfo = await market.GetOrderInfo(bidNew, { from: consumer });
+            let bidInfo = await orders.GetOrderInfo(bidNew, { from: consumer });
             checkBenchmarks(bidInfo[orderInfo.benchmarks], newBenchmarksWZero);
-            let askInfo = await market.GetOrderInfo(askNew, { from: consumer });
+            let askInfo = await orders.GetOrderInfo(askNew, { from: consumer });
             checkBenchmarks(askInfo[orderInfo.benchmarks], newBenchmarks);
 
             await market.OpenDeal(askOld, bidNew, { from: consumer });
             await market.OpenDeal(askNew, bidOld, { from: consumer });
 
-            await checkOrderStatus(market, supplier, askOld, OrderStatus.INACTIVE);
-            await checkOrderStatus(market, supplier, bidOld, OrderStatus.INACTIVE);
-            await checkOrderStatus(market, supplier, bidNew, OrderStatus.INACTIVE);
-            await checkOrderStatus(market, supplier, askNew, OrderStatus.INACTIVE);
+            await checkOrderStatus(orders, supplier, askOld, OrderStatus.INACTIVE);
+            await checkOrderStatus(orders, supplier, bidOld, OrderStatus.INACTIVE);
+            await checkOrderStatus(orders, supplier, bidNew, OrderStatus.INACTIVE);
+            await checkOrderStatus(orders, supplier, askNew, OrderStatus.INACTIVE);
 
-            let dealInfo1 = await getDealInfoFromOrder(market, consumer, bidNew);
+            let dealInfo1 = await getDealInfoFromOrder(deals, orders, consumer, bidNew);
             checkBenchmarks(dealInfo1[DealInfo.benchmarks], newBenchmarksWZero);
-            let dealInfo2 = await getDealInfoFromOrder(market, consumer, askNew);
+            let dealInfo2 = await getDealInfoFromOrder(deals, orders, consumer, askNew);
             checkBenchmarks(dealInfo2[DealInfo.benchmarks], newBenchmarks);
         });
 
@@ -1154,7 +1181,7 @@ contract('Market', async (accounts) => {
             let bid = await Bid({ market, consumer, benchmarks: newBenchmarksWZero });
             let ask = await Ask({ market, supplier, benchmarks: newBenchmarks });
             await market.OpenDeal(ask, bid, { from: consumer });
-            let dealInfo = await getDealInfoFromOrder(market, consumer, bid);
+            let dealInfo = await getDealInfoFromOrder(deals, orders, consumer, bid);
             checkBenchmarks(dealInfo[DealInfo.benchmarks], newBenchmarks);
         });
 

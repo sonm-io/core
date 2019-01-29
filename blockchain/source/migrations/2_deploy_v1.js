@@ -29,6 +29,14 @@ function MSRequired (network) {
     }
 }
 
+function OracleMSOwners (network, accounts) {
+    let owners = MSOwners(network, accounts);
+    if (network === 'private') {
+        owners.push('0x1b01279d1ba00800733d7037d4dc6536f9b6f741');
+    }
+    return owners;
+}
+
 function MSOwners (network, accounts) {
     if (network === 'dev_main' || network === 'dev_side') {
         return accounts;
@@ -80,8 +88,9 @@ async function deployMainchain (deployer, network, accounts) {
     let gk = await GateKeeperLive.deployed();
     await registry.write('gatekeeperMasterchainAddress', gk.address, { gasPrice: 0 });
 
-    // add keeper with 100k limit for testing
-    await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 100000 * 1e18, { gasPrice: actualGasPrice }); // eslint-disable-line max-len
+    if (network === 'rinkeby') {
+        await gk.ChangeKeeperLimit('0x1b01279d1ba00800733d7037d4dc6536f9b6f741', 2000000 * 1e18, { gasPrice: actualGasPrice }); // eslint-disable-line max-len
+    }
 
     await deployer.deploy(Multisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: actualGasPrice });
     let multisig = await Multisig.deployed();
@@ -103,8 +112,9 @@ async function deploySidechain (deployer, network, accounts) {
     // 3) transfer all tokens to Gatekeeper
     await token.transfer(gk.address, 444 * 1e6 * 1e18, { gasPrice: 0 });
 
-    // 3.1): add keeper with 100k limit for testing
-    await gk.ChangeKeeperLimit('0x1f0dc2f125a2df9e37f32242cc3e34328f096b3c', 100000 * 1e18, { gasPrice: 0 });
+    if (network === 'private') {
+        await gk.ChangeKeeperLimit('0x1b01279d1ba00800733d7037d4dc6536f9b6f741', 2000000 * 1e18, { gasPrice: 0 });
+    }
 
     // deploy ProfileRegistry
     await deployer.deploy(ProfileRegistry, { gasPrice: 0 });
@@ -135,7 +145,7 @@ async function deploySidechain (deployer, network, accounts) {
     // write
     await ahm.write('sidechainSNMAddress', SNM.address, { gasPrice: 0 });
 
-    await deployer.deploy(OracleMultisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
+    await deployer.deploy(OracleMultisig, OracleMSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });
     let oracleMS = await OracleMultisig.deployed();
 
     await deployer.deploy(GateKeeperMultisig, MSOwners(network, accounts), MSRequired(network), { gasPrice: 0 });

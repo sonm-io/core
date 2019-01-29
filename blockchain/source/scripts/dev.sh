@@ -28,8 +28,9 @@ run() {
     if rpc_running $port; then
         echo "rpc is running on $port"
     else
-        echo "running node_modules/.bin/ganache-cli $blockTime -d sonm --port=$port -i $port >> ./$port.log &"
-        node_modules/.bin/ganache-cli $blockTime -d sonm --port=$port -i $port >> ./$port.log &
+        set -x
+        node_modules/.bin/ganache-cli $blockTime --allowUnlimitedContractSize -l100000000 -d sonm --port=$port -i $port >> ./$port.log &
+        { set +x; } 2>/dev/null
         pids+=($!)
         echo "started ganache on $port (pid $!)"
     fi
