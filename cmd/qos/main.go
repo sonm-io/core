@@ -18,8 +18,8 @@ import (
 )
 
 type Config struct {
-	Endpoint string `yaml:"endpoint" default:"unix:///var/run/qos.sock"`
-	Log      logging.Config
+	Endpoint string         `yaml:"endpoint" default:"unix:///var/run/qos.sock"`
+	Logging  logging.Config `yaml:"logging"`
 }
 
 func main() {
@@ -32,7 +32,7 @@ func run(app cmd.AppContext) error {
 		return fmt.Errorf("failed to load config file: %v", err)
 	}
 
-	log, err := logging.BuildLogger(cfg.Log)
+	log, err := logging.BuildLogger(cfg.Logging)
 	if err != nil {
 		return fmt.Errorf("failed to build logger instance: %s", err)
 	}
