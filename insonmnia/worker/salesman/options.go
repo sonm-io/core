@@ -1,10 +1,9 @@
 package salesman
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
-
-	"context"
 
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
