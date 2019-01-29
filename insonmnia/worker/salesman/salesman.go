@@ -77,9 +77,7 @@ func NewSalesman(ctx context.Context, opts ...Option) (*Salesman, error) {
 
 	askPlansKey := o.eth.ContractRegistry().MarketAddress().Hex() + "/ask_plans"
 
-	networkManager, err := network.NewNetworkManagerWithConfig(network.NetworkManagerConfig{
-		Log: o.log,
-	})
+	networkManager, err := network.NewNetworkManager(network.WithLog(o.log), network.WithRemote(o.networkConfig.RemoteQOS))
 	if err != nil {
 		return nil, err
 	}

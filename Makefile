@@ -53,6 +53,7 @@ PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
 ORACLE     := ${TARGETDIR}/sonmoracle_$(OS_ARCH)
 CONNOR     := ${TARGETDIR}/sonmconnor_$(OS_ARCH)
 SONMMON    := ${TARGETDIR}/sonmmon_$(OS_ARCH)
+QOS        := ${TARGETDIR}/sonmqos_$(OS_ARCH)
 
 TAGS = nocgo
 
@@ -144,6 +145,10 @@ ifeq ($(GOOS),linux)
 else
 	@echo "Skipping build of sonmmon for non-linux target"
 endif
+
+build/qos:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS) nl" -ldflags "$(LDFLAGS)" -o ${QOS} ${GOCMD}/qos
 
 build/insomnia: build/worker build/cli build/node
 

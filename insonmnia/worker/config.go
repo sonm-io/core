@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/proto"
@@ -37,26 +38,27 @@ type DevConfig struct {
 }
 
 type Config struct {
-	Endpoint          string              `yaml:"endpoint" required:"true"`
-	Logging           logging.Config      `yaml:"logging"`
-	Resources         *ResourcesConfig    `yaml:"resources" required:"false"`
-	Blockchain        *blockchain.Config  `yaml:"blockchain"`
-	NPP               npp.Config          `yaml:"npp"`
-	SSH               *SSHConfig          `yaml:"ssh" required:"false" `
-	PublicIPs         []string            `yaml:"public_ip_addrs" required:"false" `
-	Plugins           plugin.Config       `yaml:"plugins"`
-	Storage           state.StorageConfig `yaml:"store"`
-	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`
-	Whitelist         WhitelistConfig     `yaml:"whitelist"`
-	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
-	DWH               dwh.YAMLConfig      `yaml:"dwh"`
-	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
-	Salesman          salesman.YAMLConfig `yaml:"salesman"`
-	Master            common.Address      `yaml:"master" required:"true"`
-	Development       DevConfig           `yaml:"development"`
-	Admin             *common.Address     `yaml:"admin"`
-	MetricsCollector  *common.Address     `yaml:"metrics_collector"`
-	Debug             *debug.Config       `yaml:"debug"`
+	Endpoint          string                `yaml:"endpoint" required:"true"`
+	Logging           logging.Config        `yaml:"logging"`
+	Resources         *ResourcesConfig      `yaml:"resources" required:"false"`
+	Network           network.NetworkConfig `yaml:"network"`
+	Blockchain        *blockchain.Config    `yaml:"blockchain"`
+	NPP               npp.Config            `yaml:"npp"`
+	SSH               *SSHConfig            `yaml:"ssh" required:"false" `
+	PublicIPs         []string              `yaml:"public_ip_addrs" required:"false" `
+	Plugins           plugin.Config         `yaml:"plugins"`
+	Storage           state.StorageConfig   `yaml:"store"`
+	Benchmarks        benchmarks.Config     `yaml:"benchmarks"`
+	Whitelist         WhitelistConfig       `yaml:"whitelist"`
+	MetricsListenAddr string                `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
+	DWH               dwh.YAMLConfig        `yaml:"dwh"`
+	Matcher           *matcher.YAMLConfig   `yaml:"matcher"`
+	Salesman          salesman.YAMLConfig   `yaml:"salesman"`
+	Master            common.Address        `yaml:"master" required:"true"`
+	Development       DevConfig             `yaml:"development"`
+	Admin             *common.Address       `yaml:"admin"`
+	MetricsCollector  *common.Address       `yaml:"metrics_collector"`
+	Debug             *debug.Config         `yaml:"debug"`
 }
 
 // NewConfig creates a new Worker config from the specified YAML file.

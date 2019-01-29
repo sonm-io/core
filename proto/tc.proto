@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package sonm;
+
+service QOS {
+    rpc SetAlias(QOSSetAliasRequest) returns (QOSSetAliasResponse) {}
+    rpc AddHTBShaping(QOSAddHTBShapingRequest) returns (QOSAddHTBShapingResponse) {}
+    rpc RemoveHTBShaping(QOSRemoveHTBShapingRequest) returns (QOSRemoveHTBShapingResponse) {}
+}
+
+message QOSSetAliasRequest {
+    string linkName = 1;
+    string linkAlias = 2;
+}
+
+message QOSSetAliasResponse {}
+
+message QOSAddHTBShapingRequest {
+    string linkName = 1;
+    string linkAlias = 2;
+    uint64 rateLimitEgress = 3;
+    uint64 rateLimitIngress = 4;
+}
+
+message QOSAddHTBShapingResponse {}
+
+message QOSRemoveHTBShapingRequest {
+    string linkName = 1;
+}
+
+message QOSRemoveHTBShapingResponse {}

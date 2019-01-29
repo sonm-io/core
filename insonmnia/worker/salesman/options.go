@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
@@ -29,6 +30,7 @@ type options struct {
 	matcher       matcher.Matcher
 	ethkey        *ecdsa.PrivateKey
 	config        *YAMLConfig
+	networkConfig network.NetworkConfig
 	dealDestroyer DealDestroyer
 }
 
@@ -78,6 +80,13 @@ func WithConfig(config *YAMLConfig) Option {
 		opts.config = config
 	}
 }
+
+func WithNetworkConfig(cfg network.NetworkConfig) Option {
+	return func(opts *options) {
+		opts.networkConfig = cfg
+	}
+}
+
 func WithDealDestroyer(destroyer DealDestroyer) Option {
 	return func(opts *options) {
 		opts.dealDestroyer = destroyer

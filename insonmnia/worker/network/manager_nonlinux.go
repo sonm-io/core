@@ -42,12 +42,12 @@ func (TC) Close() error {
 	return nil
 }
 
-func (m *NetworkManager) init() error {
+func (m *localNetworkManager) Init() error {
 	m.tc = &TC{}
 	return nil
 }
 
-func (m *NetworkManager) newActions(network *Network) []Action {
+func (m *localNetworkManager) NewActions(network *Network) []Action {
 	return []Action{
 		&DockerNetworkCreateAction{
 			DockerClient: m.dockerClient,

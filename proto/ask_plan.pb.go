@@ -20,6 +20,7 @@ It is generated from these files:
 	optimus.proto
 	relay.proto
 	rendezvous.proto
+	tc.proto
 	timestamp.proto
 	volume.proto
 	worker.proto
@@ -168,6 +169,12 @@ It has these top-level messages:
 	RendezvousState
 	RendezvousMeeting
 	ResolveMetaReply
+	QOSSetAliasRequest
+	QOSSetAliasResponse
+	QOSAddHTBShapingRequest
+	QOSAddHTBShapingResponse
+	QOSRemoveHTBShapingRequest
+	QOSRemoveHTBShapingResponse
 	Timestamp
 	Volume
 	TaskTag
