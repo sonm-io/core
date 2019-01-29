@@ -44,7 +44,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		ContractRegistryAddr common.Address `yaml:"contract_registry"`
 		BlocksBatchSize      uint64         `yaml:"blocks_batch_size"`
 		MasterchainGasPrice  GasPrice       `yaml:"masterchain_gas_price"`
-		Version              uint
+		Version              uint           `yaml:"version"`
 	}
 
 	if err := unmarshal(&cfg); err != nil {
