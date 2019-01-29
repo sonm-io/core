@@ -1,3 +1,59 @@
+sonm-core (0.4.21) unstable; urgency=low
+
+  * Added: remote QoS (#1841).
+  * Added: worker inspection (#1835).
+    Currently, if something goes wrong on a Worker we're still able to gain
+    access to the remote computer via SSH to find of what's going on there.
+    In the future, due to obvious trusted platform limitations, we will
+    lose those capabilities, since there will be no direct access to the machine.
+    This leads us to a situation where we still need to collect debugging
+    information, but more likely in a post-mortem way.
+    This feature introduces the inspection service on the Worker side, which
+    is capable to collect various runtime and history information and
+    provide it to the subject that is explicitly allowed by Worker's admin.
+    New methods include config, list of open files, network information,
+    various Docker info and of course - logs. Now it is possible both for
+    Worker's admin and allowed users to subscribe to Worker logs.
+    Also, Worker's API now allows to add and to remove additional
+    capabilities like inspection service access or SSH'ing into the host.
+  * Added: configurable pprof for DWH (#1840).
+  * Added: oracle must process logs starting from the current block (#1625).
+    This PR extends oracle with the following option: now it can process
+    transactions from the current block, not from the beginning of the times. It
+    was made because restarting non-master Oracle instance leads to full
+    transaction log re-process, which is obviously useless.
+  * Added: added rate counters in NPP dialer metrics (#1805).
+  * Fixed: do not hang on deal cancellation (#1759).
+  * Fixed: human-readable TC initialization error (#1838).
+    Failing while initializing ifb device resulted in printing "Exit status 1",
+    which is not obvious to understand what's going on. Now we will report at
+    least which command we're trying to execute.
+  * Fixed: exclude empty prerelease while building outside git (#1830).
+  * Fixed: enable interceptor for REST interface on DWH (#1826).
+  * Fixed: proper reaching "out of sync" state (#1824).
+    This commit fixes random "out of sync" state reaching when there are no events
+    has been produced in the chain.
+    Now if the blockchain's "GetEvents" method returns no logs entities - we're
+    emitting "NoEventsData" event which is processing as any other events. Event
+    triggers an update of the lastBlock counter, and the "out of sync" state does
+    not appear.
+  * Fixed: create directory with version file if not exists (#1828).
+  * Fixed: do not forget about an error (#1825).
+  * Fixed: default blocks batch size in blockchain config (#1822).
+  * Fixed: proper gas limit for device storage (#1820).
+  * Fixed: proper processing for collected DRI devices (#1818).
+    Now I know how to make a slice of pointers from the slice of values.
+    More on this https://github.com/golang/go/issues/22791#issuecomment-345391395.
+    Closes #1811.
+  * Fixed: devices migration without waiting multisig (#1812).
+  * Fixed: migration with proper multisig (#1810).
+  * Fixed: reduce delay on sonm-mon start (#1788).
+    sonm-mon no longer waits to worker become available before rendering
+    Also produce warning message on losing connection to node or worker
+    Slightly tuned text layout.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 29 Jan 2019 14:49:25 +0300
+
 sonm-core (0.4.20) unstable; urgency=low
 
   * Added: TTL for servers in Rendezvous (#1773).
