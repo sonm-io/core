@@ -21,6 +21,7 @@ var (
 var (
 	PayinTopic   = common.HexToHash("0x14312725abbc46ad798bc078b2663e1fcbace97be0247cd177176f3b4df2538e")
 	PayoutTopic  = common.HexToHash("0x731af16374848c2c73a6154fd410cb421138e7db45c5a904e5a475c756faa8d9")
+	CommitTopic  = common.HexToHash("0x65546c3bc3a77ffc91667da85018004299542e28a511328cfb4b3f86974902ee")
 	SuicideTopic = common.HexToHash("0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde")
 )
 
