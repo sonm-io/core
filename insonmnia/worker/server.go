@@ -98,6 +98,7 @@ var (
 		workerAPIPrefix + "RemoveBenchmark",
 		workerAPIPrefix + "PurgeBenchmarks",
 		workerAPIPrefix + "AddCapability",
+		workerAPIPrefix + "RemoveCapability",
 	}
 
 	inspectMethods = []string{
