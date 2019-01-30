@@ -175,6 +175,8 @@ It has these top-level messages:
 	QOSAddHTBShapingResponse
 	QOSRemoveHTBShapingRequest
 	QOSRemoveHTBShapingResponse
+	QOSFlushRequest
+	QOSFlushResponse
 	Timestamp
 	Volume
 	TaskTag
