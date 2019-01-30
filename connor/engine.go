@@ -230,6 +230,12 @@ func (e *engine) processOrderCreate(ctx context.Context) {
 
 		created, err := e.sendOrderToMarket(ctx, bid.AsBID())
 		if err != nil {
+			if strings.Contains("GOAWAY", err.Error()) {
+				fmt.Printf(" PIDOR: `%s`\n", err.Error())
+				e.log.Warn("GOAWAY detected, do not retrying")
+				continue
+			}
+
 			e.log.Warn("cannot place order, retrying", zap.Error(err))
 			e.CreateOrder(bid)
 			continue
@@ -894,7 +900,7 @@ func (e *engine) waitForExternalUpdates(ctx context.Context) error {
 			return ctx.Err()
 		case <-tk.C:
 			e.adoptExternalDeals(ctx)
-			e.adoptExternalOrders(ctx)
+			// e.adoptExternalOrders(ctx)
 			e.state.DumpToFile()
 		}
 	}
