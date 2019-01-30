@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -162,10 +163,26 @@ func newOptions() (*options, error) {
 
 type Option func(o *options) error
 
-func WithRemote(addr string) Option {
+func WithRemote(uri string) Option {
 	return func(o *options) error {
-		if len(addr) > 0 {
-			conn, err := xgrpc.NewClient(context.Background(), addr, nil)
+		uri, err := url.Parse(uri)
+		if err != nil {
+			return fmt.Errorf("invalid remote QoS URI: %v", err)
+		}
+
+		target := uri.String()
+
+		if uri.Scheme != "unix" {
+			parts := strings.SplitN(target, "//", 2)
+			if len(parts) != 2 {
+				return fmt.Errorf("invalid remote QoS URI")
+			}
+
+			target = parts[1]
+		}
+
+		if len(target) > 0 {
+			conn, err := xgrpc.NewClient(context.Background(), target, nil)
 			if err != nil {
 				return err
 			}
