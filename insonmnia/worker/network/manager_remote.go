@@ -69,7 +69,11 @@ type remoteNetworkManager struct {
 }
 
 func (m *remoteNetworkManager) Init() error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.client.Flush(ctx, &sonm.QOSFlushRequest{})
+	return err
 }
 
 func (m *remoteNetworkManager) Close() error {

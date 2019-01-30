@@ -418,3 +418,11 @@ func (m *RemoteQOS) RemoveHTBShaping(ctx context.Context, request *sonm.QOSRemov
 
 	return &sonm.QOSRemoveHTBShapingResponse{}, nil
 }
+
+func (m *RemoteQOS) Flush(ctx context.Context, request *sonm.QOSFlushRequest) (*sonm.QOSFlushResponse, error) {
+	if err := tc.IFBFlush(); err != nil {
+		return nil, err
+	}
+
+	return &sonm.QOSFlushResponse{}, nil
+}

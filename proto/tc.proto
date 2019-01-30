@@ -6,6 +6,8 @@ service QOS {
     rpc SetAlias(QOSSetAliasRequest) returns (QOSSetAliasResponse) {}
     rpc AddHTBShaping(QOSAddHTBShapingRequest) returns (QOSAddHTBShapingResponse) {}
     rpc RemoveHTBShaping(QOSRemoveHTBShapingRequest) returns (QOSRemoveHTBShapingResponse) {}
+    // Flush completely resets
+    rpc Flush(QOSFlushRequest) returns (QOSFlushResponse) {}
 }
 
 message QOSSetAliasRequest {
@@ -29,3 +31,7 @@ message QOSRemoveHTBShapingRequest {
 }
 
 message QOSRemoveHTBShapingResponse {}
+
+message QOSFlushRequest {}
+
+message QOSFlushResponse {}
