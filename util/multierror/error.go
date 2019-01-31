@@ -49,9 +49,6 @@ func (m *TSMultiError) Append(errs ...error) {
 	m.inner = multierror.Append(m.inner, errs...)
 }
 
-func (m *TSMultiError) ErrorOrNil() *multierror.Error {
-	if err := m.inner.ErrorOrNil(); err == nil {
-		return nil
-	}
-	return m.inner
+func (m *TSMultiError) ErrorOrNil() error {
+	return m.inner.ErrorOrNil()
 }
