@@ -10,6 +10,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/lucas-clemente/quic-go"
+	"github.com/sonm-io/core/insonmnia/migration"
 	"github.com/sonm-io/core/util/defergroup"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -111,6 +112,8 @@ type Server struct {
 	tlsConfig *tls.Config
 
 	log *zap.SugaredLogger
+
+	shredder
 }
 
 // NewServer creates new Local Node server instance.
@@ -206,6 +209,15 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 	return m, nil
 }
 
+func (m *Server) setupMarketShredder() error {
+	shredder, err := migration.NewV1MarketShredder(m.ctx, m.cfg.Migration, m.credentials)
+	if err != nil {
+		return err
+	}
+	m.shredder = shredder
+	return nil
+}
+
 func (m *Server) LocalEndpoints() LocalEndpoints {
 	return m.endpoints
 }
@@ -235,6 +247,9 @@ func (m *Server) Serve(ctx context.Context) error {
 	})
 	wg.Go(func() error {
 		return m.serverSSH.Serve(ctx)
+	})
+	wg.Go(func() error {
+		return m.shredder
 	})
 
 	<-ctx.Done()
