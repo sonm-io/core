@@ -346,8 +346,12 @@ func (m *Salesman) syncPlanWithBlockchain(ctx context.Context, plan *sonm.AskPla
 	if plan.Status == sonm.AskPlan_PENDING_DELETION {
 		if err := m.RemoveAskPlan(ctx, plan.GetID()); err != nil {
 			m.log.Warnf("could not remove ask plan %s which was pending deletion: %s", plan.ID, err)
+		} else {
+			return
 		}
-	} else if !dealId.IsZero() {
+	}
+
+	if !dealId.IsZero() {
 		if err := m.checkDeal(ctxWithTimeout, plan); err != nil {
 			m.log.Warnf("could not check deal %s for plan %s: %s", dealId.Unwrap().String(), plan.ID, err)
 		}
