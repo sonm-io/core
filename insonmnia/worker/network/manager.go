@@ -165,6 +165,10 @@ type Option func(o *options) error
 
 func WithRemote(uri string) Option {
 	return func(o *options) error {
+		if len(uri) == 0 {
+			return nil
+		}
+
 		uri, err := url.Parse(uri)
 		if err != nil {
 			return fmt.Errorf("invalid remote QoS URI: %v", err)
