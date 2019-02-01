@@ -1,3 +1,27 @@
+sonm-core (0.4.22) unstable; urgency=low
+
+  * Added: worker config command (#1849).
+    Exposed an ability to watch Worker's config for its admin, master and
+    inspection subjects.
+  * Fixed: revert per-chunk stream authorization (#1848).
+    It was implemented for inspection service, but no longer required, since it
+    has a more convenient way to subscribe for authorization change events.
+    Fixes inability to use "TaskLogs" handle.
+  * Fixed: proper error type in ErrorOrNil (#1847).
+    Fixed bug with task cancellation:
+    - Process ask-plan which are pending for deletion in a usual pipeline to
+    update order info in case ask-plan can not be deleted right now.
+    - Return proper type from ErrorOrNil function to fix this
+    https://golang.org/doc/faq#nil_error behaviour.
+  * Fixed: do not terminate on default (empty) QoS URI (#1846).
+  * Fixed: add missing method for the worker management ACL (#1845).
+  * Fixed: accept URI as remote QoS endpoint for consistency (#1843).
+    Previously we can only specify ip:port OR unix:///path, but not tcp://ip:port.
+    Now, the scheme prefix is required and correctly parsed.
+  * Fixed: flush IFB on demand when using remote service (#1844).
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 01 Feb 2019 22:05:40 +0300
+
 sonm-core (0.4.21) unstable; urgency=low
 
   * Added: remote QoS (#1841).
