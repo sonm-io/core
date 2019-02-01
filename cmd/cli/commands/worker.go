@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"gopkg.in/yaml.v2"
 )
@@ -22,6 +24,7 @@ var (
 	worker            sonm.WorkerManagementClient
 	workerAddr        string
 	workerCtx         context.Context
+	workerConn        *grpc.ClientConn
 	workerCancel      context.CancelFunc
 )
 
@@ -48,7 +51,13 @@ func workerPreRunE(cmd *cobra.Command, args []string) error {
 	}
 	workerCtx = metadata.NewOutgoingContext(workerCtx, md)
 
-	var err error
+	conn, err := newClientConn(workerCtx)
+	if err != nil {
+		return err
+	}
+
+	workerConn = conn
+
 	worker, err = newWorkerManagementClient(workerCtx)
 	if err != nil {
 		return fmt.Errorf("cannot create client connection: %v", err)
@@ -81,6 +90,7 @@ func init() {
 		workerAddCapabilityCmd,
 		workerRemoveCapabilityCmd,
 		workerMetricsCmd,
+		workerConfigCmd,
 	)
 }
 
@@ -345,6 +355,33 @@ var workerRemoveCapabilityCmd = &cobra.Command{
 		}
 
 		showOk(cmd)
+
+		return nil
+	},
+}
+
+var workerConfigCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Shows Worker's config.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		inspect := sonm.NewInspectClient(workerConn)
+		request := &sonm.InspectConfigRequest{}
+		response, err := inspect.Config(workerCtx, request)
+		if err != nil {
+			return fmt.Errorf("failed to fetch Worker config: %v", err)
+		}
+
+		var target interface{}
+		if err := json.Unmarshal(response.GetConfig(), &target); err != nil {
+			return err
+		}
+
+		if isSimpleFormat() {
+			data, _ := yaml.Marshal(&target)
+			cmd.Printf("%s\n", data)
+		} else {
+			showJSON(cmd, target)
+		}
 
 		return nil
 	},
