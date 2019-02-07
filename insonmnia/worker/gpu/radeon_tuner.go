@@ -5,7 +5,6 @@ package gpu
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/docker/docker/api/types/container"
