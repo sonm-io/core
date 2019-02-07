@@ -51,7 +51,7 @@ func run(app cmd.AppContext) error {
 			return err
 		}
 
-		remoteTuner, err := gpu.NewRemoteTuner(ctx, cfg.GPUVendor)
+		remoteTuner, err := gpu.NewRemoteTuner(ctxlog.WithLogger(ctx, log), cfg.GPUVendor)
 		if err != nil {
 			return err
 		}
