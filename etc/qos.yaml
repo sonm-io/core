@@ -1,2 +1,5 @@
 endpoint: "unix:///tmp/qos.sock"
-gpu_vendor: "fake"
+gpu_vendor: "nvidia"
+
+logging:
+  level: debug

@@ -29,12 +29,22 @@ func newRemoteTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	}
 
 	tun := sonm.NewRemoteGPUTunerClient(cc)
-	if _, err := tun.Devices(ctx, &sonm.RemoteGPUDeviceRequest{}); err != nil {
+	devices, err := tun.Devices(ctx, &sonm.RemoteGPUDeviceRequest{})
+	if err != nil {
 		return nil, fmt.Errorf("failed to access remote GPU tuner via %s: %v", options.RemoteSocket, err)
 	}
 
+	log := ctxlog.GetLogger(ctx)
+	for _, d := range devices.GetDevices() {
+		log.Info("gpu detected",
+			zap.String("name", d.GetDeviceName()),
+			zap.Uint64("mem", d.GetMemory()),
+			zap.Strings("dev", d.GetDeviceFiles()),
+			zap.Any("volumes", d.GetDriverVolumes()))
+	}
+
 	return &remoteTuner{
-		log: ctxlog.GetLogger(ctx),
+		log: log,
 		rt:  sonm.NewRemoteGPUTunerClient(cc),
 	}, nil
 }
