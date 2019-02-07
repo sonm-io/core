@@ -3,7 +3,6 @@ package gpu
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -63,37 +62,7 @@ func (m *remoteTuner) deviceMap() map[GPUID]*sonm.GPUDevice {
 
 func (m *remoteTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error {
 	devMap := m.deviceMap()
-
-	var cardsToBind = make(map[GPUID]*sonm.GPUDevice)
-	for _, id := range ids {
-		card, ok := devMap[id]
-		if !ok {
-			return fmt.Errorf("cannot allocate device: unknown id %s", id)
-		}
-
-		cardsToBind[id] = card
-	}
-
-	for _, card := range cardsToBind {
-		for _, device := range card.GetDeviceFiles() {
-			hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
-				PathOnHost:        device,
-				PathInContainer:   device,
-				CgroupPermissions: "rwm",
-			})
-		}
-
-		for name, pair := range card.GetDriverVolumes() {
-			srcDst := strings.Split(pair, ":")
-			if len(srcDst) != 2 {
-				return fmt.Errorf("malformed driver mount-point `%s`", pair)
-			}
-
-			hostconfig.Mounts = append(hostconfig.Mounts, newVolumeMount(srcDst[0], srcDst[1], name))
-		}
-	}
-
-	return nil
+	return tuneContainer(hostconfig, devMap, ids)
 }
 
 func (m *remoteTuner) Close() error { return nil }
