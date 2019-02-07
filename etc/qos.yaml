@@ -1,0 +1,2 @@
+endpoint: "unix:///tmp/qos.sock"
+gpu_vendor: "fake"

@@ -26,7 +26,7 @@ type JoinNetworkRequest struct {
 func (m *JoinNetworkRequest) Reset()                    { *m = JoinNetworkRequest{} }
 func (m *JoinNetworkRequest) String() string            { return proto.CompactTextString(m) }
 func (*JoinNetworkRequest) ProtoMessage()               {}
-func (*JoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{0} }
+func (*JoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
 
 func (m *JoinNetworkRequest) GetTaskID() *TaskID {
 	if m != nil {
@@ -49,7 +49,7 @@ type TaskListRequest struct {
 func (m *TaskListRequest) Reset()                    { *m = TaskListRequest{} }
 func (m *TaskListRequest) String() string            { return proto.CompactTextString(m) }
 func (*TaskListRequest) ProtoMessage()               {}
-func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{1} }
+func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{1} }
 
 func (m *TaskListRequest) GetDealID() *BigInt {
 	if m != nil {
@@ -67,7 +67,7 @@ type QuickBuyRequest struct {
 func (m *QuickBuyRequest) Reset()                    { *m = QuickBuyRequest{} }
 func (m *QuickBuyRequest) String() string            { return proto.CompactTextString(m) }
 func (*QuickBuyRequest) ProtoMessage()               {}
-func (*QuickBuyRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{2} }
+func (*QuickBuyRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{2} }
 
 func (m *QuickBuyRequest) GetAskID() *BigInt {
 	if m != nil {
@@ -98,7 +98,7 @@ type DealFinishRequest struct {
 func (m *DealFinishRequest) Reset()                    { *m = DealFinishRequest{} }
 func (m *DealFinishRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealFinishRequest) ProtoMessage()               {}
-func (*DealFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{3} }
+func (*DealFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{3} }
 
 func (m *DealFinishRequest) GetId() *BigInt {
 	if m != nil {
@@ -121,7 +121,7 @@ type DealsFinishRequest struct {
 func (m *DealsFinishRequest) Reset()                    { *m = DealsFinishRequest{} }
 func (m *DealsFinishRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealsFinishRequest) ProtoMessage()               {}
-func (*DealsFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{4} }
+func (*DealsFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{4} }
 
 func (m *DealsFinishRequest) GetDealInfo() []*DealFinishRequest {
 	if m != nil {
@@ -137,7 +137,7 @@ type DealsPurgeRequest struct {
 func (m *DealsPurgeRequest) Reset()                    { *m = DealsPurgeRequest{} }
 func (m *DealsPurgeRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealsPurgeRequest) ProtoMessage()               {}
-func (*DealsPurgeRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{5} }
+func (*DealsPurgeRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{5} }
 
 func (m *DealsPurgeRequest) GetBlacklistType() BlacklistType {
 	if m != nil {
@@ -153,7 +153,7 @@ type DealsReply struct {
 func (m *DealsReply) Reset()                    { *m = DealsReply{} }
 func (m *DealsReply) String() string            { return proto.CompactTextString(m) }
 func (*DealsReply) ProtoMessage()               {}
-func (*DealsReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{6} }
+func (*DealsReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{6} }
 
 func (m *DealsReply) GetDeal() []*Deal {
 	if m != nil {
@@ -171,7 +171,7 @@ type OpenDealRequest struct {
 func (m *OpenDealRequest) Reset()                    { *m = OpenDealRequest{} }
 func (m *OpenDealRequest) String() string            { return proto.CompactTextString(m) }
 func (*OpenDealRequest) ProtoMessage()               {}
-func (*OpenDealRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{7} }
+func (*OpenDealRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{7} }
 
 func (m *OpenDealRequest) GetBidID() *BigInt {
 	if m != nil {
@@ -202,7 +202,7 @@ type WorkerRemoveRequest struct {
 func (m *WorkerRemoveRequest) Reset()                    { *m = WorkerRemoveRequest{} }
 func (m *WorkerRemoveRequest) String() string            { return proto.CompactTextString(m) }
 func (*WorkerRemoveRequest) ProtoMessage()               {}
-func (*WorkerRemoveRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{8} }
+func (*WorkerRemoveRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{8} }
 
 func (m *WorkerRemoveRequest) GetMaster() *EthAddress {
 	if m != nil {
@@ -225,7 +225,7 @@ type WorkerListReply struct {
 func (m *WorkerListReply) Reset()                    { *m = WorkerListReply{} }
 func (m *WorkerListReply) String() string            { return proto.CompactTextString(m) }
 func (*WorkerListReply) ProtoMessage()               {}
-func (*WorkerListReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{9} }
+func (*WorkerListReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{9} }
 
 func (m *WorkerListReply) GetWorkers() []*DWHWorker {
 	if m != nil {
@@ -243,7 +243,7 @@ type BalanceReply struct {
 func (m *BalanceReply) Reset()                    { *m = BalanceReply{} }
 func (m *BalanceReply) String() string            { return proto.CompactTextString(m) }
 func (*BalanceReply) ProtoMessage()               {}
-func (*BalanceReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{10} }
+func (*BalanceReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{10} }
 
 func (m *BalanceReply) GetLiveBalance() *BigInt {
 	if m != nil {
@@ -274,7 +274,7 @@ type TokenTransferRequest struct {
 func (m *TokenTransferRequest) Reset()                    { *m = TokenTransferRequest{} }
 func (m *TokenTransferRequest) String() string            { return proto.CompactTextString(m) }
 func (*TokenTransferRequest) ProtoMessage()               {}
-func (*TokenTransferRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{11} }
+func (*TokenTransferRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{11} }
 
 func (m *TokenTransferRequest) GetTo() *EthAddress {
 	if m != nil {
@@ -297,7 +297,7 @@ type NPPMetricsReply struct {
 func (m *NPPMetricsReply) Reset()                    { *m = NPPMetricsReply{} }
 func (m *NPPMetricsReply) String() string            { return proto.CompactTextString(m) }
 func (*NPPMetricsReply) ProtoMessage()               {}
-func (*NPPMetricsReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{12} }
+func (*NPPMetricsReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{12} }
 
 func (m *NPPMetricsReply) GetMetrics() map[string]*NamedMetrics {
 	if m != nil {
@@ -313,7 +313,7 @@ type NamedMetrics struct {
 func (m *NamedMetrics) Reset()                    { *m = NamedMetrics{} }
 func (m *NamedMetrics) String() string            { return proto.CompactTextString(m) }
 func (*NamedMetrics) ProtoMessage()               {}
-func (*NamedMetrics) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{13} }
+func (*NamedMetrics) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{13} }
 
 func (m *NamedMetrics) GetMetrics() []*NamedMetric {
 	if m != nil {
@@ -330,7 +330,7 @@ type NamedMetric struct {
 func (m *NamedMetric) Reset()                    { *m = NamedMetric{} }
 func (m *NamedMetric) String() string            { return proto.CompactTextString(m) }
 func (*NamedMetric) ProtoMessage()               {}
-func (*NamedMetric) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{14} }
+func (*NamedMetric) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{14} }
 
 func (m *NamedMetric) GetName() string {
 	if m != nil {
@@ -1948,9 +1948,9 @@ var _Monitoring_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor11) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor12) }
 
-var fileDescriptor11 = []byte{
+var fileDescriptor12 = []byte{
 	// 1312 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x57, 0x5f, 0x73, 0xdb, 0x44,
 	0x10, 0xb7, 0x1c, 0xc7, 0x71, 0xd6, 0x6e, 0x9c, 0x5e, 0x52, 0x08, 0x9a, 0xc2, 0x64, 0x04, 0x43,

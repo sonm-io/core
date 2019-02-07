@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package sonm;
+
+import "capabilities.proto";
+
+
+service RemoteGPUTuner {
+    rpc Devices(RemoteGPUDeviceRequest) returns (RemoteGPUDeviceReply) {}
+}
+
+message RemoteGPUDeviceRequest {}
+
+message RemoteGPUDeviceReply {
+    repeated GPUDevice devices = 1;
+}

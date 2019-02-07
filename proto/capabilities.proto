@@ -8,7 +8,8 @@ enum GPUVendorType {
     GPU_UNKNOWN = 0;
     NVIDIA = 1;
     RADEON = 2;
-    FAKE = 99;
+    FAKE   = 99;
+    REMOTE = 100;
 }
 
 message CPUDevice {
@@ -65,6 +66,16 @@ message GPUDevice {
 
     // Hash string built from device parameters
     string hash = 10;
+
+    // DeviceFiles is something like "/dev/nvidia0",
+    // "/dev/nvidiactl", "/dev/dri/card0" and so on.
+    // This devices should be attached to a container.
+    repeated string deviceFiles = 11;
+
+    // DriverVolumes maps volume name into
+    // "hostPath:containerPath" pair.
+    // Applicable to nvidia drivers.
+    map<string, string> driverVolumes = 12;
 }
 
 message GPU {

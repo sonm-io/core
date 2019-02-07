@@ -112,7 +112,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 
 		tuner, err := gpu.New(ctx, typeID, gpu.WithSocketDir(cfg.SocketDir), gpu.WithOptions(options))
 		if err != nil {
-			return nil, fmt.Errorf("cannot initialize GPU plugin for vendor\"%s\": %v", vendor, err)
+			return nil, fmt.Errorf("failed to initialize GPU plugin for vendor \"%s\": %v", vendor, err)
 		}
 
 		r.gpuTuners[typeID] = tuner

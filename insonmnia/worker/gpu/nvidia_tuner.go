@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -193,6 +192,7 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 			driDevice:   card,
 			ctrlDevices: ctrlDevices,
 			mem:         memBytes,
+			// todo: ctrlDevices? (card.Devices + dev.CtrlDevices)
 		}
 		ovs.devMap[dev.ID()] = dev
 
@@ -244,24 +244,4 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	}()
 
 	return &ovs, nil
-}
-
-func newVolumeMount(src, dst, name string) mount.Mount {
-	return mount.Mount{
-		Type:         mount.TypeVolume,
-		Source:       src,
-		Target:       dst,
-		ReadOnly:     true,
-		Consistency:  mount.ConsistencyDefault,
-		BindOptions:  nil,
-		TmpfsOptions: nil,
-		VolumeOptions: &mount.VolumeOptions{
-			NoCopy: false,
-			Labels: map[string]string{},
-			DriverConfig: &mount.Driver{
-				Name:    name,
-				Options: map[string]string{},
-			},
-		},
-	}
 }
