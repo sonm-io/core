@@ -218,13 +218,40 @@ func (w *WorkerStatus) update(ctx context.Context, cc *grpc.ClientConn, addr str
 	incomeHour := big.NewInt(0).Mul(income, big.NewInt(3600))
 	w.Income = sonm.NewBigInt(incomeHour).ToPriceString()
 
-	w.Sold.RAM = ramUsed * 100 / devices.GetRAM().GetDevice().GetTotal()
-	w.Sold.Storage = storageUsed * 100 / devices.GetStorage().GetDevice().GetBytesAvailable()
-	w.Sold.NetIn = netInUsed * 100 / devices.GetNetwork().GetIn()
-	w.Sold.NetOut = netOutUsed * 100 / devices.GetNetwork().GetOut()
-	w.Sold.CPUS = cpuUsed * 100 / uint64(devices.GetCPU().GetDevice().GetCores()*100)
+	ramTotal := devices.GetRAM().GetDevice().GetTotal()
+	if ramTotal != 0 {
+		w.Sold.RAM = ramUsed * 100 / ramTotal
+	} else {
+		w.Sold.RAM = 0
+	}
+	storageBytesAvailable := devices.GetStorage().GetDevice().GetBytesAvailable()
+	if storageBytesAvailable != 0 {
+		w.Sold.Storage = storageUsed * 100 / storageBytesAvailable
+	} else {
+		w.Sold.Storage = 0
+	}
+	netIn := devices.GetNetwork().GetIn()
+	if netIn != 0 {
+		w.Sold.NetIn = netInUsed * 100 / netIn
+	} else {
+		w.Sold.NetIn = 0
+	}
+	netOut := devices.GetNetwork().GetOut()
+	if netOut != 0 {
+		w.Sold.NetOut = netOutUsed * 100 / netOut
+	} else {
+		w.Sold.NetOut = 0
+	}
+	cpuAvailable := uint64(devices.GetCPU().GetDevice().GetCores() * 100)
+	if cpuAvailable != 0 {
+		w.Sold.CPUS = cpuUsed * 100 / cpuAvailable
+	} else {
+		w.Sold.CPUS = 0
+	}
 	if len(devices.GetGPUs()) > 0 {
 		w.Sold.GPUS = gpuUsed * 100 / uint64(len(devices.GetGPUs()))
+	} else {
+		w.Sold.GPUS = 0
 	}
 
 	return nil
