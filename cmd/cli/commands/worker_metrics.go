@@ -2,10 +2,10 @@ package commands
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 var workerMetricsCmd = &cobra.Command{
@@ -18,12 +18,15 @@ var workerMetricsCmd = &cobra.Command{
 		}
 
 		if isSimpleFormat() {
-			data, err := yaml.Marshal(metrics)
-			if err != nil {
-				return fmt.Errorf("failed to marshal metrics into YAML: %v", err)
+			var fields []string
+			for name, value := range metrics.GetMetrics() {
+				fields = append(fields, fmt.Sprintf("%s: %.2f", name, value))
 			}
 
-			cmd.Println(string(data))
+			sort.Strings(fields)
+			for _, f := range fields {
+				cmd.Println(f)
+			}
 		} else {
 			showJSON(cmd, metrics)
 		}
