@@ -113,7 +113,7 @@ type Server struct {
 
 	log *zap.SugaredLogger
 
-	shredder
+	shredder migration.MarketShredder
 }
 
 // NewServer creates new Local Node server instance.
@@ -209,8 +209,8 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 	return m, nil
 }
 
-func (m *Server) setupMarketShredder() error {
-	shredder, err := migration.NewV1MarketShredder(m.ctx, m.cfg.Migration, m.credentials)
+func (m *Server) setupMarketShredder(ctx context.Context) error {
+	shredder, err := migration.NewV1MarketShredder(ctx, m.cfg.Migration, m.credentials)
 	if err != nil {
 		return err
 	}
@@ -232,7 +232,12 @@ func (m *Server) Serve(ctx context.Context) error {
 		return nil
 	}
 
+	if err := m.setupMarketShredder(); err != nil {
+		return err
+	}
+
 	wg, ctx := errgroup.WithContext(ctx)
+
 	wg.Go(func() error {
 		return m.serveGRPC(ctx, network.ListenersGRPC...)
 	})
