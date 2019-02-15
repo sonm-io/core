@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/sonm-io/core/proto;sonm";
+
 import "insonmnia.proto";
 import "net.proto";
 
