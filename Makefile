@@ -148,7 +148,7 @@ endif
 
 build/qos:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS) nl" -ldflags "$(LDFLAGS)" -o ${QOS} ${GOCMD}/qos
+	${GO} build -tags "$(TAGS) $(GPU_TAGS) nl" -ldflags "$(LDFLAGS)" -o ${QOS} ${GOCMD}/qos
 
 build/insomnia: build/worker build/cli build/node
 

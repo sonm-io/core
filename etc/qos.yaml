@@ -1,0 +1,10 @@
+endpoint: "unix:///var/run/qos.sock"
+
+# GPU vendor to provide a remote plugin.
+# Maybe "nvidia", "radeon" or "fake".
+# any other options will be treated as invalid
+# what will provide nilTuner without GPU support.
+gpu_vendor: ""
+
+logging:
+  level: debug

@@ -10,6 +10,7 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -18,8 +19,9 @@ import (
 )
 
 type Config struct {
-	Endpoint string         `yaml:"endpoint" default:"unix:///var/run/qos.sock"`
-	Logging  logging.Config `yaml:"logging"`
+	Endpoint  string         `yaml:"endpoint" default:"unix:///var/run/qos.sock"`
+	Logging   logging.Config `yaml:"logging"`
+	GPUVendor string         `yaml:"gpu_vendor"`
 }
 
 func main() {
@@ -44,7 +46,12 @@ func run(app cmd.AppContext) error {
 		return cmd.WaitInterrupted(ctx)
 	})
 	wg.Go(func() error {
-		service, err := network.NewRemoteQOS()
+		remoteQOS, err := network.NewRemoteQOS()
+		if err != nil {
+			return err
+		}
+
+		remoteTuner, err := gpu.NewRemoteTuner(ctxlog.WithLogger(ctx, log), cfg.GPUVendor)
 		if err != nil {
 			return err
 		}
@@ -68,7 +75,8 @@ func run(app cmd.AppContext) error {
 		defer log.Sugar().Infof("stopped QOS server on %s %s", uri.Scheme, uri.Host)
 
 		server := xgrpc.NewServer(log, xgrpc.RequestLogInterceptor([]string{}))
-		sonm.RegisterQOSServer(server, service)
+		sonm.RegisterQOSServer(server, remoteQOS)
+		sonm.RegisterRemoteGPUTunerServer(server, remoteTuner)
 
 		wg.Go(func() error {
 			return server.Serve(listener)

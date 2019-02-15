@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -21,74 +20,20 @@ import (
 	"go.uber.org/zap"
 )
 
-type nvidiaDevice struct {
-	// "NVidia 1080 Ti"
-	name string
-	// "/dev/nvidia0"
-	devicePath string
-	// "/dev/dri/card0", "/dev/dri/renderD128"
-	driDevice DRICard
-	// "/dev/nvidiactl", "/dev/nvidia-uvm", "/dev/nvidia-uvm-tools"
-	ctrlDevices []string
-	mem         uint64
-}
-
-func (dev *nvidiaDevice) String() string {
-	return fmt.Sprintf("%s (%s)", dev.name, dev.devicePath)
-}
-
-func (dev *nvidiaDevice) ID() GPUID {
-	return GPUID(dev.driDevice.PCIBusID)
-}
-
-// Devices returns all device files that must be bound to container
-func (dev *nvidiaDevice) Devices() []string {
-	return append(append(dev.ctrlDevices, dev.driDevice.Devices...), dev.devicePath)
-}
-
 type nvidiaTuner struct {
 	options  *tunerOptions
 	handler  *volume.Handler
 	listener net.Listener
 
 	m      sync.Mutex
-	devMap map[GPUID]nvidiaDevice
+	devMap map[GPUID]*sonm.GPUDevice
 }
-
-/*
-	Note: card cllecting code into the Tune() method is almost similar to radeon's one
-*/
 
 func (g *nvidiaTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error {
 	g.m.Lock()
 	defer g.m.Unlock()
 
-	var cardsToBind = make(map[GPUID]nvidiaDevice)
-	for _, id := range ids {
-		card, ok := g.devMap[id]
-		if !ok {
-			return fmt.Errorf("cannot allocate device: unknown id %s", id)
-		}
-
-		// copy cards to the map (instead of slice) preventing us
-		// from binding same card more than once
-		cardsToBind[id] = card
-	}
-
-	for _, card := range cardsToBind {
-		for _, device := range card.Devices() {
-			hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
-				PathOnHost:        device,
-				PathInContainer:   device,
-				CgroupPermissions: "rwm",
-			})
-		}
-	}
-
-	mnt := newVolumeMount(g.options.volumeName(), g.options.libsMountPoint, g.options.VolumeDriverName)
-	hostconfig.Mounts = append(hostconfig.Mounts, mnt)
-
-	return nil
+	return tuneContainer(hostconfig, g.devMap, ids)
 }
 
 func (g *nvidiaTuner) Devices() []*sonm.GPUDevice {
@@ -97,19 +42,7 @@ func (g *nvidiaTuner) Devices() []*sonm.GPUDevice {
 
 	var devices []*sonm.GPUDevice
 	for _, d := range g.devMap {
-		dev := &sonm.GPUDevice{
-			ID:          string(d.ID()),
-			VendorName:  "Nvidia",
-			VendorID:    d.driDevice.VendorID,
-			DeviceName:  d.name,
-			DeviceID:    d.driDevice.DeviceID,
-			MajorNumber: d.driDevice.Major,
-			MinorNumber: d.driDevice.Minor,
-			Memory:      d.mem,
-		}
-
-		dev.FillHashID()
-		devices = append(devices, dev)
+		devices = append(devices, d)
 	}
 
 	return devices
@@ -168,7 +101,7 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	}
 
 	ovs := nvidiaTuner{
-		devMap:  make(map[GPUID]nvidiaDevice),
+		devMap:  make(map[GPUID]*sonm.GPUDevice),
 		options: options,
 	}
 
@@ -187,20 +120,23 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		// d.Memory.Global is presented in Megabytes
 		memBytes := uint64(*d.Memory.Global) * 1024 * 1024
 
-		dev := nvidiaDevice{
-			name:        *d.Model,
-			devicePath:  d.Path,
-			driDevice:   card,
-			ctrlDevices: ctrlDevices,
-			mem:         memBytes,
+		dev := &sonm.GPUDevice{
+			ID:          card.PCIBusID,
+			VendorName:  "NVidia",
+			DeviceName:  *d.Model,
+			VendorID:    card.VendorID,
+			DeviceID:    card.DeviceID,
+			MajorNumber: card.Major,
+			MinorNumber: card.Minor,
+			Memory:      memBytes,
+			DeviceFiles: append(append(ctrlDevices, card.Devices...), d.Path),
+			DriverVolumes: map[string]string{
+				options.VolumeDriverName: fmt.Sprintf("%s:%s", options.volumeName(), options.libsMountPoint),
+			},
 		}
-		ovs.devMap[dev.ID()] = dev
 
-		log.G(ctx).Debug("discovered gpu devices",
-			zap.String("root", dev.String()),
-			zap.Strings("ctrl", dev.ctrlDevices),
-			zap.Strings("dri", card.Devices),
-			zap.Uint64("mem", memBytes))
+		dev.FillHashID()
+		ovs.devMap[GPUID(card.PCIBusID)] = dev
 	}
 
 	volInfo := []nvidia.VolumeInfo{
@@ -244,24 +180,4 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	}()
 
 	return &ovs, nil
-}
-
-func newVolumeMount(src, dst, name string) mount.Mount {
-	return mount.Mount{
-		Type:         mount.TypeVolume,
-		Source:       src,
-		Target:       dst,
-		ReadOnly:     true,
-		Consistency:  mount.ConsistencyDefault,
-		BindOptions:  nil,
-		TmpfsOptions: nil,
-		VolumeOptions: &mount.VolumeOptions{
-			NoCopy: false,
-			Labels: map[string]string{},
-			DriverConfig: &mount.Driver{
-				Name:    name,
-				Options: map[string]string{},
-			},
-		},
-	}
 }

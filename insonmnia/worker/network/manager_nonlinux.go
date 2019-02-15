@@ -3,9 +3,11 @@
 package network
 
 import (
+	"context"
 	"errors"
 
 	"github.com/sonm-io/core/insonmnia/worker/network/tc"
+	"github.com/sonm-io/core/proto"
 )
 
 var (
@@ -54,4 +56,23 @@ func (m *localNetworkManager) NewActions(network *Network) []Action {
 			Network:      network,
 		},
 	}
+}
+
+type nilQOS struct{}
+
+func (nilQOS) SetAlias(context.Context, *sonm.QOSSetAliasRequest) (*sonm.QOSSetAliasResponse, error) {
+	return nil, ErrUnsupportedPlatform
+}
+func (nilQOS) AddHTBShaping(context.Context, *sonm.QOSAddHTBShapingRequest) (*sonm.QOSAddHTBShapingResponse, error) {
+	return nil, ErrUnsupportedPlatform
+}
+func (nilQOS) RemoveHTBShaping(context.Context, *sonm.QOSRemoveHTBShapingRequest) (*sonm.QOSRemoveHTBShapingResponse, error) {
+	return nil, ErrUnsupportedPlatform
+}
+func (nilQOS) Flush(context.Context, *sonm.QOSFlushRequest) (*sonm.QOSFlushResponse, error) {
+	return nil, ErrUnsupportedPlatform
+}
+
+func NewRemoteQOS() (sonm.QOSServer, error) {
+	return &nilQOS{}, nil
 }

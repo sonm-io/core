@@ -22,6 +22,7 @@ type tunerOptions struct {
 	DriverVersion    string `mapstructure:"driver_version"`
 	VolumePath       string `mapstructure:"volume_path"`
 	DeviceCount      int    `mapstructure:"device_count"`
+	RemoteSocket     string `mapstructure:"remote_sock"`
 	SocketPath       string `mapstructure:"-"`
 	libsMountPoint   string `mapstructure:"-"`
 }
@@ -64,6 +65,12 @@ func radeonDefaultOptions() *tunerOptions {
 func fakeDefaultOptions() *tunerOptions {
 	return &tunerOptions{
 		DeviceCount: 1,
+	}
+}
+
+func remoteDefaultOptions() *tunerOptions {
+	return &tunerOptions{
+		RemoteSocket: "/var/run/qos.sock",
 	}
 }
 

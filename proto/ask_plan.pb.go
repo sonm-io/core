@@ -12,6 +12,7 @@ It is generated from these files:
 	container.proto
 	dwh.proto
 	geoip.proto
+	gpu_ctl.proto
 	insonmnia.proto
 	inspect.proto
 	marketplace.proto
@@ -87,6 +88,8 @@ It has these top-level messages:
 	OrdersByIDsRequest
 	GeoIPCountry
 	GeoIP
+	RemoteGPUDeviceRequest
+	RemoteGPUDeviceReply
 	Empty
 	ID
 	NumericID

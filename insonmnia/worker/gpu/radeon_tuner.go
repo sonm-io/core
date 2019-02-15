@@ -5,7 +5,6 @@ package gpu
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/docker/docker/api/types/container"
@@ -17,7 +16,7 @@ import (
 
 type radeonTuner struct {
 	m      sync.Mutex
-	devMap map[GPUID]*DRICard
+	devMap map[GPUID]*sonm.GPUDevice
 }
 
 // collectDRICardsWithOpenCL collects DRI devices and match it with openCL.
@@ -73,8 +72,8 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		f(options)
 	}
 
-	tun := radeonTuner{
-		devMap: make(map[GPUID]*DRICard),
+	tun := &radeonTuner{
+		devMap: make(map[GPUID]*sonm.GPUDevice),
 	}
 
 	devices, err := collectDRICardsWithOpenCL()
@@ -83,8 +82,20 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	}
 
 	for _, card := range devices {
-		tun.devMap[GPUID(card.PCIBusID)] = card
+		dev := &sonm.GPUDevice{
+			ID:          card.PCIBusID,
+			VendorID:    card.VendorID,
+			VendorName:  "Radeon",
+			DeviceID:    card.DeviceID,
+			DeviceName:  card.Name,
+			MajorNumber: card.Major,
+			MinorNumber: card.Minor,
+			Memory:      card.Memory,
+			DeviceFiles: card.Devices,
+		}
+		dev.FillHashID()
 
+		tun.devMap[GPUID(card.PCIBusID)] = dev
 		log.G(ctx).Debug("discovered gpu device ",
 			zap.String("dev", card.Path),
 			zap.Strings("dri_devices", card.Devices),
@@ -94,59 +105,25 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	return tun, nil
 }
 
-func (tun radeonTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error {
+func (tun *radeonTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error {
 	tun.m.Lock()
 	defer tun.m.Unlock()
 
-	var cardsToBind = make(map[GPUID]*DRICard)
-	for _, id := range ids {
-		card, ok := tun.devMap[id]
-		if !ok {
-			return fmt.Errorf("cannot allocate device: unknown id %s", id)
-		}
-
-		// copy cards to the map (instead of slice) preventing us
-		// from binding same card more than once
-		cardsToBind[id] = card
-	}
-
-	for _, card := range cardsToBind {
-		for _, device := range card.Devices {
-			hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
-				PathOnHost:        device,
-				PathInContainer:   device,
-				CgroupPermissions: "rwm",
-			})
-		}
-	}
-
-	return nil
+	return tuneContainer(hostconfig, tun.devMap, ids)
 }
 
-func (tun radeonTuner) Devices() []*sonm.GPUDevice {
+func (tun *radeonTuner) Devices() []*sonm.GPUDevice {
 	tun.m.Lock()
 	defer tun.m.Unlock()
 
 	var devices []*sonm.GPUDevice
 	for _, d := range tun.devMap {
-		dev := &sonm.GPUDevice{
-			ID:          d.PCIBusID,
-			VendorName:  "Radeon",
-			VendorID:    d.VendorID,
-			DeviceName:  d.Name,
-			DeviceID:    d.DeviceID,
-			MajorNumber: d.Major,
-			MinorNumber: d.Minor,
-			Memory:      d.Memory,
-		}
-
-		dev.FillHashID()
-		devices = append(devices, dev)
+		devices = append(devices, d)
 	}
 
 	return devices
 }
 
-func (tun radeonTuner) Close() error {
+func (radeonTuner) Close() error {
 	return nil
 }
