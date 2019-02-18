@@ -53,7 +53,7 @@ func (p *volumePlugin) Create(req *volume.CreateRequest) error {
 	}
 
 	if !ok {
-		return vol.Create(nvidia.LinkStrategy{})
+		return vol.Create(nvidia.LinkOrCopyStrategy{})
 	}
 
 	return nil
