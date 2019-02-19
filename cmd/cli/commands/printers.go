@@ -299,6 +299,9 @@ func printOrderDetails(cmd Printer, order *sonm.Order) {
 		cmd.Printf("  GPU Equihash         %d\r\n", b.GPUCashHashrate())
 		cmd.Printf("  GPU Redshift         %d\r\n", b.GPURedshift())
 		cmd.Printf("  CPU Cryptonight      %d\r\n", b.CPUCryptonight())
+		cmd.Printf("  GPU nVidia only      %d\r\n", b.GPUNVidiaOnly())
+		cmd.Printf("  GPU AMD only         %d\r\n", b.GPUAMDOnly())
+
 	} else {
 		showJSON(cmd, order)
 	}

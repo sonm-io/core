@@ -1778,6 +1778,26 @@ func (m *Worker) getBenchValue(bench *sonm.Benchmark, device interface{}) (uint6
 		return gpuDevice.GetMemory(), nil
 	}
 
+	if bench.GetID() == benchmarks.GPUAMD {
+		if !isGpu {
+			return uint64(0), fmt.Errorf("invalid device for GPUMem benchmark")
+		}
+		if gpuDevice.GetVendorID() == uint64(sonm.GPUVendorType_RADEON) {
+			return 1, nil
+		}
+		return 0, nil
+	}
+
+	if bench.GetID() == benchmarks.GPUNVidia {
+		if !isGpu {
+			return uint64(0), fmt.Errorf("invalid device for GPUMem benchmark")
+		}
+		if gpuDevice.GetVendorID() == uint64(sonm.GPUVendorType_NVIDIA) {
+			return 1, nil
+		}
+		return 0, nil
+	}
+
 	val, err := m.getCachedValue(bench, device)
 	if err == nil {
 		log.S(m.ctx).Debugf("using cached benchmark value for benchmark %s(%d) - %d", bench.GetCode(), bench.GetID(), val)
