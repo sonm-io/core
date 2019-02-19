@@ -130,7 +130,7 @@ func (m *Benchmarks) GPUNVidiaOnly() uint64 {
 	return m.Get(13)
 }
 
-func (m *Benchmarks) GPUAMDOnly() uint64 {
+func (m *Benchmarks) GPURadeonOnly() uint64 {
 	return m.Get(14)
 }
 

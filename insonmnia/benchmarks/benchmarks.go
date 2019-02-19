@@ -24,7 +24,7 @@ const (
 	GPUCount    = 7
 	GPUMem      = 8
 	GPUNVidia   = 13
-	GPUAMD      = 14
+	GPURadeon   = 14
 
 	BenchIDEnvParamName = "SONM_BENCHMARK_ID"
 	CPUCountBenchParam  = "SONM_CPU_COUNT"
