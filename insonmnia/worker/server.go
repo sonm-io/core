@@ -1782,7 +1782,8 @@ func (m *Worker) getBenchValue(bench *sonm.Benchmark, device interface{}) (uint6
 		if !isGpu {
 			return uint64(0), fmt.Errorf("invalid device for GPU-Radeon benchmark")
 		}
-		if gpuDevice.GetVendorID() == uint64(sonm.GPUVendorType_RADEON) {
+
+		if gpuDevice.VendorType() == sonm.GPUVendorType_RADEON {
 			return 1, nil
 		}
 		return 0, nil
@@ -1792,9 +1793,11 @@ func (m *Worker) getBenchValue(bench *sonm.Benchmark, device interface{}) (uint6
 		if !isGpu {
 			return uint64(0), fmt.Errorf("invalid device for GPU-nVidia benchmark")
 		}
-		if gpuDevice.GetVendorID() == uint64(sonm.GPUVendorType_NVIDIA) {
+
+		if gpuDevice.VendorType() == sonm.GPUVendorType_NVIDIA {
 			return 1, nil
 		}
+
 		return 0, nil
 	}
 
