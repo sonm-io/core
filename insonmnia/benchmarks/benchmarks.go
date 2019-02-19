@@ -23,6 +23,8 @@ const (
 	NetworkOut  = 6
 	GPUCount    = 7
 	GPUMem      = 8
+	GPUNVidia   = 13
+	GPURadeon   = 14
 
 	BenchIDEnvParamName = "SONM_BENCHMARK_ID"
 	CPUCountBenchParam  = "SONM_CPU_COUNT"

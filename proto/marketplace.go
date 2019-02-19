@@ -126,6 +126,14 @@ func (m *Benchmarks) CPUCryptonight() uint64 {
 	return m.Get(12)
 }
 
+func (m *Benchmarks) GPUNVidiaOnly() uint64 {
+	return m.Get(13)
+}
+
+func (m *Benchmarks) GPURadeonOnly() uint64 {
+	return m.Get(14)
+}
+
 func (m *Deal) GetTypeName() string {
 	if m.IsSpot() {
 		return "Spot"
