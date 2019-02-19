@@ -185,7 +185,9 @@ contracts:
 grpc:
 	@echo "+ $@"
 	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
-	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
+	@protoc -I proto --go_out=plugins=grpc,paths=import:./proto proto/*.proto
+	@mv ./proto/github.com/sonm-io/core/proto/*.pb.go ./proto
+	@rm -rf ./proto/github.com/sonm-io
 
 build_mockgen:
 	@go get github.com/golang/mock/mockgen@v1.0.0

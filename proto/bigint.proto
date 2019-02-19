@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/sonm-io/core/proto;sonm";
+
 package sonm;
 
 // BigInt represents multi-precision value stored as a big integer.
