@@ -65,7 +65,7 @@ optimization: &optimization
       # Number of matched orders to activate the following model.
       # Must be small enough, because brute force models may consume all CPUs
       # on the machine.
-      match: 64
+      match: 8
       # Model settings.
       model:
         # Branch and bound model.
