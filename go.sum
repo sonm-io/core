@@ -159,6 +159,7 @@ github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 h1:P6pPBnrTSX3DEVR4fDembhR
 github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0/go.mod h1:vmVJ0l/dxyfGW6FmdpVm2joNMFikkuWg0EoCKLGUMNw=
 github.com/lib/pq v0.0.0-20180327071824-d34b9ff171c2 h1:hRGSmZu7j271trc9sneMrpOW7GN5ngLm8YUZIPzf394=
 github.com/lib/pq v0.0.0-20180327071824-d34b9ff171c2/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
+github.com/libp2p/go-reuseport v0.0.0-20180201025315-5f99154da15f/go.mod h1:UeLFiw50cCfyDHBpU0sXBR8ul1MO/m51mXpRO/SYjCE=
 github.com/libp2p/go-reuseport v0.1.10 h1:luit4a4lmixdyb1MXs8YNHkVe4cZx0ETN630HLqPsws=
 github.com/libp2p/go-reuseport v0.1.10/go.mod h1:UeLFiw50cCfyDHBpU0sXBR8ul1MO/m51mXpRO/SYjCE=
 github.com/libp2p/go-sockaddr v0.0.0-20180128062301-09ae606455f8 h1:zKo9Niz9yo6aGKQy4aoILJ1XiWlyJYAVLznJASTI83U=
