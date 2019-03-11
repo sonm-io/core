@@ -418,13 +418,10 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 
 			err := e.trackTaskWithRetry(taskCtx, log, deal.GetId(), taskID)
 			if err != nil {
-				if isTemporaryError(err) {
-					log.Warn("task failed, should restart", zap.Error(err), zap.String("task_id", taskID))
-					return true
+				if !isTemporaryError(err) {
+					log.Warn("task failed, stop task tracking", zap.Error(err), zap.Int("try", try))
+					return false
 				}
-
-				log.Warn("task failed, stop task tracking", zap.Error(err), zap.Int("try", try))
-				return false
 			}
 
 			if try >= taskRestartCount {
