@@ -21,6 +21,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/rcrowley/go-metrics"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -206,12 +207,36 @@ func authUnaryInterceptor(router *auth.AuthRouter) grpc.UnaryServerInterceptor {
 
 func authStreamInterceptor(router *auth.AuthRouter) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if err := router.Authorize(ss.Context(), auth.Event(info.FullMethod), srv); err != nil {
-			return err
+		ss = &wrappedAuthStream{
+			ServerStream: ss,
+			router:       router,
+			info:         info,
+			processed:    atomic.NewBool(false),
 		}
 
 		return handler(srv, ss)
 	}
+}
+
+type wrappedAuthStream struct {
+	grpc.ServerStream
+	router    *auth.AuthRouter
+	info      *grpc.StreamServerInfo
+	processed *atomic.Bool
+}
+
+func (m *wrappedAuthStream) RecvMsg(msg interface{}) error {
+	if err := m.ServerStream.RecvMsg(msg); err != nil {
+		return err
+	}
+
+	if !m.processed.CAS(false, true) {
+		if err := m.router.Authorize(m.ServerStream.Context(), auth.Event(m.info.FullMethod), msg); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func AuthorizationInterceptor(router *auth.AuthRouter) ServerOption {
