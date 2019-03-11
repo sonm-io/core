@@ -20,6 +20,7 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type logProcessor struct {
@@ -27,7 +28,7 @@ type logProcessor struct {
 	cfg          *LogProcessorConfig
 	deal         *types.Deal
 	taskID       string
-	taskClient   sonm.TaskManagementClient
+	taskClient   sonm.WorkerClient
 	hashrateEWMA metrics.EWMA
 	startTime    time.Time
 
@@ -44,7 +45,7 @@ func newLogProcessor(cfg *LogProcessorConfig, log *zap.Logger, conn *grpc.Client
 		cfg:          cfg,
 		deal:         deal,
 		taskID:       taskID,
-		taskClient:   sonm.NewTaskManagementClient(conn),
+		taskClient:   sonm.NewWorkerClient(conn),
 		hashrateEWMA: metrics.NewEWMA(1 - math.Exp(-5.0/cfg.DecayTime)),
 		startTime:    time.Now(),
 		hashrate:     atomic.NewFloat64(float64(deal.BenchmarkValue())),
@@ -150,9 +151,13 @@ func (m *logProcessor) fetchLogs(ctx context.Context) error {
 		}
 
 		m.log.Debug("requesting logs", zap.Int("count", failureCount))
-		cli, err := m.taskClient.Logs(ctx, request)
+		ctx = metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
+			"deal": m.deal.GetId().Unwrap().String(),
+		}))
+		cli, err := m.taskClient.TaskLogs(ctx, request)
 		if err != nil {
 			m.hashrate.Store(0.)
+			failureCount++
 			m.log.Warn("failed to fetch logs from the task", zap.Error(err), zap.Int("count", failureCount))
 			continue
 		}
