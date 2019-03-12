@@ -1,3 +1,21 @@
+sonm-core (0.4.23) unstable; urgency=low
+
+  * Added: benchmark support for GPU type (#1857).
+    this PR adds benchmarks for GPU type - NVidia or Radeon only, which is useful
+    when specific card type is required.
+  * Added: remote GPU tuner (#1853).
+  * Fixed: fix already fixed streaming auth (#1859).
+  * Fixed: proper version for go-reuseport (#1860).
+  * Fixed: use LinkOrCopyStrategy to provision nvidia volumes (#1855).
+    Now we're hardlinking .so files and other nvidia related stuff
+    into the volume. This way isn't working when /var is present in another
+    partition,
+    we must fallback to Copy in such case.
+  * Fixed: preventing division by zero panics in the sonm-mon (#1852).
+    Closes #1851.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 12 Mar 2019 11:39:00 +0300
+
 sonm-core (0.4.22) unstable; urgency=low
 
   * Added: worker config command (#1849).
