@@ -31,6 +31,7 @@ func newVolumeMount(src, dst, name string) mount.Mount {
 
 func tuneContainer(hostconfig *container.HostConfig, devices map[GPUID]*sonm.GPUDevice, ids []GPUID) error {
 	var cardsToBind = make(map[GPUID]*sonm.GPUDevice)
+	var volumeMapping = make(map[string]mount.Mount)
 	for _, id := range ids {
 		card, ok := devices[id]
 		if !ok {
@@ -55,8 +56,12 @@ func tuneContainer(hostconfig *container.HostConfig, devices map[GPUID]*sonm.GPU
 				return fmt.Errorf("malformed driver mount-point `%s`", pair)
 			}
 
-			hostconfig.Mounts = append(hostconfig.Mounts, newVolumeMount(srcDst[0], srcDst[1], name))
+			volumeMapping[srcDst[1]] = newVolumeMount(srcDst[0], srcDst[1], name)
 		}
+	}
+
+	for _, mnt := range volumeMapping {
+		hostconfig.Mounts = append(hostconfig.Mounts, mnt)
 	}
 
 	return nil
