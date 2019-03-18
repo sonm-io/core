@@ -19,7 +19,7 @@ import (
 
 type engineFactory func(worker WorkerManagementClientAPI) (*workerEngine, error)
 
-func predictionEngineConfig(cfg marketplaceConfig) *workerConfig {
+func predictionEngineConfig(cfg marketplaceConfig, bruteThreshold uint) *workerConfig {
 	priceThresholdValue := &RelativePriceThreshold{
 		Int: big.NewInt(int64(5.0 * 1000)),
 	}
@@ -37,16 +37,19 @@ func predictionEngineConfig(cfg marketplaceConfig) *workerConfig {
 		PreludeTimeout: 30 * time.Second,
 		Optimization: OptimizationConfig{
 			Model: optimizationMethodFactory{
-				OptimizationMethodFactory: &defaultPredictionOptimizationMethodFactory{},
+				OptimizationMethodFactory: &defaultPredictionOptimizationMethodFactory{
+					BruteThreshold: bruteThreshold,
+				},
 			},
 		},
 	}
 }
 
 type PredictorConfig struct {
-	Blockchain  *blockchain.Config
-	DWH         *dwh.DWHConfig
-	Marketplace marketplaceConfig
+	Blockchain     *blockchain.Config
+	DWH            *dwh.DWHConfig
+	Marketplace    marketplaceConfig
+	BruteThreshold uint `yaml:"brute_threshold" default:"6"`
 }
 
 type PredictorService struct {
@@ -76,7 +79,7 @@ func NewPredictorService(cfg *PredictorConfig, market blockchain.MarketAPI, benc
 		},
 	}
 
-	engineConfig := predictionEngineConfig(cfg.Marketplace)
+	engineConfig := predictionEngineConfig(cfg.Marketplace, cfg.BruteThreshold)
 	blacklist := newEmptyBlacklist()
 	marketCache := newMarketCache(newMarketScanner(cfg.Marketplace, dwh), cfg.Marketplace.Interval)
 	benchmarkMapping := benchmarks.NewArrayMapping(benchmarkList, benchmarkList.Max())

@@ -699,14 +699,16 @@ type OptimizationMethodFactory interface {
 	Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod
 }
 
-type defaultPredictionOptimizationMethodFactory struct{}
+type defaultPredictionOptimizationMethodFactory struct {
+	BruteThreshold uint
+}
 
 func (m *defaultPredictionOptimizationMethodFactory) Config() interface{} {
 	return m
 }
 
 func (m *defaultPredictionOptimizationMethodFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
-	if len(matchedOrders) < 16 {
+	if len(matchedOrders) < int(m.BruteThreshold) {
 		return &BranchBoundModel{
 			Log: log.With(zap.String("model", "BBM")),
 		}
