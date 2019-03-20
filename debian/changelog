@@ -1,3 +1,18 @@
+sonm-core (0.4.24) unstable; urgency=low
+
+  * Fixed: reduce brute-force threshold for predictor (#1865).
+    6!=720, which is not so big as 16!=20 922 789 888 000.
+  * Fixed: avoid duplicated driver volumes for GPUs (#1864).
+    Now we're storing whole information required to mount single GPU into a
+    container inside the "sonm.GPUDevice" structure. and now we can turn up into a
+    situation, when we're trying to mount more than one GPU with the same type.
+    The Tuner will try to attach more than one (absolutely same) volume to the
+    container. In that case, it will lead to the container' start failure.
+    This PR fixes that behavior by collecting proposed mount points into the set,
+    and then applying only non-repeated ones.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 20 Mar 2019 13:29:36 +0300
+
 sonm-core (0.4.23) unstable; urgency=low
 
   * Added: benchmark support for GPU type (#1857).
