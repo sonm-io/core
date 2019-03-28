@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultMasterchainEndpoint        = "https://mainnet.infura.io/b5f5a2140e63435bba300424cef86b29"
+	defaultMasterchainEndpoint        = "https://mainnet.infura.io/v3/b5f5a2140e63435bba300424cef86b29"
 	defaultSidechainEndpoint          = "https://sidechain.livenet.sonm.com/"
 	defaultMasterchainGasPrice uint64 = 20000000000 // 20 Gwei
 	defaultSidechainGasPrice   uint64 = 0
