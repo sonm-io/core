@@ -16,10 +16,9 @@ const (
 	retryCount   = 3
 	retryTimeout = 1 * time.Second
 
-	whatToMineURL = "https://whattomine.com/coins.json"
-	zcashWtmID    = 166
-	ethWtmID      = 151
-	moneroEtmID   = 101
+	zcashWtmID  = 166
+	ethWtmID    = 151
+	moneroEtmID = 101
 )
 
 type coinParams struct {
@@ -36,23 +35,18 @@ type wtmResponse struct {
 }
 
 func getTokenParamsFromWTM(id int) (*coinParams, error) {
-	data, err := FetchURLWithRetry(whatToMineURL)
+	u := fmt.Sprintf("https://whattomine.com/coins/%d.json", id)
+	data, err := FetchURLWithRetry(u)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := &wtmResponse{}
+	resp := &coinParams{}
 	if err := json.Unmarshal(data, resp); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal token params response: %v", err)
 	}
 
-	for _, coin := range resp.Coins {
-		if coin.ID == id {
-			return coin, nil
-		}
-	}
-
-	return nil, fmt.Errorf("cannot find coin with id %d in response", id)
+	return resp, nil
 }
 
 type coinMarketCapResponse struct {
