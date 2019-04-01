@@ -301,6 +301,7 @@ func printOrderDetails(cmd Printer, order *sonm.Order) {
 		cmd.Printf("  CPU Cryptonight      %d\r\n", b.CPUCryptonight())
 		cmd.Printf("  GPU nVidia only      %d\r\n", b.GPUNVidiaOnly())
 		cmd.Printf("  GPU Radeon only      %d\r\n", b.GPURadeonOnly())
+		cmd.Printf("  GPU Cuckaruu29       %d\r\n", b.GPUCuckaroo29())
 
 	} else {
 		showJSON(cmd, order)

@@ -134,6 +134,10 @@ func (m *Benchmarks) GPURadeonOnly() uint64 {
 	return m.Get(14)
 }
 
+func (m *Benchmarks) GPUCuckaroo29() uint64 {
+	return m.Get(15)
+}
+
 func (m *Deal) GetTypeName() string {
 	if m.IsSpot() {
 		return "Spot"
