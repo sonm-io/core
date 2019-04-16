@@ -197,7 +197,7 @@ func (m *HTBShapingAction) Execute(ctx context.Context) error {
 		return fmt.Errorf("failed to up ifb device: %s", err)
 	}
 
-	m.ifbLink = link
+	m.ifbLink = ifbLink
 
 	egressQDisc := &tc.Ingress{
 		QDiscAttrs: tc.QDiscAttrs{
