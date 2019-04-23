@@ -163,7 +163,7 @@ install: all
 
 vet:
 	@echo "+ $@"
-	@go tool vet $(shell ls -1 -d */ | grep -v -e vendor -e contracts)
+	@go vet ./...
 
 fmt:
 	@echo "+ $@"
