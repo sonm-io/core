@@ -214,6 +214,7 @@ func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*ty
 	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
+	bid.Identity = sonm.IdentityLevel_PROFESSIONAL
 	order, err := e.market.CreateOrder(ctx, bid)
 	if err != nil {
 		return nil, err
