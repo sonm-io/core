@@ -67,7 +67,7 @@ type PredictorService struct {
 
 // NewPredictorService constructs a new order price predictor service.
 // Returns nil when nil "cfg" is passed.
-func NewPredictorService(cfg *PredictorConfig, market blockchain.MarketAPI, benchmarkList benchmarks.BenchList, dwh sonm.DWHClient, log *zap.SugaredLogger) *PredictorService {
+func NewPredictorService(cfg *PredictorConfig, eth blockchain.API, benchmarkList benchmarks.BenchList, dwh sonm.DWHClient, log *zap.SugaredLogger) *PredictorService {
 	if cfg == nil {
 		return nil
 	}
@@ -86,13 +86,13 @@ func NewPredictorService(cfg *PredictorConfig, market blockchain.MarketAPI, benc
 	tagger := newTagger("predictor")
 
 	engineFactory := func(worker WorkerManagementClientAPI) (*workerEngine, error) {
-		return newWorkerEngine(engineConfig, common.Address{}, common.Address{}, blacklist, worker, market, marketCache, benchmarkMapping, tagger, log)
+		return newWorkerEngine(engineConfig, common.Address{}, common.Address{}, blacklist, worker, eth, marketCache, benchmarkMapping, tagger, log)
 	}
 
 	m := &PredictorService{
 		cfg:           cfg,
 		log:           log,
-		market:        market,
+		market:        eth.Market(),
 		marketCache:   marketCache,
 		benchmarks:    benchmarkList,
 		regression:    regression,

@@ -174,11 +174,21 @@ func (m *natPuncherTCPBase) punchAddr(ctx context.Context, addr *sonm.Addr) (net
 		return nil, err
 	}
 
+	// Tune attempts number to prevent "nil, nil" situations.
+	maxPunchAttempts := 1
+	if m.maxPunchAttempts > 0 {
+		maxPunchAttempts = m.maxPunchAttempts
+	}
+
 	errs := multierror.NewMultiError()
-	for i := 0; i < m.maxPunchAttempts; i++ {
+	for i := 0; i < maxPunchAttempts; i++ {
 		conn, err := DialContext(ctx, protocol, m.rendezvousClient.LocalAddr().String(), remoteAddr.String())
 		if err != nil {
 			errs = multierror.AppendUnique(errs, err)
+			continue
+		}
+		if conn == nil {
+			errs = multierror.AppendUnique(errs, fmt.Errorf("received 'nil' with no error during `DialContext`"))
 			continue
 		}
 

@@ -92,7 +92,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 
 		// TODO: Well, 10 parameters seems to be WAT.
 		workerClient := &workerManagementClientAPI{worker}
-		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, workerClient, market.Market(), marketCache, benchmarkMapping, newTagger(m.version), m.log)
+		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, workerClient, market, marketCache, benchmarkMapping, newTagger(m.version), m.log)
 		if err != nil {
 			return err
 		}

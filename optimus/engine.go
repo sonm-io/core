@@ -157,13 +157,15 @@ type workerEngine struct {
 	blacklist        Blacklist
 	market           blockchain.MarketAPI
 	marketCache      MarketScanner
+	registry         blockchain.ProfileRegistryAPI
+	workerIdentity   sonm.IdentityLevel
 	worker           WorkerManagementClientExt
 	benchmarkMapping benchmarks.Mapping
 
 	tagger *Tagger
 }
 
-func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker WorkerManagementClientAPI, market blockchain.MarketAPI, marketCache MarketScanner, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker WorkerManagementClientAPI, eth blockchain.API, marketCache MarketScanner, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
 	if cfg.DryRun {
 		log.Infof("activated dry-run mode for this worker")
 		worker = NewReadOnlyWorker(worker)
@@ -174,7 +176,7 @@ func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blackli
 		log.Infof("activated simulation mode for this worker")
 
 		var err error
-		marketCache, err = NewPredefinedMarketCache(cfg.Simulation.Orders, market)
+		marketCache, err = NewPredefinedMarketCache(cfg.Simulation.Orders, eth.Market())
 		if err != nil {
 			return nil, err
 		}
@@ -190,8 +192,10 @@ func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blackli
 		addr:             addr,
 		masterAddr:       masterAddr,
 		blacklist:        blacklist,
-		market:           market,
+		market:           eth.Market(),
 		marketCache:      marketCache,
+		registry:         eth.ProfileRegistry(),
+		workerIdentity:   sonm.IdentityLevel_ANONYMOUS,
 		worker:           &workerManagementClientExt{worker},
 		benchmarkMapping: benchmarkMapping,
 
@@ -225,6 +229,16 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	if time.Since(maintenance.Unix()) >= 0 {
 		return fmt.Errorf("worker is on the maintenance")
 	}
+
+	workerIdentity, err := m.registry.GetProfileLevel(ctx, m.addr)
+	if err != nil {
+		return fmt.Errorf("failed to get worker identity: %v", err)
+	}
+	if workerIdentity == sonm.IdentityLevel_UNKNOWN {
+		workerIdentity = sonm.IdentityLevel_ANONYMOUS
+	}
+	m.workerIdentity = workerIdentity
+	m.log.Infof("worker identity: %s", workerIdentity)
 
 	if err := m.blacklist.Update(ctx); err != nil {
 		return fmt.Errorf("failed to update blacklist: %v", err)
@@ -674,11 +688,11 @@ func (m *workerEngine) filtersErr(deviceManager *DeviceManager, devices *sonm.De
 			return fmt.Errorf("counterparty mismatch")
 		},
 		func(order *sonm.Order) error {
-			if order.IdentityLevel <= m.cfg.Identity {
+			if m.workerIdentity >= order.IdentityLevel {
 				return nil
 			}
 
-			return fmt.Errorf("expected minimum identity %s, actual %s", m.cfg.Identity, order.IdentityLevel)
+			return fmt.Errorf("expected identity at least %s, actual %s", m.workerIdentity, order.IdentityLevel)
 		},
 		func(order *sonm.Order) error {
 			if deviceManager.Contains(*order.Benchmarks, *order.Netflags) {
