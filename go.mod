@@ -57,7 +57,7 @@ require (
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
 	github.com/gosuri/uilive v0.0.0-20170323041506-ac356e6e42cd
 	github.com/gosuri/uiprogress v0.0.0-20170224063937-d0567a9d84a1
-	github.com/grpc-ecosystem/go-grpc-middleware v0.0.0-20171215095238-967bee733a73
+	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v0.0.0-20170826090648-0dafe0d496ea
 	github.com/gxed/GoEndian v0.0.0-20160916112711-0f5c6873267e
 	github.com/gxed/eventfd v0.0.0-20160916113412-80a92cca79a8
