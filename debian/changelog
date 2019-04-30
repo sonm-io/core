@@ -1,3 +1,18 @@
+sonm-core (0.4.25) unstable; urgency=low
+
+  * Added: track worker's identity level in Optimus (#1874).
+    This change activates a new filter in Optimus that is capable of
+    filtering orders with identity requirements greater than a Worker
+    have.
+  * Fixed: make go.mod great again (#1875).
+  * Fixed: save proper IFB link while configuring shaping (#1871).
+  * Fixed: update infura's projectID (#1870).
+  * Fixed: proper temporary errors handling in connor (#1861).
+  * Fixed: replace TaskManagementClient with WorkerClient in Connor (#1862).
+  * Fixed: use new WTM API to obtain price for orders (#1863).
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 29 Apr 2019 20:46:35 +0300
+
 sonm-core (0.4.24) unstable; urgency=low
 
   * Fixed: reduce brute-force threshold for predictor (#1865).
