@@ -465,12 +465,7 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 	currentPrice := m.priceForPack(ctx, input, deviceManager, virtualFreeOrders)
 	m.log.Infow("current worker price", zap.String("Σ USD/s", currentPrice.WorkerPrice.GetPerSecond().ToPriceString()))
 	m.log.Infow("current worker swing price", zap.String("Σ USD/s", currentPrice.WorkerSpotPrice.GetPerSecond().ToPriceString()))
-	if matchedOrder != nil {
-		m.log.Infow("optimizing entire machine using virtual free devices done", zap.String("Σ USD/s", matchedOrder.GetPrice().ToPriceString()), zap.Any("plans", *matchedOrder))
-	} else {
-		m.log.Infow("optimizing entire machine using virtual free devices done", zap.String("Σ USD/s", "0"), zap.Any("plans", nil))
-	}
-	m.log.Infow("optimizing spot-only using virtual free devices done", zap.String("Σ USD/s", virtualKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", virtualKnapsack.Plans()))
+	m.log.Infow("optimizing using virtual free devices done", zap.String("Σ USD/s", virtualKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", virtualKnapsack.Plans()))
 
 	// Compare total USD/s before and after. Remove some plans if the diff is
 	// more than the threshold.
@@ -498,9 +493,7 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 	}
 
 	if len(winners) == 1 {
-		plan := winners[0]
-
-		if plan.GetDuration().Unwrap() > 0 && len(plan.Resources.GetGPU().Indexes) == deviceManager.GPUCount() {
+		if winners[0].GetDuration().Unwrap() > 0 && len(winners[0].Resources.GetGPU().GetHashes()) == deviceManager.GPUCount() {
 			fullHardware := hardware.Hardware{
 				CPU:     input.Devices.CPU,
 				GPU:     input.Devices.GPUs,
@@ -509,7 +502,8 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 				Storage: input.Devices.Storage,
 			}
 
-			plan.Resources = fullHardware.AskPlanResources()
+			winners[0].Resources = fullHardware.AskPlanResources()
+			m.log.Infow("extended plan resources", zap.Any("plans", *winners[0]))
 		}
 	}
 
@@ -518,8 +512,8 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 	}
 
 	m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
-	m.log.Infow("removing plans", zap.Any("plans", remove))
-	m.log.Infow("creating plans", zap.Any("plans", create))
+	m.log.Infow("removing plans", zap.Any("plans", victims))
+	m.log.Infow("creating plans", zap.Any("plans", winners))
 
 	victimIDs := make([]string, 0, len(victims))
 	for _, plan := range victims {
