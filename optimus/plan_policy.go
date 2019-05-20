@@ -34,8 +34,6 @@ func (m *planPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	fmt.Printf("type: %v", ty)
-
 	*m = policy
 	return nil
 }
