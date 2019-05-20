@@ -204,6 +204,7 @@ workers:
     # This mode is required mostly for debugging.
     #simulation:
     #  orders: [42, 43]
+    plan_policy: entire_machine
 
 debug:
   port: 6060

@@ -78,6 +78,7 @@ type workerConfig struct {
 	PreludeTimeout time.Duration      `yaml:"prelude_timeout" default:"30s"`
 	Optimization   OptimizationConfig `yaml:"optimization"`
 	Simulation     *simulationConfig  `yaml:"simulation"`
+	PlanPolicy     planPolicy         `yaml:"plan_policy"`
 	VerboseLog     bool               `yaml:"verbose"`
 }
 
@@ -88,6 +89,10 @@ func (m *workerConfig) Validate() error {
 
 	if m.Optimization.Model.OptimizationMethodFactory == nil {
 		m.Optimization.Model = optimizationMethodFactory{OptimizationMethodFactory: &defaultOptimizationMethodFactory{}}
+	}
+
+	if m.PlanPolicy == 0 {
+		m.PlanPolicy = planPolicyEntireMachine
 	}
 
 	return nil
