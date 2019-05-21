@@ -1,3 +1,10 @@
+sonm-core (0.4.26) unstable; urgency=low
+
+  * Added: lease the entire machine mode in Optimus (#1878).
+  * Added: task OOM notification (#1879).
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 21 May 2019 15:50:16 +0300
+
 sonm-core (0.4.25) unstable; urgency=low
 
   * Added: track worker's identity level in Optimus (#1874).
