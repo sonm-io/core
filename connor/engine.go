@@ -625,6 +625,11 @@ func (e *engine) trackTaskOnce(ctx context.Context, log *zap.Logger, dealID *son
 		return newTemporaryError(err)
 	}
 
+	if status.GetStatus() == sonm.TaskStatusReply_KILLED_OOM {
+		log.Warn("task was terminated due to reaching OOM", zap.String("status", status.GetStatus().String()))
+		return fmt.Errorf("task was terminated due to reaching OOM")
+	}
+
 	if status.GetStatus() == sonm.TaskStatusReply_FINISHED ||
 		status.GetStatus() == sonm.TaskStatusReply_BROKEN ||
 		status.GetStatus() == sonm.TaskStatusReply_UNKNOWN {

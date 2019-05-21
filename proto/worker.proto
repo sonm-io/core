@@ -164,6 +164,7 @@ message TaskStatusReply {
         RUNNING = 3;
         FINISHED = 4;
         BROKEN = 5;
+        KILLED_OOM = 6;
     }
     Status status = 1;
     string imageName = 2;
