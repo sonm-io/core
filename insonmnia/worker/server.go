@@ -985,7 +985,7 @@ func (m *Worker) setStatus(status *sonm.TaskStatusReply, id string) {
 	}
 
 	m.containers[id].status = status.GetStatus()
-	if status.Status == sonm.TaskStatusReply_BROKEN || status.Status == sonm.TaskStatusReply_FINISHED {
+	if sonm.IsTaskStatusExit(status.Status) {
 		m.resources.ReleaseTask(id)
 	}
 }
@@ -1896,7 +1896,7 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 
 	select {
 	case s := <-statusChan:
-		if s == sonm.TaskStatusReply_FINISHED || s == sonm.TaskStatusReply_BROKEN {
+		if sonm.IsTaskStatusExit(s) {
 			log.S(m.ctx).Debugf("benchmark container %s finished", statusReply.ID)
 			logOpts := types.ContainerLogsOptions{
 				ShowStdout: true,
