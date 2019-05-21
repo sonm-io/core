@@ -54,6 +54,6 @@ func (m *WorkerMetricsResponse) Append(x ...map[string]float64) *WorkerMetricsRe
 	return m
 }
 
-func IsTaskStatusExit(status TaskStatusReply_Status) bool {
+func IsTaskStatusTerminated(status TaskStatusReply_Status) bool {
 	return status == TaskStatusReply_FINISHED || status == TaskStatusReply_BROKEN || status == TaskStatusReply_KILLED_OOM
 }
