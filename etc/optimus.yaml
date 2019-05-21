@@ -204,6 +204,14 @@ workers:
     # This mode is required mostly for debugging.
     #simulation:
     #  orders: [42, 43]
+    # Specifies how Optimus will create ask-plans for this worker.
+    # Possible values: precise, entire_machine.
+    # The "precise" value means the most precise way to cut and sell the
+    # machine using various optimization algorithms.
+    # The "entire_machine" value means that either the most profitable forward
+    # order will consume the entire machine or the set of spot orders depending
+    # on the total profitability.
+    plan_policy: entire_machine
 
 debug:
   port: 6060

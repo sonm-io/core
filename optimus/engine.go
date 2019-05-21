@@ -230,15 +230,9 @@ func (m *workerEngine) execute(ctx context.Context) error {
 		return fmt.Errorf("worker is on the maintenance")
 	}
 
-	workerIdentity, err := m.registry.GetProfileLevel(ctx, m.addr)
-	if err != nil {
-		return fmt.Errorf("failed to get worker identity: %v", err)
+	if err := m.updateWorkerIdentity(ctx); err != nil {
+		return fmt.Errorf("failed to update worker identity: %v", err)
 	}
-	if workerIdentity == sonm.IdentityLevel_UNKNOWN {
-		workerIdentity = sonm.IdentityLevel_ANONYMOUS
-	}
-	m.workerIdentity = workerIdentity
-	m.log.Infof("worker identity: %s", workerIdentity)
 
 	if err := m.blacklist.Update(ctx); err != nil {
 		return fmt.Errorf("failed to update blacklist: %v", err)
@@ -296,6 +290,17 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	// Extended orders set, with added currently executed orders.
 	extOrders := append(append([]*MarketOrder{}, input.Orders...), virtualFreeOrders...)
 
+	switch {
+	case m.cfg.PlanPolicy.IsPrecise():
+		return m.executePrecise(ctx, input, victimPlans, virtualFreeDevices, extOrders, virtualFreeOrders)
+	case m.cfg.PlanPolicy.IsEntireMachine():
+		return m.executeEntireMachine(ctx, input, victimPlans, virtualFreeDevices, extOrders, virtualFreeOrders)
+	default:
+		return fmt.Errorf("unknown plan policy: %v", m.cfg.PlanPolicy)
+	}
+}
+
+func (m *workerEngine) executePrecise(ctx context.Context, input *optimizationInput, victimPlans map[string]*sonm.AskPlan, virtualFreeDevices *sonm.DevicesReply, extOrders, virtualFreeOrders []*MarketOrder) error {
 	var virtualKnapsack *Knapsack
 
 	wg := errgroup.Group{}
@@ -318,7 +323,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 		return fmt.Errorf("failed to construct device manager: %v", err)
 	}
 
-	currentPrice := priceForPack(ctx, input, deviceManager, virtualFreeOrders)
+	currentPrice := m.priceForPack(ctx, input, deviceManager, virtualFreeOrders)
 	m.log.Infow("current worker price", zap.String("Σ USD/s", currentPrice.WorkerPrice.GetPerSecond().ToPriceString()))
 	m.log.Infow("current worker swing price", zap.String("Σ USD/s", currentPrice.WorkerSpotPrice.GetPerSecond().ToPriceString()))
 	m.log.Infow("optimizing using virtual free devices done", zap.String("Σ USD/s", virtualKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", virtualKnapsack.Plans()))
@@ -379,6 +384,175 @@ func (m *workerEngine) execute(ctx context.Context) error {
 
 		m.log.Infof("created sell plan %s for %s order", id.Id, orderID.String())
 	}
+
+	return nil
+}
+
+func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimizationInput, victimPlans map[string]*sonm.AskPlan, virtualFreeDevices *sonm.DevicesReply, extOrders, virtualFreeOrders []*MarketOrder) error {
+	m.log.Info("executing using the entire machine lease policy")
+
+	// Break if we have at least one forward plan.
+	for id, plan := range input.Plans {
+		if plan.Duration.Unwrap() != 0 {
+			return fmt.Errorf("detected forward plan: %s", id)
+		}
+	}
+
+	// Fixing order duration filter to match only spot orders.
+	m.cfg.OrderDuration = time.Duration(0)
+
+	var virtualKnapsack *Knapsack
+
+	wg := errgroup.Group{}
+	wg.Go(func() error {
+		m.log.Info("optimizing using virtual free devices")
+		knapsack, err := m.optimize(ctx, input.Devices, virtualFreeDevices, extOrders, virtualFreeOrders, m.log.With(zap.String("optimization", "virtual")))
+		if err != nil {
+			return err
+		}
+
+		virtualKnapsack = knapsack
+		return nil
+	})
+	if err := wg.Wait(); err != nil {
+		return err
+	}
+
+	var matchedOrder *sonm.Order
+	for _, o := range input.Orders {
+		order := o.GetOrder()
+		// Allow only forward deals.
+		if order.GetDuration() == 0 {
+			continue
+		}
+
+		deviceManager, err := newDeviceManager(input.Devices, virtualFreeDevices, m.benchmarkMapping)
+		if err != nil {
+			return fmt.Errorf("failed to construct device manager: %v", err)
+		}
+
+		if deviceManager.Contains(*order.GetBenchmarks(), *order.GetNetflags()) {
+			if matchedOrder == nil {
+				matchedOrder = order
+				continue
+			}
+
+			if order.GetPrice().Cmp(matchedOrder.GetPrice()) > 0 {
+				matchedOrder = order
+			}
+		}
+	}
+
+	if matchedOrder != nil {
+		if matchedOrder.GetPrice().Cmp(sonm.SumPrice(virtualKnapsack.Plans()).GetPerSecond()) > 0 {
+			fullDeviceManager, err := newDeviceManager(input.Devices, virtualFreeDevices, m.benchmarkMapping)
+			if err != nil {
+				return fmt.Errorf("failed to construct device manager: %v", err)
+			}
+
+			virtualKnapsack = NewKnapsack(fullDeviceManager)
+			if err := virtualKnapsack.Put(matchedOrder); err != nil {
+				return err
+			}
+		}
+	}
+
+	deviceManager, err := newDeviceManager(input.Devices, virtualFreeDevices, m.benchmarkMapping)
+	if err != nil {
+		return fmt.Errorf("failed to construct device manager: %v", err)
+	}
+
+	currentPrice := m.priceForPack(ctx, input, deviceManager, virtualFreeOrders)
+	m.log.Infow("current worker price", zap.String("Σ USD/s", currentPrice.WorkerPrice.GetPerSecond().ToPriceString()))
+	m.log.Infow("current worker swing price", zap.String("Σ USD/s", currentPrice.WorkerSpotPrice.GetPerSecond().ToPriceString()))
+	m.log.Infow("optimizing using virtual free devices done", zap.String("Σ USD/s", virtualKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", virtualKnapsack.Plans()))
+
+	// Compare total USD/s before and after. Remove some plans if the diff is
+	// more than the threshold.
+	swingTime := m.cfg.PriceThreshold.Exceeds(virtualKnapsack.Price().GetPerSecond().Unwrap(), currentPrice.WorkerSpotPrice.GetPerSecond().Unwrap())
+
+	var winners []*sonm.AskPlan
+	var victims []*sonm.AskPlan
+	create, remove, ignore := splitPlans(victimPlans, virtualKnapsack.Plans())
+
+	switch {
+	case len(remove) == 0:
+		m.log.Info("using appending strategy")
+		winners = create
+	case swingTime:
+		m.log.Info("using replacement strategy")
+
+		// Remove all spot plans that have no deal associated with.
+		for _, plan := range victimPlans {
+			if plan.GetDealID().IsZero() {
+				victims = append(victims, plan)
+			}
+		}
+
+		winners = create
+	}
+
+	if len(winners) == 1 {
+		if winners[0].GetDuration().Unwrap() > 0 && len(winners[0].Resources.GetGPU().GetHashes()) == deviceManager.GPUCount() {
+			fullHardware := hardware.Hardware{
+				CPU:     input.Devices.CPU,
+				GPU:     input.Devices.GPUs,
+				RAM:     input.Devices.RAM,
+				Network: input.Devices.Network,
+				Storage: input.Devices.Storage,
+			}
+
+			winners[0].Resources = fullHardware.AskPlanResources()
+			m.log.Infow("extended plan resources", zap.Any("plans", *winners[0]))
+		}
+	}
+
+	if len(winners) == 0 {
+		return fmt.Errorf("no plans found")
+	}
+
+	m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
+	m.log.Infow("removing plans", zap.Any("plans", victims))
+	m.log.Infow("creating plans", zap.Any("plans", winners))
+
+	victimIDs := make([]string, 0, len(victims))
+	for _, plan := range victims {
+		victimIDs = append(victimIDs, plan.ID)
+	}
+	if err := m.worker.RemoveAskPlans(ctx, victimIDs); err != nil {
+		return err
+	}
+
+	for _, plan := range winners {
+		// Extract the order ID for whose the selling plan is created.
+		orderID := plan.GetOrderID()
+
+		plan.Identity = m.cfg.Identity
+		plan.Tag = m.tagger.Tag()
+
+		id, err := m.worker.CreateAskPlan(ctx, plan)
+		if err != nil {
+			m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Stringer("order", orderID), zap.Error(err))
+			continue
+		}
+
+		m.log.Infof("created sell plan %s for %s order", id.Id, orderID.String())
+	}
+
+	return nil
+}
+
+func (m *workerEngine) updateWorkerIdentity(ctx context.Context) error {
+	workerIdentity, err := m.registry.GetProfileLevel(ctx, m.addr)
+	if err != nil {
+		return err
+	}
+
+	if workerIdentity == sonm.IdentityLevel_UNKNOWN {
+		workerIdentity = sonm.IdentityLevel_ANONYMOUS
+	}
+	m.workerIdentity = workerIdentity
+	m.log.Infof("worker identity: %s", workerIdentity)
 
 	return nil
 }
@@ -878,9 +1052,9 @@ func planEq(a, b *sonm.AskPlan) bool {
 		a.GetDuration().Unwrap() == b.GetDuration().Unwrap()
 }
 
-func priceForPack(ctx context.Context, input *optimizationInput, manager *DeviceManager, virtualFreeOrders []*MarketOrder) *priceTuple {
+func (m *workerEngine) priceForPack(ctx context.Context, input *optimizationInput, manager *DeviceManager, virtualFreeOrders []*MarketOrder) *priceTuple {
 	factory := &defaultOptimizationMethodFactory{}
-	model := factory.Create(virtualFreeOrders, virtualFreeOrders, zap.NewNop().Sugar())
+	model := factory.Create(virtualFreeOrders, virtualFreeOrders, m.log.Named("appraiser"))
 
 	knapsack := NewKnapsack(manager)
 	if err := model.Optimize(ctx, knapsack, virtualFreeOrders); err != nil {

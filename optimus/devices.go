@@ -201,6 +201,10 @@ func (m *DeviceManager) Clone() *DeviceManager {
 	}
 }
 
+func (m *DeviceManager) GPUCount() int {
+	return len(m.devices.GPUs)
+}
+
 func (m *DeviceManager) Contains(benchmarks sonm.Benchmarks, netflags sonm.NetFlags) bool {
 	copyFreeBenchmarks := append([]uint64{}, m.freeBenchmarks...)
 	copyFreeGPUs := append([]*sonm.GPU{}, m.freeGPUs...)
