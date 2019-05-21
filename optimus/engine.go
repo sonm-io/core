@@ -290,10 +290,10 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	// Extended orders set, with added currently executed orders.
 	extOrders := append(append([]*MarketOrder{}, input.Orders...), virtualFreeOrders...)
 
-	switch m.cfg.PlanPolicy {
-	case planPolicyPrecise:
+	switch {
+	case m.cfg.PlanPolicy.IsPrecise():
 		return m.executePrecise(ctx, input, victimPlans, virtualFreeDevices, extOrders, virtualFreeOrders)
-	case planPolicyEntireMachine:
+	case m.cfg.PlanPolicy.IsEntireMachine():
 		return m.executeEntireMachine(ctx, input, victimPlans, virtualFreeDevices, extOrders, virtualFreeOrders)
 	default:
 		return fmt.Errorf("unknown plan policy: %v", m.cfg.PlanPolicy)
@@ -1054,7 +1054,7 @@ func planEq(a, b *sonm.AskPlan) bool {
 
 func (m *workerEngine) priceForPack(ctx context.Context, input *optimizationInput, manager *DeviceManager, virtualFreeOrders []*MarketOrder) *priceTuple {
 	factory := &defaultOptimizationMethodFactory{}
-	model := factory.Create(virtualFreeOrders, virtualFreeOrders, m.log.Named("WTF"))
+	model := factory.Create(virtualFreeOrders, virtualFreeOrders, m.log.Named("appraiser"))
 
 	knapsack := NewKnapsack(manager)
 	if err := model.Optimize(ctx, knapsack, virtualFreeOrders); err != nil {

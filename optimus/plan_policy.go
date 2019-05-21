@@ -1,39 +1,18 @@
 package optimus
 
-import (
-	"fmt"
-)
-
 const (
-	planPolicyPrecise planPolicy = iota + 1
+	planPolicyPrecise = iota
 	planPolicyEntireMachine
 )
 
-type planPolicy int
-
-// NewPlanPolicy constructs a new plan policy from the given string.
-func newPlanPolicy(ty string) (planPolicy, error) {
-	switch ty {
-	case "precise":
-		return planPolicyPrecise, nil
-	case "entire_machine":
-		return planPolicyEntireMachine, nil
-	default:
-		return planPolicyPrecise, fmt.Errorf("unknown plan type: %s", ty)
-	}
+type planPolicy struct {
+	Type int
 }
 
-func (m *planPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var ty string
-	if err := unmarshal(&ty); err != nil {
-		return err
-	}
+func (m *planPolicy) IsPrecise() bool {
+	return m.Type == planPolicyPrecise
+}
 
-	policy, err := newPlanPolicy(ty)
-	if err != nil {
-		return err
-	}
-
-	*m = policy
-	return nil
+func (m *planPolicy) IsEntireMachine() bool {
+	return m.Type == planPolicyEntireMachine
 }
