@@ -1,3 +1,9 @@
+sonm-core (0.4.27) unstable; urgency=low
+
+  * Fixed: properly decode plan policy from config in Optimus.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 22 May 2019 15:49:27 +0300
+
 sonm-core (0.4.26) unstable; urgency=low
 
   * Added: lease the entire machine mode in Optimus (#1878).
