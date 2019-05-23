@@ -418,29 +418,10 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 		return err
 	}
 
-	var matchedOrder *sonm.Order
-	for _, o := range input.Orders {
-		order := o.GetOrder()
-		// Allow only forward deals.
-		if order.GetDuration() == 0 {
-			continue
-		}
-
-		deviceManager, err := newDeviceManager(input.Devices, virtualFreeDevices, m.benchmarkMapping)
-		if err != nil {
-			return fmt.Errorf("failed to construct device manager: %v", err)
-		}
-
-		if deviceManager.Contains(*order.GetBenchmarks(), *order.GetNetflags()) {
-			if matchedOrder == nil {
-				matchedOrder = order
-				continue
-			}
-
-			if order.GetPrice().Cmp(matchedOrder.GetPrice()) > 0 {
-				matchedOrder = order
-			}
-		}
+	// Find the most profitable forward order.
+	matchedOrder, err := m.findMostProfitableForwardOrder(input, virtualFreeDevices)
+	if err != nil {
+		return err
 	}
 
 	if matchedOrder != nil {
@@ -540,6 +521,44 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 	}
 
 	return nil
+}
+
+func (m *workerEngine) findMostProfitableForwardOrder(input *optimizationInput, virtualFreeDevices *sonm.DevicesReply) (*sonm.Order, error) {
+	var matchedOrder *sonm.Order
+
+	deviceManager, err := newDeviceManager(input.Devices, virtualFreeDevices, m.benchmarkMapping)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct device manager: %v", err)
+	}
+
+	filter := FittingFunc{
+		Filters: m.filtersErr(deviceManager, input.Devices),
+	}
+
+	for _, order := range input.Orders {
+		// Allow only forward deals.
+		if order.GetOrder().GetDuration() == 0 {
+			continue
+		}
+
+		if err := filter.Filter(order.GetOrder()); err != nil {
+			if m.cfg.VerboseLog {
+				m.log.Debugf("exclude order %s from matching: %v", order.GetOrder().GetId(), err)
+			}
+			continue
+		}
+
+		if matchedOrder == nil {
+			matchedOrder = order.GetOrder()
+			continue
+		}
+
+		if order.GetOrder().GetPrice().Cmp(matchedOrder.GetPrice()) > 0 {
+			matchedOrder = order.GetOrder()
+		}
+	}
+
+	return matchedOrder, nil
 }
 
 func (m *workerEngine) updateWorkerIdentity(ctx context.Context) error {
