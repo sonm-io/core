@@ -1,3 +1,12 @@
+sonm-core (0.4.28) unstable; urgency=low
+
+  * Fixed: restore order duration after execution in Optimus.
+  * Fixed: Optimus should no longer ignore forward deals.
+  * Fixed: stop ignoring filters in Optimus (#1881).
+    Stop ignoring filters in Optimus in entire machine lease mode.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 24 May 2019 13:50:57 +0300
+
 sonm-core (0.4.27) unstable; urgency=low
 
   * Fixed: properly decode plan policy from config in Optimus.
