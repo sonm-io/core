@@ -405,7 +405,9 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 	}
 
 	// Fixing order duration filter to match only spot orders.
+	orderDuration := m.cfg.OrderDuration
 	m.cfg.OrderDuration = time.Duration(0)
+	defer func() { m.cfg.OrderDuration = orderDuration }()
 
 	var virtualKnapsack *Knapsack
 
