@@ -398,6 +398,12 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 		}
 	}
 
+	// Find the most profitable forward order.
+	matchedEntireMachineOrder, err := m.findMostProfitableForwardOrder(input, virtualFreeDevices)
+	if err != nil {
+		return err
+	}
+
 	// Fixing order duration filter to match only spot orders.
 	m.cfg.OrderDuration = time.Duration(0)
 
@@ -406,7 +412,7 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 	wg := errgroup.Group{}
 	wg.Go(func() error {
 		m.log.Info("optimizing using virtual free devices")
-		knapsack, err := m.optimize(ctx, input.Devices, virtualFreeDevices, extOrders, virtualFreeOrders, m.log.With(zap.String("optimization", "virtual")))
+		knapsack, err := m.optimize(ctx, input.Devices, virtualFreeDevices, extOrders, virtualFreeOrders, m.log.With(zap.String("optimization", "virtual"), zap.String("mode", "spot")))
 		if err != nil {
 			return err
 		}
@@ -418,21 +424,17 @@ func (m *workerEngine) executeEntireMachine(ctx context.Context, input *optimiza
 		return err
 	}
 
-	// Find the most profitable forward order.
-	matchedOrder, err := m.findMostProfitableForwardOrder(input, virtualFreeDevices)
-	if err != nil {
-		return err
-	}
+	if matchedEntireMachineOrder != nil {
+		m.log.Debugw("found order for entire machine", zap.Any("order", *matchedEntireMachineOrder))
 
-	if matchedOrder != nil {
-		if matchedOrder.GetPrice().Cmp(sonm.SumPrice(virtualKnapsack.Plans()).GetPerSecond()) > 0 {
+		if matchedEntireMachineOrder.GetPrice().Cmp(sonm.SumPrice(virtualKnapsack.Plans()).GetPerSecond()) > 0 {
 			fullDeviceManager, err := newDeviceManager(input.Devices, virtualFreeDevices, m.benchmarkMapping)
 			if err != nil {
 				return fmt.Errorf("failed to construct device manager: %v", err)
 			}
 
 			virtualKnapsack = NewKnapsack(fullDeviceManager)
-			if err := virtualKnapsack.Put(matchedOrder); err != nil {
+			if err := virtualKnapsack.Put(matchedEntireMachineOrder); err != nil {
 				return err
 			}
 		}
