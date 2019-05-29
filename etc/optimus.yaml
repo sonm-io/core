@@ -9,6 +9,10 @@ restrictions:
   cgroup_name: /optimus
   # Maximum CPU cores allowed for consumption.
   cpu_count: 0.5
+  # Memory limit in megabytes.
+  #
+  # Zero value means no memory restrictions will be applied.
+  memory_limit: 1024
 
 # Global account settings.
 # Used by all components unless overridden.

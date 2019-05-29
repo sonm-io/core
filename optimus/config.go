@@ -65,6 +65,10 @@ type simulationConfig struct {
 type RestrictionsConfig struct {
 	Name     string  `yaml:"cgroup_name" default:"/optimus"`
 	CPUCount float64 `yaml:"cpu_count" default:"1.0"`
+	// Upper RSS threshold in megabytes.
+	//
+	// Zero value, which is default, means no limit.
+	MemoryLimit uint64 `yaml:"memory_limit"`
 }
 
 type workerConfig struct {
