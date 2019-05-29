@@ -15,7 +15,7 @@ const (
 )
 
 func RestrictUsage(cfg *RestrictionsConfig) (Deleter, error) {
-	control, _, err := cgroups.NewCgroupManager(cfg.Name, convertLinuxResources(cfg.CPUCount))
+	control, _, err := cgroups.NewCgroupManager(cfg.Name, convertLinuxResources(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -27,13 +27,31 @@ func RestrictUsage(cfg *RestrictionsConfig) (Deleter, error) {
 	return control, nil
 }
 
-func convertLinuxResources(cpuCount float64) *specs.LinuxResources {
-	quota := int64(float64(defaultCPUPeriod) * cpuCount)
-	period := defaultCPUPeriod
+func convertLinuxResources(cfg *RestrictionsConfig) *specs.LinuxResources {
 	return &specs.LinuxResources{
-		CPU: &specs.LinuxCPU{
-			Quota:  &quota,
-			Period: &period,
-		},
+		CPU:    convertCPUConfig(cfg),
+		Memory: convertMemoryConfig(cfg),
+	}
+}
+
+func convertCPUConfig(cfg *RestrictionsConfig) *specs.LinuxCPU {
+	quota := int64(float64(defaultCPUPeriod) * cfg.CPUCount)
+	period := defaultCPUPeriod
+
+	return &specs.LinuxCPU{
+		Quota:  &quota,
+		Period: &period,
+	}
+}
+
+func convertMemoryConfig(cfg *RestrictionsConfig) *specs.LinuxMemory {
+	if cfg.MemoryLimit == 0 {
+		return nil
+	}
+
+	v := int64(cfg.MemoryLimit * (1 << 20))
+
+	return &specs.LinuxMemory{
+		Limit: &v,
 	}
 }
