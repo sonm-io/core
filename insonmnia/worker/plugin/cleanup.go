@@ -18,8 +18,8 @@ type nestedCleanup struct {
 	children []Cleanup
 }
 
-func newNestedCleanup() nestedCleanup {
-	return nestedCleanup{
+func newNestedCleanup() *nestedCleanup {
+	return &nestedCleanup{
 		children: make([]Cleanup, 0),
 	}
 }
@@ -37,7 +37,7 @@ func (c *nestedCleanup) Close() error {
 	}
 
 	// Avoiding double call.
-	*c = newNestedCleanup()
+	*c = *newNestedCleanup()
 
 	if len(errors) == 0 {
 		return nil
