@@ -195,7 +195,7 @@ func (r *Repository) Tune(ctx context.Context, provider Provider, hostCfg *conta
 		return nil, err
 	}
 	cleanup.Add(c)
-	return &cleanup, nil
+	return cleanup, nil
 }
 
 // HasGPU returns true if the Repository has at least one GPU plugin loaded
@@ -295,7 +295,7 @@ func (r *Repository) TuneVolumes(ctx context.Context, provider VolumeProvider, c
 		mount.VolumeOptions.Labels["DealID"] = provider.DealID()
 	}
 
-	return &cleanup, nil
+	return cleanup, nil
 }
 
 func (r *Repository) GetCleanup(ctx context.Context, provider Provider) (Cleanup, error) {
@@ -315,7 +315,7 @@ func (r *Repository) GetCleanup(ctx context.Context, provider Provider) (Cleanup
 
 	cleanup.Add(c)
 
-	return &cleanup, nil
+	return cleanup, nil
 }
 
 func (r *Repository) GetVolumeCleaner(ctx context.Context, provider VolumeProvider) (Cleanup, error) {
@@ -339,7 +339,7 @@ func (r *Repository) GetVolumeCleaner(ctx context.Context, provider VolumeProvid
 		cleanup.Add(&volumeCleanup{driver: driver, id: id})
 	}
 
-	return &cleanup, nil
+	return cleanup, nil
 }
 
 func (r *Repository) PostCreationTune(ctx context.Context, provider Provider, cleanup Cleanup, ID string) (Cleanup, error) {
@@ -354,7 +354,7 @@ func (r *Repository) PostCreationTune(ctx context.Context, provider Provider, cl
 		return nil, err
 	}
 	nCleanup.Add(cleanup)
-	return &nCleanup, nil
+	return nCleanup, nil
 }
 
 func (r *Repository) TuneStorageQuota(ctx context.Context, provider StorageQuotaProvider, ID string) (Cleanup, error) {
@@ -378,7 +378,7 @@ func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider,
 		}
 		cleanup.Add(c)
 	}
-	return &cleanup, nil
+	return cleanup, nil
 }
 
 func (r *Repository) GetNetworkCleaner(ctx context.Context, provider NetworkProvider) (Cleanup, error) {
@@ -399,7 +399,7 @@ func (r *Repository) GetNetworkCleaner(ctx context.Context, provider NetworkProv
 		cleanup.Add(c)
 	}
 
-	return &cleanup, nil
+	return cleanup, nil
 }
 
 func (r *Repository) JoinNetwork(ID string) (*structs.NetworkSpec, error) {
