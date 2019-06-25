@@ -532,6 +532,20 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 		if err := m.RemoveAskPlan(ctx, plan.GetID()); err != nil {
 			return fmt.Errorf("failed to remove ask plan %s with closed deal: %s", plan.GetID(), err)
 		}
+	} else if deal.GetSupplierID().Unwrap() != crypto.PubkeyToAddress(m.ethkey.PublicKey) {
+		// This is a hack for situation when blockchain rolls back and assignd id of the deal to completly another deal.
+		// We just drop it out and refetch in next cycle
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		// We have a deep copy of ask-plan, so refetch original one
+		plan, ok := m.askPlans[plan.ID]
+		if !ok {
+			return fmt.Errorf("failed to fetch ask plan by id %s", plan.ID)
+		}
+		plan.DealID = nil
+		if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+			return err
+		}
 	} else {
 		multi := multierror.NewMultiError()
 
