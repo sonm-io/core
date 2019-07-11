@@ -76,7 +76,7 @@ func (m *BatchModel) Optimize(ctx context.Context, knapsack *Knapsack, orders []
 	winnerPrice := 0.0
 	for id := range knapsacks {
 		price := knapsacks[id].PPSf64()
-		m.Log.Debugf("%T optimization resulted in %.12f price", m.Methods[id], price)
+		m.Log.Debugf("[%d] %T optimization resulted in %.12f price", id, m.Methods[id], price)
 
 		if price > winnerPrice {
 			winnerId = id
