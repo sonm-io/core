@@ -358,8 +358,8 @@ func (m *workerEngine) executePrecise(ctx context.Context, input *optimizationIn
 	}
 
 	m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
-	m.log.Infow("removing plans", zap.Any("plans", remove))
-	m.log.Infow("creating plans", zap.Any("plans", create))
+	m.log.Infow("removing plans", zap.Any("plans", victims))
+	m.log.Infow("creating plans", zap.Any("plans", winners))
 
 	victimIDs := make([]string, 0, len(victims))
 	for _, plan := range victims {
