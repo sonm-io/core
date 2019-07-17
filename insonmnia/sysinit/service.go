@@ -23,6 +23,8 @@ type Config struct {
 	Device string `yaml:"device"`
 	// Cipher type.
 	Cipher string `yaml:"cipher"`
+	// Filesystem type.
+	FsType string `yaml:"fs_type"`
 	// Where to mount the encrypted Docker partition.
 	MountPoint string `yaml:"mount_point"`
 }
@@ -55,11 +57,10 @@ func (m *InitService) Mount(ctx context.Context, request *sonm.InitMountRequest)
 		&MountDeviceMapperAction{
 			Name:       name,
 			MountPoint: m.cfg.MountPoint,
-			Type:       "ext4", // todo: <
+			Type:       m.cfg.FsType,
 			Options:    "",
 		},
-		// todo: &StartDockerAction
-		&FailAction{},
+		&StartDockerAction{},
 	}
 
 	err, errs := action.NewActionQueue(actions...).Execute(ctx)
@@ -74,26 +75,6 @@ func (m *InitService) Mount(ctx context.Context, request *sonm.InitMountRequest)
 	}
 
 	return &sonm.InitMountResponse{}, nil
-}
-
-func (m *InitService) restartDocker(ctx context.Context) error {
-	conn, err := dbus.New()
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	ch := make(chan string)
-	if _, err := conn.RestartUnit("docker.service", "fail", ch); err != nil {
-		return err
-	}
-
-	status := <-ch
-	if status != "done" {
-		return fmt.Errorf("failed to restart Docker: %s", status)
-	}
-
-	return nil
 }
 
 type CreateEncryptedVolumeAction struct {
@@ -190,6 +171,49 @@ func (m *MountDeviceMapperAction) Rollback() error {
 
 func (m *MountDeviceMapperAction) target() string {
 	return fmt.Sprintf("/dev/mapper/%s", m.Name)
+}
+
+type StartDockerAction struct {
+}
+
+func (m *StartDockerAction) Execute(ctx context.Context) error {
+	conn, err := dbus.New()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ch := make(chan string)
+	if _, err := conn.RestartUnit("docker.service", "fail", ch); err != nil {
+		return err
+	}
+
+	status := <-ch
+	if status != "done" {
+		return fmt.Errorf("failed to restart Docker: %s", status)
+	}
+
+	return nil
+}
+
+func (m *StartDockerAction) Rollback() error {
+	conn, err := dbus.New()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ch := make(chan string)
+	if _, err := conn.StopUnit("docker.service", "fail", ch); err != nil {
+		return err
+	}
+
+	status := <-ch
+	if status != "done" {
+		return fmt.Errorf("failed to stop Docker: %s", status)
+	}
+
+	return nil
 }
 
 type FailAction struct{}
