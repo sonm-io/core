@@ -41,9 +41,33 @@ func NewInitService(cfg *Config, log *zap.SugaredLogger) *InitService {
 	}
 }
 
+func (m *InitService) Reset(ctx context.Context) {
+	if err := action.Rollback(m.makeActions()); err != nil {
+		m.log.Warnf("failed to reset sysinit service: %v", err)
+	}
+
+	m.log.Info("flushed sys/init service")
+}
+
 func (m *InitService) Mount(ctx context.Context, request *sonm.InitMountRequest) (*sonm.InitMountResponse, error) {
+	err, errs := action.NewActionQueue(m.makeActions()...).Execute(ctx)
+	if err != nil {
+		m.log.Errorw("failed to mount", zap.Error(err))
+
+		if errs != nil {
+			m.log.Errorw("failed to rollback mount", zap.Error(errs))
+		}
+
+		return nil, err
+	}
+
+	return &sonm.InitMountResponse{}, nil
+}
+
+func (m *InitService) makeActions() []action.Action {
 	name := "td"
-	actions := []action.Action{
+
+	return []action.Action{
 		&CreateEncryptedVolumeAction{
 			Name:     name,
 			Password: "password",
@@ -62,19 +86,6 @@ func (m *InitService) Mount(ctx context.Context, request *sonm.InitMountRequest)
 		},
 		&StartDockerAction{},
 	}
-
-	err, errs := action.NewActionQueue(actions...).Execute(ctx)
-	if err != nil {
-		m.log.Errorw("failed to mount", zap.Error(err))
-
-		if errs != nil {
-			m.log.Errorw("failed to rollback mount", zap.Error(errs))
-		}
-
-		return nil, err
-	}
-
-	return &sonm.InitMountResponse{}, nil
 }
 
 type CreateEncryptedVolumeAction struct {

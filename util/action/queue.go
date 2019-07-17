@@ -26,7 +26,7 @@ func (m *ActionQueue) Execute(ctx context.Context) (error, error) {
 	executedActions := make([]Action, 0)
 	for _, action := range m.actions {
 		if err := action.Execute(ctx); err != nil {
-			return err, m.rollback(executedActions)
+			return err, Rollback(executedActions)
 		}
 
 		executedActions = append(executedActions, action)
@@ -35,7 +35,7 @@ func (m *ActionQueue) Execute(ctx context.Context) (error, error) {
 	return nil, nil
 }
 
-func (m *ActionQueue) rollback(actions []Action) error {
+func Rollback(actions []Action) error {
 	queue := &deque{actions: actions}
 
 	errs := multierror.NewMultiError()

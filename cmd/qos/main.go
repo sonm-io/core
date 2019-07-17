@@ -59,6 +59,7 @@ func run(app cmd.AppContext) error {
 		}
 
 		remoteInit := sysinit.NewInitService(cfg.SysInit, log.Sugar())
+		remoteInit.Reset(ctx)
 
 		uri, err := url.Parse(cfg.Endpoint)
 		if err != nil {
