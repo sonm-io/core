@@ -13,6 +13,7 @@ It is generated from these files:
 	dwh.proto
 	geoip.proto
 	gpu_ctl.proto
+	init.proto
 	insonmnia.proto
 	inspect.proto
 	marketplace.proto
@@ -90,6 +91,8 @@ It has these top-level messages:
 	GeoIP
 	RemoteGPUDeviceRequest
 	RemoteGPUDeviceReply
+	InitMountRequest
+	InitMountResponse
 	Empty
 	ID
 	NumericID
