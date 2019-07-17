@@ -10,6 +10,7 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/sysinit"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/proto"
@@ -19,9 +20,10 @@ import (
 )
 
 type Config struct {
-	Endpoint  string         `yaml:"endpoint" default:"unix:///var/run/qos.sock"`
-	Logging   logging.Config `yaml:"logging"`
-	GPUVendor string         `yaml:"gpu_vendor"`
+	Endpoint  string          `yaml:"endpoint" default:"unix:///var/run/qos.sock"`
+	Logging   logging.Config  `yaml:"logging"`
+	GPUVendor string          `yaml:"gpu_vendor"`
+	SysInit   *sysinit.Config `yaml:"sysinit"`
 }
 
 func main() {
@@ -56,6 +58,12 @@ func run(app cmd.AppContext) error {
 			return err
 		}
 
+		remoteInit := sysinit.NewInitService(cfg.SysInit, log.Sugar())
+		_, err = remoteInit.Mount(ctx, &sonm.InitMountRequest{})
+		if err != nil {
+			return err
+		}
+
 		uri, err := url.Parse(cfg.Endpoint)
 		if err != nil {
 			return err
@@ -77,6 +85,7 @@ func run(app cmd.AppContext) error {
 		server := xgrpc.NewServer(log, xgrpc.RequestLogInterceptor([]string{}))
 		sonm.RegisterQOSServer(server, remoteQOS)
 		sonm.RegisterRemoteGPUTunerServer(server, remoteTuner)
+		sonm.RegisterInitServer(server, remoteInit)
 
 		wg.Go(func() error {
 			return server.Serve(listener)
