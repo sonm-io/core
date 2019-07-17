@@ -55,6 +55,10 @@ func newMappingMock(controller *gomock.Controller) *benchmarks.MockMapping {
 	m.EXPECT().DeviceType(9).AnyTimes().Return(sonm.DeviceType_DEV_GPU)
 	m.EXPECT().DeviceType(10).AnyTimes().Return(sonm.DeviceType_DEV_GPU)
 	m.EXPECT().DeviceType(11).AnyTimes().Return(sonm.DeviceType_DEV_GPU)
+	m.EXPECT().DeviceType(12).AnyTimes().Return(sonm.DeviceType_DEV_CPU)
+	m.EXPECT().DeviceType(13).AnyTimes().Return(sonm.DeviceType_DEV_GPU)
+	m.EXPECT().DeviceType(14).AnyTimes().Return(sonm.DeviceType_DEV_GPU)
+	m.EXPECT().DeviceType(15).AnyTimes().Return(sonm.DeviceType_DEV_GPU)
 
 	m.EXPECT().SplittingAlgorithm(0).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(1).AnyTimes().Return(sonm.SplittingAlgorithm_NONE)
@@ -68,6 +72,10 @@ func newMappingMock(controller *gomock.Controller) *benchmarks.MockMapping {
 	m.EXPECT().SplittingAlgorithm(9).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(10).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(11).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
+	m.EXPECT().SplittingAlgorithm(12).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
+	m.EXPECT().SplittingAlgorithm(13).AnyTimes().Return(sonm.SplittingAlgorithm_MIN)
+	m.EXPECT().SplittingAlgorithm(14).AnyTimes().Return(sonm.SplittingAlgorithm_MIN)
+	m.EXPECT().SplittingAlgorithm(15).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 
 	return m
 }

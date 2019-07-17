@@ -477,9 +477,11 @@ subsetLoop:
 									continue
 								} else {
 									// The GPU set can't fit the benchmark. Well, possibly can,
-									// but without this GPU.
+									// but even without this GPU.
 									// Anyway the score will be +Inf, so definitely it's not the minimum one.
-									break
+									// However, if the minimum GPU count is required we must include this GPU
+									// regardless of other benchmarks fitness.
+									continue
 								}
 							}
 
