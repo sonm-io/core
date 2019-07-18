@@ -8,3 +8,9 @@ gpu_vendor: ""
 
 logging:
   level: debug
+
+sysinit:
+  device: /dev/loop
+  cipher: somecipher
+  fs_type: ext4
+  mount_point: /var/lib/docker

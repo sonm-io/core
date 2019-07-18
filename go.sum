@@ -39,7 +39,9 @@ github.com/cheekybits/genny v1.0.0 h1:uGGa4nei+j20rOSeDeP5Of12XVm7TGUd4dJA9RDitf
 github.com/cheekybits/genny v1.0.0/go.mod h1:+tQajlRqAUrPI7DOSpB0XAqZYtQakVtB7wXkRAgjxjQ=
 github.com/cnf/structhash v0.0.0-20170702194520-7710f1f78fb9 h1:Z6eVYnPyw1IbfiL+z+13vZhe3cI1lhE5nhRQbSxQFME=
 github.com/cnf/structhash v0.0.0-20170702194520-7710f1f78fb9/go.mod h1:pCxVEbcm3AMg7ejXyorUXi6HQCzOIBf7zEDVPtw0/U4=
+github.com/containerd/cgroups v0.0.0-20170714210333-6d5c608c203d h1:M7/OEkUwIjjSck/krOAf+5ErhE90WAyb53NGfWoygwc=
 github.com/containerd/cgroups v0.0.0-20170714210333-6d5c608c203d/go.mod h1:X9rLEHIqSf/wfK8NsPqxJmeZgW4pcfzdXITDrUSJ6uI=
+github.com/coreos/go-systemd v0.0.0-20170609144627-24036eb3df68 h1:Z80xKolFQLHEJW4wpdLn1gPUwr6ZJQGmEzJDfjxUWjM=
 github.com/coreos/go-systemd v0.0.0-20170609144627-24036eb3df68/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/deckarep/golang-set v0.0.0-20180927150649-699df6a3acf6 h1:+CICy2RHjHa2/+i6setnlf/UKQv1h6Oti4PVpk3Hjlk=

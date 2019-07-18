@@ -23,7 +23,7 @@ type InspectConfigRequest struct {
 func (m *InspectConfigRequest) Reset()                    { *m = InspectConfigRequest{} }
 func (m *InspectConfigRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectConfigRequest) ProtoMessage()               {}
-func (*InspectConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (*InspectConfigRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{0} }
 
 type InspectConfigResponse struct {
 	// Config represents JSON encoded configuration of the inspected entity.
@@ -33,7 +33,7 @@ type InspectConfigResponse struct {
 func (m *InspectConfigResponse) Reset()                    { *m = InspectConfigResponse{} }
 func (m *InspectConfigResponse) String() string            { return proto.CompactTextString(m) }
 func (*InspectConfigResponse) ProtoMessage()               {}
-func (*InspectConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (*InspectConfigResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{1} }
 
 func (m *InspectConfigResponse) GetConfig() []byte {
 	if m != nil {
@@ -48,7 +48,7 @@ type InspectOpenFilesRequest struct {
 func (m *InspectOpenFilesRequest) Reset()                    { *m = InspectOpenFilesRequest{} }
 func (m *InspectOpenFilesRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectOpenFilesRequest) ProtoMessage()               {}
-func (*InspectOpenFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (*InspectOpenFilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{2} }
 
 type InspectOpenFilesResponse struct {
 	OpenFiles []*FileStat `protobuf:"bytes,1,rep,name=openFiles" json:"openFiles,omitempty"`
@@ -57,7 +57,7 @@ type InspectOpenFilesResponse struct {
 func (m *InspectOpenFilesResponse) Reset()                    { *m = InspectOpenFilesResponse{} }
 func (m *InspectOpenFilesResponse) String() string            { return proto.CompactTextString(m) }
 func (*InspectOpenFilesResponse) ProtoMessage()               {}
-func (*InspectOpenFilesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{3} }
+func (*InspectOpenFilesResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{3} }
 
 func (m *InspectOpenFilesResponse) GetOpenFiles() []*FileStat {
 	if m != nil {
@@ -77,7 +77,7 @@ type FileStat struct {
 func (m *FileStat) Reset()                    { *m = FileStat{} }
 func (m *FileStat) String() string            { return proto.CompactTextString(m) }
 func (*FileStat) ProtoMessage()               {}
-func (*FileStat) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{4} }
+func (*FileStat) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{4} }
 
 func (m *FileStat) GetFd() uint64 {
 	if m != nil {
@@ -99,7 +99,7 @@ type InspectNetworkRequest struct {
 func (m *InspectNetworkRequest) Reset()                    { *m = InspectNetworkRequest{} }
 func (m *InspectNetworkRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectNetworkRequest) ProtoMessage()               {}
-func (*InspectNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{5} }
+func (*InspectNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{5} }
 
 type InspectNetworkResponse struct {
 	Interfaces  []*InterfaceStat  `protobuf:"bytes,1,rep,name=interfaces" json:"interfaces,omitempty"`
@@ -109,7 +109,7 @@ type InspectNetworkResponse struct {
 func (m *InspectNetworkResponse) Reset()                    { *m = InspectNetworkResponse{} }
 func (m *InspectNetworkResponse) String() string            { return proto.CompactTextString(m) }
 func (*InspectNetworkResponse) ProtoMessage()               {}
-func (*InspectNetworkResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{6} }
+func (*InspectNetworkResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{6} }
 
 func (m *InspectNetworkResponse) GetInterfaces() []*InterfaceStat {
 	if m != nil {
@@ -141,7 +141,7 @@ type InterfaceStat struct {
 func (m *InterfaceStat) Reset()                    { *m = InterfaceStat{} }
 func (m *InterfaceStat) String() string            { return proto.CompactTextString(m) }
 func (*InterfaceStat) ProtoMessage()               {}
-func (*InterfaceStat) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{7} }
+func (*InterfaceStat) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{7} }
 
 func (m *InterfaceStat) GetMtu() int32 {
 	if m != nil {
@@ -192,7 +192,7 @@ type ConnectionStat struct {
 func (m *ConnectionStat) Reset()                    { *m = ConnectionStat{} }
 func (m *ConnectionStat) String() string            { return proto.CompactTextString(m) }
 func (*ConnectionStat) ProtoMessage()               {}
-func (*ConnectionStat) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{8} }
+func (*ConnectionStat) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{8} }
 
 func (m *ConnectionStat) GetFd() uint64 {
 	if m != nil {
@@ -249,7 +249,7 @@ type InspectDockerInfoRequest struct {
 func (m *InspectDockerInfoRequest) Reset()                    { *m = InspectDockerInfoRequest{} }
 func (m *InspectDockerInfoRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectDockerInfoRequest) ProtoMessage()               {}
-func (*InspectDockerInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{9} }
+func (*InspectDockerInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{9} }
 
 type InspectDockerInfoResponse struct {
 	Info []byte `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
@@ -258,7 +258,7 @@ type InspectDockerInfoResponse struct {
 func (m *InspectDockerInfoResponse) Reset()                    { *m = InspectDockerInfoResponse{} }
 func (m *InspectDockerInfoResponse) String() string            { return proto.CompactTextString(m) }
 func (*InspectDockerInfoResponse) ProtoMessage()               {}
-func (*InspectDockerInfoResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{10} }
+func (*InspectDockerInfoResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{10} }
 
 func (m *InspectDockerInfoResponse) GetInfo() []byte {
 	if m != nil {
@@ -273,7 +273,7 @@ type InspectDockerNetworkRequest struct {
 func (m *InspectDockerNetworkRequest) Reset()                    { *m = InspectDockerNetworkRequest{} }
 func (m *InspectDockerNetworkRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectDockerNetworkRequest) ProtoMessage()               {}
-func (*InspectDockerNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{11} }
+func (*InspectDockerNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{11} }
 
 type InspectDockerNetworkResponse struct {
 	Info []byte `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
@@ -282,7 +282,7 @@ type InspectDockerNetworkResponse struct {
 func (m *InspectDockerNetworkResponse) Reset()                    { *m = InspectDockerNetworkResponse{} }
 func (m *InspectDockerNetworkResponse) String() string            { return proto.CompactTextString(m) }
 func (*InspectDockerNetworkResponse) ProtoMessage()               {}
-func (*InspectDockerNetworkResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{12} }
+func (*InspectDockerNetworkResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{12} }
 
 func (m *InspectDockerNetworkResponse) GetInfo() []byte {
 	if m != nil {
@@ -297,7 +297,7 @@ type InspectDockerVolumesRequest struct {
 func (m *InspectDockerVolumesRequest) Reset()                    { *m = InspectDockerVolumesRequest{} }
 func (m *InspectDockerVolumesRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectDockerVolumesRequest) ProtoMessage()               {}
-func (*InspectDockerVolumesRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{13} }
+func (*InspectDockerVolumesRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{13} }
 
 type InspectDockerVolumesResponse struct {
 	Info []byte `protobuf:"bytes,1,opt,name=info,proto3" json:"info,omitempty"`
@@ -306,7 +306,7 @@ type InspectDockerVolumesResponse struct {
 func (m *InspectDockerVolumesResponse) Reset()                    { *m = InspectDockerVolumesResponse{} }
 func (m *InspectDockerVolumesResponse) String() string            { return proto.CompactTextString(m) }
 func (*InspectDockerVolumesResponse) ProtoMessage()               {}
-func (*InspectDockerVolumesResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{14} }
+func (*InspectDockerVolumesResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{14} }
 
 func (m *InspectDockerVolumesResponse) GetInfo() []byte {
 	if m != nil {
@@ -321,7 +321,7 @@ type InspectHostInfoRequest struct {
 func (m *InspectHostInfoRequest) Reset()                    { *m = InspectHostInfoRequest{} }
 func (m *InspectHostInfoRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectHostInfoRequest) ProtoMessage()               {}
-func (*InspectHostInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{15} }
+func (*InspectHostInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{15} }
 
 type InspectHostInfoResponse struct {
 	Hostname             string `protobuf:"bytes,1,opt,name=hostname" json:"hostname,omitempty"`
@@ -341,7 +341,7 @@ type InspectHostInfoResponse struct {
 func (m *InspectHostInfoResponse) Reset()                    { *m = InspectHostInfoResponse{} }
 func (m *InspectHostInfoResponse) String() string            { return proto.CompactTextString(m) }
 func (*InspectHostInfoResponse) ProtoMessage()               {}
-func (*InspectHostInfoResponse) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{16} }
+func (*InspectHostInfoResponse) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{16} }
 
 func (m *InspectHostInfoResponse) GetHostname() string {
 	if m != nil {
@@ -433,7 +433,7 @@ type InspectWatchLogsRequest struct {
 func (m *InspectWatchLogsRequest) Reset()                    { *m = InspectWatchLogsRequest{} }
 func (m *InspectWatchLogsRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectWatchLogsRequest) ProtoMessage()               {}
-func (*InspectWatchLogsRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{17} }
+func (*InspectWatchLogsRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{17} }
 
 type InspectWatchLogsChunk struct {
 	Message string `protobuf:"bytes,1,opt,name=message" json:"message,omitempty"`
@@ -442,7 +442,7 @@ type InspectWatchLogsChunk struct {
 func (m *InspectWatchLogsChunk) Reset()                    { *m = InspectWatchLogsChunk{} }
 func (m *InspectWatchLogsChunk) String() string            { return proto.CompactTextString(m) }
 func (*InspectWatchLogsChunk) ProtoMessage()               {}
-func (*InspectWatchLogsChunk) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{18} }
+func (*InspectWatchLogsChunk) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{18} }
 
 func (m *InspectWatchLogsChunk) GetMessage() string {
 	if m != nil {
@@ -826,9 +826,9 @@ var _Inspect_serviceDesc = grpc.ServiceDesc{
 	Metadata: "inspect.proto",
 }
 
-func init() { proto.RegisterFile("inspect.proto", fileDescriptor9) }
+func init() { proto.RegisterFile("inspect.proto", fileDescriptor10) }
 
-var fileDescriptor9 = []byte{
+var fileDescriptor10 = []byte{
 	// 858 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x56, 0x51, 0x6f, 0xdb, 0x36,
 	0x10, 0x8e, 0x6c, 0xd9, 0x8e, 0x2e, 0x71, 0x56, 0x70, 0x59, 0xca, 0xaa, 0xcd, 0xe6, 0x09, 0xc5,

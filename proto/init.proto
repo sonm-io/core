@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option go_package = "github.com/sonm-io/core/proto;sonm";
+
+package sonm;
+
+service Init {
+    rpc Mount(InitMountRequest) returns (InitMountResponse) {}
+}
+
+message InitMountRequest {}
+message InitMountResponse {}
