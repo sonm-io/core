@@ -16,5 +16,5 @@ var (
 )
 
 func getBenchmarkColumn(id uint64) string {
-	return fmt.Sprintf("benchmark%d", id)
+	return fmt.Sprintf("Benchmark%d", id)
 }
