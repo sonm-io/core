@@ -6,7 +6,6 @@ sonm-core (0.4.29) unstable; urgency=low
     gRPC clients without compression support.
     This commit allows selecting how to compress the response depending on request
     compression type.
-  * Added: ablitily to extract bid and ask tags from DWH (#1886).
   * Added: memory limit for Optimus (#1883).
   * Fixed: sometimes zero worker price in Optimus (#1892).
   * Fixed: proper create/remove plans logs in Optimus (#1887).
