@@ -12,7 +12,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/lib/pq"
-	"github.com/mohae/deepcopy"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -146,15 +145,10 @@ func (m *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, b
 }
 
 func (m *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*sonm.DWHDeal, error) {
-	colx := []string{"ask.tag", "bid.tag"}
-	colx = append(colx, m.tablesInfo.AliasedDealColumns...)
-	query, args, _ := m.builder().Select(colx...).
+	query, args, _ := m.builder().Select(m.tablesInfo.DealColumns...).
 		From("Deals").
-		LeftJoin("orders ask on deals.askid = ask.id").
-		LeftJoin("orders bid on deals.bidid = bid.id").
-		Where("deals.id = ?", dealID.String()).
+		Where("Id = ?", dealID.String()).
 		ToSql()
-
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to GetDealByID: %v", err)
@@ -169,58 +163,56 @@ func (m *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*sonm.DWHDeal
 }
 
 func (m *sqlStorage) GetDeals(conn queryConn, r *sonm.DealsRequest) ([]*sonm.DWHDeal, uint64, error) {
-	builder := m.builder().
-		Select("ask.tag as ask_tag, bid.tag as bid_tag, *").
-		From("deals")
+	builder := m.builder().Select("*").From("Deals")
 
 	if r.Status > 0 {
 		builder = builder.Where("Status = ?", r.Status)
 	}
 	if !r.GetAnyUserID().IsZero() {
 		builder = builder.Where(sq.Or{
-			sq.Expr("deals.SupplierID = ?", r.GetAnyUserID().Unwrap().Hex()),
-			sq.Expr("deals.ConsumerID = ?", r.GetAnyUserID().Unwrap().Hex()),
-			sq.Expr("deals.MasterID = ?", r.GetAnyUserID().Unwrap().Hex()),
+			sq.Expr("SupplierID = ?", r.GetAnyUserID().Unwrap().Hex()),
+			sq.Expr("ConsumerID = ?", r.GetAnyUserID().Unwrap().Hex()),
+			sq.Expr("MasterID = ?", r.GetAnyUserID().Unwrap().Hex()),
 		})
 	} else {
 		if !r.SupplierID.IsZero() {
-			builder = builder.Where("deals.SupplierID = ?", r.SupplierID.Unwrap().Hex())
+			builder = builder.Where("SupplierID = ?", r.SupplierID.Unwrap().Hex())
 		}
 		if !r.ConsumerID.IsZero() {
-			builder = builder.Where("deals.ConsumerID = ?", r.ConsumerID.Unwrap().Hex())
+			builder = builder.Where("ConsumerID = ?", r.ConsumerID.Unwrap().Hex())
 		}
 		if !r.MasterID.IsZero() {
-			builder = builder.Where("deals.MasterID = ?", r.MasterID.Unwrap().Hex())
+			builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().Hex())
 		}
 	}
 	if !r.AskID.IsZero() {
-		builder = builder.Where("deals.AskID = ?", r.AskID)
+		builder = builder.Where("AskID = ?", r.AskID)
 	}
 	if !r.BidID.IsZero() {
-		builder = builder.Where("deals.BidID = ?", r.BidID)
+		builder = builder.Where("BidID = ?", r.BidID)
 	}
 	if r.Duration != nil {
 		if r.Duration.Max > 0 {
-			builder = builder.Where("deals.Duration <= ?", r.Duration.Max)
+			builder = builder.Where("Duration <= ?", r.Duration.Max)
 		}
-		builder = builder.Where("deals.Duration >= ?", r.Duration.Min)
+		builder = builder.Where("Duration >= ?", r.Duration.Min)
 	}
 	if r.Price != nil {
 		if r.Price.Max != nil {
-			builder = builder.Where("deals.Price <= ?", r.Price.Max.PaddedString())
+			builder = builder.Where("Price <= ?", r.Price.Max.PaddedString())
 		}
 		if r.Price.Min != nil {
-			builder = builder.Where("deals.Price >= ?", r.Price.Min.PaddedString())
+			builder = builder.Where("Price >= ?", r.Price.Min.PaddedString())
 		}
 	}
 	if r.Netflags != nil && r.Netflags.Value > 0 {
 		builder = m.builderWithNetflagsFilter(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
 	if r.AskIdentityLevel > 0 {
-		builder = builder.Where("deals.AskIdentityLevel >= ?", r.AskIdentityLevel)
+		builder = builder.Where("AskIdentityLevel >= ?", r.AskIdentityLevel)
 	}
 	if r.BidIdentityLevel > 0 {
-		builder = builder.Where("deals.BidIdentityLevel >= ?", r.BidIdentityLevel)
+		builder = builder.Where("BidIdentityLevel >= ?", r.BidIdentityLevel)
 	}
 	if r.Benchmarks != nil {
 		builder = m.builderWithBenchmarkFilters(builder, r.Benchmarks)
@@ -229,13 +221,9 @@ func (m *sqlStorage) GetDeals(conn queryConn, r *sonm.DealsRequest) ([]*sonm.DWH
 		builder = builder.Offset(r.Offset)
 	}
 
-	builder = builder.
-		LeftJoin("orders ask on deals.askid = ask.id").
-		LeftJoin("orders bid on deals.bidid = bid.id")
-
 	builder = m.builderWithSortings(builder, r.Sortings)
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.AliasedDealColumns, ", "), r.WithCount, query, args...)
+	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.DealColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to runQuery: %v", err)
 	}
@@ -1337,12 +1325,8 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*sonm.DWHDeal, error) {
 		supplierCertificates = &[]byte{}
 		consumerCertificates = &[]byte{}
 		activeChangeRequest  = new(bool)
-		askTag               = &[]byte{}
-		bidTag               = &[]byte{}
 	)
 	allFields := []interface{}{
-		askTag,
-		bidTag,
 		id,
 		supplierID,
 		consumerID,
@@ -1369,7 +1353,6 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*sonm.DWHDeal, error) {
 		benchmarks[benchID] = new(uint64)
 		allFields = append(allFields, benchmarks[benchID])
 	}
-
 	if err := rows.Scan(allFields...); err != nil {
 		return nil, fmt.Errorf("failed to scan Deal row: %v", err)
 	}
@@ -1425,8 +1408,6 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*sonm.DWHDeal, error) {
 		SupplierCertificates: *supplierCertificates,
 		ConsumerCertificates: *consumerCertificates,
 		ActiveChangeRequest:  *activeChangeRequest,
-		BidTag:               *bidTag,
-		AskTag:               *askTag,
 	}, nil
 }
 
@@ -1825,7 +1806,7 @@ func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
 func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 	var err error
 	for _, column := range c.tablesInfo.DealColumns {
-		if err = c.createIndex(db, c.createIndexCmd, "deals", column); err != nil {
+		if err = c.createIndex(db, c.createIndexCmd, "Deals", column); err != nil {
 			return err
 		}
 	}
@@ -1881,10 +1862,8 @@ func (c *sqlSetupCommands) createIndex(db *sql.DB, command, table, column string
 
 // tablesInfo is used to get static column names for tables with variable columns set (i.e., with benchmarks).
 type tablesInfo struct {
-	AliasedDealColumns       []string
 	DealColumns              []string
 	NumDealColumns           uint64
-	AliasedOrderColumns      []string
 	OrderColumns             []string
 	NumOrderColumns          uint64
 	DealConditionColumns     []string
@@ -1895,7 +1874,7 @@ type tablesInfo struct {
 
 func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 	dealColumns := []string{
-		"id",
+		"Id",
 		"SupplierID",
 		"ConsumerID",
 		"MasterID",
@@ -1916,7 +1895,6 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"ConsumerCertificates",
 		"ActiveChangeRequest",
 	}
-
 	orderColumns := []string{
 		"Id",
 		"MasterID",
@@ -1938,10 +1916,6 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"CreatorCountry",
 		"CreatorCertificates",
 	}
-
-	dealIdxColumns := deepcopy.Copy(dealColumns).([]string)
-	orderIdxColumns := deepcopy.Copy(orderColumns).([]string)
-
 	dealChangeRequestColumns := []string{
 		"Id",
 		"CreatedTS",
@@ -1984,32 +1958,18 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"KYC_Price",
 	}
 	out := &tablesInfo{
-		AliasedDealColumns:       dealColumns,
-		DealColumns:              dealIdxColumns,
+		DealColumns:              dealColumns,
 		NumDealColumns:           uint64(len(dealColumns)),
-		AliasedOrderColumns:      orderColumns,
-		OrderColumns:             orderIdxColumns,
+		OrderColumns:             orderColumns,
 		NumOrderColumns:          uint64(len(orderColumns)),
 		DealChangeRequestColumns: dealChangeRequestColumns,
 		DealConditionColumns:     dealConditionColumns,
 		ProfileColumns:           profileColumns,
 		ValidatorColumns:         validatorColumns,
 	}
-
-	for i := range dealColumns {
-		// add alias for queryable columns, it will give su
-		// ability to build multi-table queries.
-		dealColumns[i] = "deals." + dealColumns[i]
-	}
-
 	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
-		col := getBenchmarkColumn(uint64(benchmarkID))
-
-		out.DealColumns = append(out.DealColumns, col)
-		out.AliasedDealColumns = append(out.AliasedDealColumns, "deals."+col)
-
-		out.AliasedOrderColumns = append(out.AliasedOrderColumns, "orders."+col)
-		out.OrderColumns = append(out.OrderColumns, col)
+		out.DealColumns = append(out.DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
+		out.OrderColumns = append(out.OrderColumns, getBenchmarkColumn(uint64(benchmarkID)))
 	}
 
 	return out
