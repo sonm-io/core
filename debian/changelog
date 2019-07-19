@@ -1,3 +1,20 @@
+sonm-core (0.4.29) unstable; urgency=low
+
+  * Added: sys init capability for QoS service (#1891).
+  * Added: multiple gRPC compressions (#1889).
+    Before the only gzip compression was always used, which caused troubles with
+    gRPC clients without compression support.
+    This commit allows selecting how to compress the response depending on request
+    compression type.
+  * Added: ablitily to extract bid and ask tags from DWH (#1886).
+  * Added: memory limit for Optimus (#1883).
+  * Fixed: sometimes zero worker price in Optimus (#1892).
+  * Fixed: proper create/remove plans logs in Optimus (#1887).
+  * Fixed: temp fix for "alien" deals bound to ask-plans (#1884).
+    Under Sanya's approve thou shall commit this PR.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 19 Jul 2019 11:52:47 +0300
+
 sonm-core (0.4.28) unstable; urgency=low
 
   * Fixed: restore order duration after execution in Optimus.
