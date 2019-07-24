@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/coreos/go-systemd/dbus"
 	"github.com/docker/docker/pkg/mount"
@@ -165,6 +166,9 @@ type MountDeviceMapperAction struct {
 }
 
 func (m *MountDeviceMapperAction) Execute(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	if err := mount.Mount(m.target(), m.MountPoint, m.Type, m.Options); err != nil {
 		return fmt.Errorf("failed to mount %s to '%s': %v", m.target(), m.MountPoint, err)
 	}
