@@ -51,6 +51,9 @@ func (m *InitService) Reset(ctx context.Context) {
 }
 
 func (m *InitService) Mount(ctx context.Context, request *sonm.InitMountRequest) (*sonm.InitMountResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	err, errs := action.NewActionQueue(m.makeActions()...).Execute(ctx)
 	if err != nil {
 		m.log.Errorw("failed to mount", zap.Error(err))
@@ -166,9 +169,6 @@ type MountDeviceMapperAction struct {
 }
 
 func (m *MountDeviceMapperAction) Execute(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
 	if err := mount.Mount(m.target(), m.MountPoint, m.Type, m.Options); err != nil {
 		return fmt.Errorf("failed to mount %s to '%s': %v", m.target(), m.MountPoint, err)
 	}
