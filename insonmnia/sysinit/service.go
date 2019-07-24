@@ -97,7 +97,7 @@ type CreateEncryptedVolumeAction struct {
 }
 
 func (m *CreateEncryptedVolumeAction) Execute(ctx context.Context) error {
-	cmd := exec.Command(cryptsetupPath, "create", m.Name, m.Device, "--cipher", m.Cipher)
+	cmd := exec.CommandContext(ctx, cryptsetupPath, "create", m.Name, m.Device, "--cipher", m.Cipher)
 
 	pipe, err := cmd.StdinPipe()
 	if err != nil {
