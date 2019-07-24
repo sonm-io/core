@@ -82,6 +82,11 @@ func (m *InitService) makeActions() []action.Action {
 			MountPoint: m.cfg.MountPoint,
 			Perm:       0755,
 		},
+		&CreateFileSystemAction{
+			Name:   name,
+			Type:   m.cfg.FsType,
+			Device: m.cfg.Device,
+		},
 		&MountDeviceMapperAction{
 			Name:       name,
 			MountPoint: m.cfg.MountPoint,
@@ -100,7 +105,8 @@ type CreateEncryptedVolumeAction struct {
 }
 
 func (m *CreateEncryptedVolumeAction) Execute(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, cryptsetupPath, "create", m.Name, m.Device, "--cipher", m.Cipher)
+	dev := fmt.Sprintf("/dev/%s", m.Device)
+	cmd := exec.CommandContext(ctx, cryptsetupPath, "create", m.Name, dev, "--cipher", m.Cipher)
 
 	pipe, err := cmd.StdinPipe()
 	if err != nil {
@@ -159,6 +165,86 @@ func (m *CreateMountPointAction) Rollback() error {
 	}
 
 	return nil
+}
+
+type CreateFileSystemAction struct {
+	Name   string
+	Type   string
+	Device string
+}
+
+func (m *CreateFileSystemAction) Execute(ctx context.Context) error {
+	devices, err := ListBlockDevices(ctx)
+	if err != nil {
+		return err
+	}
+
+	device := m.findDevice(devices)
+	if device == nil {
+		return fmt.Errorf("device /dev/%s not found", m.Device)
+	}
+
+	switch len(device.Children) {
+	case 0:
+		if err := m.makeFileSystem(); err != nil {
+			return fmt.Errorf("failed to create filesystem on %s: %v", m.target(), err)
+		}
+
+		return nil
+	case 1:
+		dev := device.Children[0]
+
+		if dev.FsType == m.Type {
+			return nil
+		}
+
+		if dev.FsType == "" || dev.FsType == "null" {
+			if err := m.makeFileSystem(); err != nil {
+				return fmt.Errorf("failed to create filesystem on %s: %v", m.target(), err)
+			}
+
+			return nil
+		}
+
+		return fmt.Errorf("device /dev/%s already has %s filesystem", m.Device, dev.FsType)
+	default:
+		dev := device.Children[0]
+		return fmt.Errorf("device /dev/%s has more than one children: %v", m.Device, dev.Children)
+	}
+}
+
+func (m *CreateFileSystemAction) Rollback() error {
+	// We intentionally do nothing here, i.e. not removing any user data in
+	// case possible of errors.
+	return nil
+}
+
+func (m *CreateFileSystemAction) findDevice(devices []*BlockDevice) *BlockDevice {
+	for _, dev := range devices {
+		if dev.Name == m.Device {
+			return dev
+		}
+	}
+
+	return nil
+}
+
+func (m *CreateFileSystemAction) makeFileSystem() error {
+	cmd := exec.Command(fmt.Sprintf("mkfs.%s", m.Type), m.target())
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start %v: %v", cmd.Args, err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("failed to execute %v: %v", cmd.Args, err)
+	}
+
+	return nil
+}
+
+func (m *CreateFileSystemAction) target() string {
+	return fmt.Sprintf("/dev/mapper/%s", m.Name)
 }
 
 type MountDeviceMapperAction struct {
