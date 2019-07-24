@@ -179,9 +179,9 @@ func (m *CreateFileSystemAction) Execute(ctx context.Context) error {
 		return err
 	}
 
-	device := m.findDevice(devices)
-	if device == nil {
-		return fmt.Errorf("device /dev/%s not found", m.Device)
+	device, err := m.findDevice(devices)
+	if err != nil {
+		return err
 	}
 
 	switch len(device.Children) {
@@ -219,14 +219,14 @@ func (m *CreateFileSystemAction) Rollback() error {
 	return nil
 }
 
-func (m *CreateFileSystemAction) findDevice(devices []*BlockDevice) *BlockDevice {
+func (m *CreateFileSystemAction) findDevice(devices []*BlockDevice) (*BlockDevice, error) {
 	for _, dev := range devices {
 		if dev.Name == m.Device {
-			return dev
+			return dev, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("device /dev/%s not found", m.Device)
 }
 
 func (m *CreateFileSystemAction) makeFileSystem() error {
