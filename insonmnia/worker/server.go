@@ -287,6 +287,10 @@ func (m *Worker) init() error {
 		return err
 	}
 
+	if err := m.waitDocker(); err != nil {
+		return err
+	}
+
 	if err := m.setupBlockchainAPI(); err != nil {
 		return err
 	}
@@ -328,6 +332,30 @@ func (m *Worker) init() error {
 	}
 
 	return nil
+}
+
+func (m *Worker) waitDocker() error {
+	docker, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+	defer docker.Close()
+
+	for {
+		select {
+		case <-m.ctx.Done():
+			return m.ctx.Err()
+		default:
+		}
+
+		if _, err := docker.Info(m.ctx); err != nil {
+			log.S(m.ctx).Warnw("failed to obtain Docker info", zap.Error(err))
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		return nil
+	}
 }
 
 func (m *Worker) setupKey() error {
