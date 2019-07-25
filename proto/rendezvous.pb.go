@@ -31,7 +31,7 @@ type ConnectRequest struct {
 func (m *ConnectRequest) Reset()                    { *m = ConnectRequest{} }
 func (m *ConnectRequest) String() string            { return proto.CompactTextString(m) }
 func (*ConnectRequest) ProtoMessage()               {}
-func (*ConnectRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{0} }
+func (*ConnectRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{0} }
 
 func (m *ConnectRequest) GetID() []byte {
 	if m != nil {
@@ -64,7 +64,7 @@ type PublishRequest struct {
 func (m *PublishRequest) Reset()                    { *m = PublishRequest{} }
 func (m *PublishRequest) String() string            { return proto.CompactTextString(m) }
 func (*PublishRequest) ProtoMessage()               {}
-func (*PublishRequest) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{1} }
+func (*PublishRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{1} }
 
 func (m *PublishRequest) GetProtocol() string {
 	if m != nil {
@@ -94,7 +94,7 @@ type RendezvousReply struct {
 func (m *RendezvousReply) Reset()                    { *m = RendezvousReply{} }
 func (m *RendezvousReply) String() string            { return proto.CompactTextString(m) }
 func (*RendezvousReply) ProtoMessage()               {}
-func (*RendezvousReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{2} }
+func (*RendezvousReply) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{2} }
 
 func (m *RendezvousReply) GetPublicAddr() *Addr {
 	if m != nil {
@@ -118,7 +118,7 @@ type RendezvousState struct {
 func (m *RendezvousState) Reset()                    { *m = RendezvousState{} }
 func (m *RendezvousState) String() string            { return proto.CompactTextString(m) }
 func (*RendezvousState) ProtoMessage()               {}
-func (*RendezvousState) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{3} }
+func (*RendezvousState) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{3} }
 
 func (m *RendezvousState) GetState() map[string]*RendezvousMeeting {
 	if m != nil {
@@ -136,7 +136,7 @@ type RendezvousMeeting struct {
 func (m *RendezvousMeeting) Reset()                    { *m = RendezvousMeeting{} }
 func (m *RendezvousMeeting) String() string            { return proto.CompactTextString(m) }
 func (*RendezvousMeeting) ProtoMessage()               {}
-func (*RendezvousMeeting) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{4} }
+func (*RendezvousMeeting) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{4} }
 
 func (m *RendezvousMeeting) GetClients() map[string]*RendezvousReply {
 	if m != nil {
@@ -159,7 +159,7 @@ type ResolveMetaReply struct {
 func (m *ResolveMetaReply) Reset()                    { *m = ResolveMetaReply{} }
 func (m *ResolveMetaReply) String() string            { return proto.CompactTextString(m) }
 func (*ResolveMetaReply) ProtoMessage()               {}
-func (*ResolveMetaReply) Descriptor() ([]byte, []int) { return fileDescriptor16, []int{5} }
+func (*ResolveMetaReply) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{5} }
 
 func (m *ResolveMetaReply) GetIDs() []string {
 	if m != nil {
@@ -370,9 +370,9 @@ var _Rendezvous_serviceDesc = grpc.ServiceDesc{
 	Metadata: "rendezvous.proto",
 }
 
-func init() { proto.RegisterFile("rendezvous.proto", fileDescriptor16) }
+func init() { proto.RegisterFile("rendezvous.proto", fileDescriptor17) }
 
-var fileDescriptor16 = []byte{
+var fileDescriptor17 = []byte{
 	// 483 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x53, 0xcd, 0x6a, 0xdb, 0x40,
 	0x10, 0xb6, 0xe4, 0xa4, 0x89, 0xc7, 0xc6, 0x71, 0x97, 0xfe, 0x18, 0x9d, 0x8c, 0xf0, 0xc1, 0xb4,

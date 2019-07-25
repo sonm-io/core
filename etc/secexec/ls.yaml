@@ -1,0 +1,38 @@
+checksum: 4be40f2440619e990897cf956c32800dc96c2c983bf64519854a3309fa5aa21827991559f9c44595098e27e6f2ee4d64a3fdec6baba8a177881f20e3ec61e26c
+syscalls:
+  read: []
+  write:
+    - arg: 0
+      op: eq
+      a: 1
+    - arg: 0
+      op: eq
+      a: 2
+  close: []
+  fstat: []
+  mmap: []
+  mprotect: []
+  munmap: []
+  brk: []
+  rt_sigaction: []
+  rt_sigprocmask: []
+  ioctl: []
+  access: []
+  getdents: []
+  statfs: []
+  arch_prctl: []
+  set_tid_address: []
+  openat: []
+  set_robust_list: []
+  prlimit64: []
+  lstat: []
+  lgetxattr: []
+  getxattr: []
+  # -l
+  sigaltstack: []
+  socket:
+    - arg: 0
+      op: eq
+      a: 1 # AF_UNIX
+  connect: []
+  lseek: []

@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "secexec",
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+debug = false
+rpath = false
+panic = "abort"
+lto = true

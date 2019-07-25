@@ -25,7 +25,7 @@ type QOSSetAliasRequest struct {
 func (m *QOSSetAliasRequest) Reset()                    { *m = QOSSetAliasRequest{} }
 func (m *QOSSetAliasRequest) String() string            { return proto.CompactTextString(m) }
 func (*QOSSetAliasRequest) ProtoMessage()               {}
-func (*QOSSetAliasRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{0} }
+func (*QOSSetAliasRequest) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{0} }
 
 func (m *QOSSetAliasRequest) GetLinkName() string {
 	if m != nil {
@@ -47,7 +47,7 @@ type QOSSetAliasResponse struct {
 func (m *QOSSetAliasResponse) Reset()                    { *m = QOSSetAliasResponse{} }
 func (m *QOSSetAliasResponse) String() string            { return proto.CompactTextString(m) }
 func (*QOSSetAliasResponse) ProtoMessage()               {}
-func (*QOSSetAliasResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{1} }
+func (*QOSSetAliasResponse) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{1} }
 
 type QOSAddHTBShapingRequest struct {
 	LinkName         string `protobuf:"bytes,1,opt,name=linkName" json:"linkName,omitempty"`
@@ -59,7 +59,7 @@ type QOSAddHTBShapingRequest struct {
 func (m *QOSAddHTBShapingRequest) Reset()                    { *m = QOSAddHTBShapingRequest{} }
 func (m *QOSAddHTBShapingRequest) String() string            { return proto.CompactTextString(m) }
 func (*QOSAddHTBShapingRequest) ProtoMessage()               {}
-func (*QOSAddHTBShapingRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{2} }
+func (*QOSAddHTBShapingRequest) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{2} }
 
 func (m *QOSAddHTBShapingRequest) GetLinkName() string {
 	if m != nil {
@@ -95,7 +95,7 @@ type QOSAddHTBShapingResponse struct {
 func (m *QOSAddHTBShapingResponse) Reset()                    { *m = QOSAddHTBShapingResponse{} }
 func (m *QOSAddHTBShapingResponse) String() string            { return proto.CompactTextString(m) }
 func (*QOSAddHTBShapingResponse) ProtoMessage()               {}
-func (*QOSAddHTBShapingResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{3} }
+func (*QOSAddHTBShapingResponse) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{3} }
 
 type QOSRemoveHTBShapingRequest struct {
 	LinkName string `protobuf:"bytes,1,opt,name=linkName" json:"linkName,omitempty"`
@@ -104,7 +104,7 @@ type QOSRemoveHTBShapingRequest struct {
 func (m *QOSRemoveHTBShapingRequest) Reset()                    { *m = QOSRemoveHTBShapingRequest{} }
 func (m *QOSRemoveHTBShapingRequest) String() string            { return proto.CompactTextString(m) }
 func (*QOSRemoveHTBShapingRequest) ProtoMessage()               {}
-func (*QOSRemoveHTBShapingRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{4} }
+func (*QOSRemoveHTBShapingRequest) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{4} }
 
 func (m *QOSRemoveHTBShapingRequest) GetLinkName() string {
 	if m != nil {
@@ -119,7 +119,7 @@ type QOSRemoveHTBShapingResponse struct {
 func (m *QOSRemoveHTBShapingResponse) Reset()                    { *m = QOSRemoveHTBShapingResponse{} }
 func (m *QOSRemoveHTBShapingResponse) String() string            { return proto.CompactTextString(m) }
 func (*QOSRemoveHTBShapingResponse) ProtoMessage()               {}
-func (*QOSRemoveHTBShapingResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{5} }
+func (*QOSRemoveHTBShapingResponse) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{5} }
 
 type QOSFlushRequest struct {
 }
@@ -127,7 +127,7 @@ type QOSFlushRequest struct {
 func (m *QOSFlushRequest) Reset()                    { *m = QOSFlushRequest{} }
 func (m *QOSFlushRequest) String() string            { return proto.CompactTextString(m) }
 func (*QOSFlushRequest) ProtoMessage()               {}
-func (*QOSFlushRequest) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{6} }
+func (*QOSFlushRequest) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{6} }
 
 type QOSFlushResponse struct {
 }
@@ -135,7 +135,7 @@ type QOSFlushResponse struct {
 func (m *QOSFlushResponse) Reset()                    { *m = QOSFlushResponse{} }
 func (m *QOSFlushResponse) String() string            { return proto.CompactTextString(m) }
 func (*QOSFlushResponse) ProtoMessage()               {}
-func (*QOSFlushResponse) Descriptor() ([]byte, []int) { return fileDescriptor17, []int{7} }
+func (*QOSFlushResponse) Descriptor() ([]byte, []int) { return fileDescriptor18, []int{7} }
 
 func init() {
 	proto.RegisterType((*QOSSetAliasRequest)(nil), "sonm.QOSSetAliasRequest")
@@ -321,9 +321,9 @@ var _QOS_serviceDesc = grpc.ServiceDesc{
 	Metadata: "tc.proto",
 }
 
-func init() { proto.RegisterFile("tc.proto", fileDescriptor17) }
+func init() { proto.RegisterFile("tc.proto", fileDescriptor18) }
 
-var fileDescriptor17 = []byte{
+var fileDescriptor18 = []byte{
 	// 346 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x93, 0x4f, 0x4f, 0xea, 0x40,
 	0x14, 0xc5, 0x5f, 0x81, 0xf7, 0x02, 0x37, 0x79, 0x01, 0xaf, 0x41, 0xeb, 0x28, 0x06, 0x27, 0x2e,

@@ -14,7 +14,9 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/secsh"
 	"github.com/sonm-io/core/util/xgrpc"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 )
@@ -24,6 +26,7 @@ type Config struct {
 	Logging   logging.Config  `yaml:"logging"`
 	GPUVendor string          `yaml:"gpu_vendor"`
 	SysInit   *sysinit.Config `yaml:"sysinit"`
+	SecShell  *secsh.Config   `yaml:"secsh"`
 }
 
 func main() {
@@ -90,6 +93,18 @@ func run(app cmd.AppContext) error {
 
 		<-ctx.Done()
 		return listener.Close()
+	})
+	wg.Go(func() error {
+		server, err := secsh.NewRemotePTYServer(cfg.SecShell, log.Sugar().With(zap.String("scope", "secsh")))
+		if err != nil {
+			return fmt.Errorf("failed to create remote PTY server: %v", err)
+		}
+
+		if err := server.Run(ctx); err != nil {
+			return fmt.Errorf("failed to run remote PTY server: %v", err)
+		}
+
+		return nil
 	})
 
 	if err := wg.Wait(); err != nil {

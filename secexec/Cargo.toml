@@ -1,0 +1,14 @@
+[package]
+name = "secexec"
+version = "0.1.0"
+authors = ["Evgeny Safronov <division494@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+libc = "0.2"
+caps = "0.3"
+sha2 = "0.8"
+seccomp-sys = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.8"
