@@ -81,6 +81,8 @@ message DWHDeal {
     bytes supplierCertificates = 5;
     bytes consumerCertificates = 6;
     bool activeChangeRequest = 7;
+    bytes askTag = 8;
+    bytes bidTag = 9;
 }
 
 message DealConditionsRequest {
