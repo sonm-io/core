@@ -2028,8 +2028,8 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		SupplierCertificates    BYTEA NOT NULL,
 		ConsumerCertificates    BYTEA NOT NULL,
 		ActiveChangeRequest     BOOLEAN NOT NULL,
-		AskTag					BYTEA,
-		BidTag					BYTEA`, `BIGINT DEFAULT 0`),
+		AskTag					BYTEA NOT NULL,
+		BidTag					BYTEA NOT NULL`, `BIGINT DEFAULT 0`),
 			createTableDealConditions: `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							BIGSERIAL PRIMARY KEY,
