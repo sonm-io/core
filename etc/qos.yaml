@@ -46,6 +46,8 @@ secsh:
   secexec: /home/esafronov/code/core/target/release/secexec
   # Path to seccomp policy files.
   seccomp_policy_dir: /home/esafronov/code/core/etc/secexec
+  # Allowed ETH keys for login.
+  allowed_keys: []
   # ETH account settings.
   ethereum: *ethereum
   # NAT punching settings.
