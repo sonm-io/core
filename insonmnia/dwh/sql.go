@@ -86,6 +86,8 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *sonm.Deal) error {
 		ask.CreatorCertificates,
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
+		ask.GetOrder().GetTag(),
+		bid.GetOrder().GetTag(),
 	}
 	benchmarks := deal.GetBenchmarks().GetNValues(m.numBenchmarks)
 	for idx, benchmarkValue := range benchmarks {
@@ -286,7 +288,7 @@ func (m *sqlStorage) InsertOrder(conn queryConn, order *sonm.DWHOrder) error {
 		order.GetOrder().GetNetflags().GetFlags(),
 		uint64(order.GetOrder().IdentityLevel),
 		order.GetOrder().Blacklist,
-		order.GetOrder().Tag,
+		order.GetOrder().GetTag(),
 		order.GetOrder().FrozenSum.PaddedString(),
 		order.CreatorIdentityLevel,
 		order.CreatorName,
@@ -1325,6 +1327,8 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*sonm.DWHDeal, error) {
 		supplierCertificates = &[]byte{}
 		consumerCertificates = &[]byte{}
 		activeChangeRequest  = new(bool)
+		askTag               = &[]byte{}
+		bidTag               = &[]byte{}
 	)
 	allFields := []interface{}{
 		id,
@@ -1347,6 +1351,8 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*sonm.DWHDeal, error) {
 		supplierCertificates,
 		consumerCertificates,
 		activeChangeRequest,
+		askTag,
+		bidTag,
 	}
 	benchmarks := make([]*uint64, m.numBenchmarks)
 	for benchID := range benchmarks {
@@ -1408,6 +1414,8 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*sonm.DWHDeal, error) {
 		SupplierCertificates: *supplierCertificates,
 		ConsumerCertificates: *consumerCertificates,
 		ActiveChangeRequest:  *activeChangeRequest,
+		AskTag:               *askTag,
+		BidTag:               *bidTag,
 	}, nil
 }
 
@@ -1894,6 +1902,8 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"SupplierCertificates",
 		"ConsumerCertificates",
 		"ActiveChangeRequest",
+		"AskTag",
+		"BidTag",
 	}
 	orderColumns := []string{
 		"Id",
@@ -2017,7 +2027,9 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		BidIdentityLevel		INTEGER NOT NULL,
 		SupplierCertificates    BYTEA NOT NULL,
 		ConsumerCertificates    BYTEA NOT NULL,
-		ActiveChangeRequest     BOOLEAN NOT NULL`, `BIGINT DEFAULT 0`),
+		ActiveChangeRequest     BOOLEAN NOT NULL,
+		AskTag					BYTEA NOT NULL,
+		BidTag					BYTEA NOT NULL`, `BIGINT DEFAULT 0`),
 			createTableDealConditions: `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							BIGSERIAL PRIMARY KEY,
