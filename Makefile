@@ -24,6 +24,8 @@ GOCMD := ./cmd
 GO ?= go
 GOPATH ?= $(shell ls -d ~/go)
 
+CARGO ?= cargo
+
 TARGETDIR := target
 INSTALLDIR := ${GOPATH}/bin/
 
@@ -54,6 +56,8 @@ ORACLE     := ${TARGETDIR}/sonmoracle_$(OS_ARCH)
 CONNOR     := ${TARGETDIR}/sonmconnor_$(OS_ARCH)
 SONMMON    := ${TARGETDIR}/sonmmon_$(OS_ARCH)
 QOS        := ${TARGETDIR}/sonmqos_$(OS_ARCH)
+SECTERM    := ${TARGETDIR}/secterm_$(OS_ARCH)
+GLORYHOLE  := ${TARGETDIR}/gloryhole_$(OS_ARCH)
 
 TAGS = nocgo
 
@@ -149,6 +153,14 @@ endif
 build/qos:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS) $(GPU_TAGS) nl" -ldflags "$(LDFLAGS)" -o ${QOS} ${GOCMD}/qos
+
+build/secterm:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS) $(GPU_TAGS) nl" -ldflags "$(LDFLAGS)" -o ${SECTERM} ${GOCMD}/secterm
+
+build/secexec:
+	@echo "+ $@"
+	${CARGO} build --release
 
 build/insomnia: build/worker build/cli build/node
 

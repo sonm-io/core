@@ -1,0 +1,37 @@
+checksum: 171e9430c1668c2df36e731695dac3ddabe7e67b68c967861795e3e5c038de4e1a30d20ebb75727aa2d4770648806529790b129eec38194053b4f2ab6fdcac5e
+syscalls:
+  read: []
+  openat: []
+  close: []
+  write:
+    - arg: 0
+      op: eq
+      a: 1
+    - arg: 0
+      op: eq
+      a: 2
+  stat: []
+  readlink: []
+  getdents: []
+  fstat: []
+  lseek: []
+  mmap: []
+  mprotect: []
+  munmap: []
+  brk: []
+  rt_sigaction: []
+  rt_sigprocmask: []
+  ioctl: []
+  access: []
+  geteuid: []
+  arch_prctl: []
+  futex: []
+  set_tid_address: []
+  set_robust_list: []
+  prlimit64: []
+  # a
+  socket:
+    - arg: 0
+      op: eq
+      a: 1 # AF_UNIX
+  connect: []

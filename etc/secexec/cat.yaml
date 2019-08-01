@@ -1,0 +1,20 @@
+checksum: 6af93ff8a2f25940121064d31815ac282c25731febedc63f965c2806d3630204d940210c031dd544e74554138b221ce10bac39214fbd2a018fc721f61a644e5b
+syscalls:
+  read: []
+  write:
+    - arg: 0
+      op: eq
+      a: 1
+    - arg: 0
+      op: eq
+      a: 2
+  close: []
+  fstat: []
+  mmap: []
+  mprotect: []
+  munmap: []
+  brk: []
+  access: []
+  arch_prctl: []
+  fadvise64: []
+  openat: []

@@ -1,5 +1,30 @@
 endpoint: "unix:///var/run/qos.sock"
 
+# Settings for Ethereum keys
+ethereum: &ethereum
+  # path to keystore
+  key_store: "./keys"
+  # passphrase for keystore
+  pass_phrase: "any"
+
+# NAT punching settings.
+npp: &npp
+  # Rendezvous settings.
+  rendezvous:
+    # Known rendezvous endpoints.
+    #
+    # Must be in ETHAddress@Host:Port format.
+    endpoints:
+      - 0x5b7d6516fad04e10db726933bcd75447fd7b4b17@rendezvous.livenet.sonm.com:14099
+  # Relay settings.
+  relay:
+    # Known relay endpoints.
+    #
+    # The format is Host:Port.
+    # Can be omitted, meaning that relaying is disabled.
+    endpoints:
+      - relay.livenet.sonm.com:12240
+
 # GPU vendor to provide a remote plugin.
 # Maybe "nvidia", "radeon" or "fake".
 # any other options will be treated as invalid
@@ -14,3 +39,16 @@ sysinit:
   cipher: somecipher
   fs_type: ext4
   mount_point: /var/lib/docker
+
+# Secure Shell settings.
+secsh:
+  # Path to the secexec binary.
+  secexec: /home/esafronov/code/core/target/release/secexec
+  # Path to seccomp policy files.
+  seccomp_policy_dir: /home/esafronov/code/core/etc/secexec
+  # Allowed ETH keys for login.
+  allowed_keys: []
+  # ETH account settings.
+  ethereum: *ethereum
+  # NAT punching settings.
+  npp: *npp

@@ -1,0 +1,26 @@
+# Secure Terminal Configuration.
+# ------------------------------
+# Settings for Ethereum keys
+ethereum:
+  # path to keystore
+  key_store: "./keys"
+  # passphrase for keystore
+  pass_phrase: "any"
+
+# NAT punching settings.
+npp:
+  # Rendezvous settings.
+  rendezvous:
+    # Known rendezvous endpoints.
+    #
+    # Must be in ETHAddress@Host:Port format.
+    endpoints:
+      - 0x5b7d6516fad04e10db726933bcd75447fd7b4b17@rendezvous.livenet.sonm.com:14099
+  # Relay settings.
+  relay:
+    # Known relay endpoints.
+    #
+    # The format is Host:Port.
+    # Can be omitted, meaning that relaying is disabled.
+    endpoints:
+      - relay.livenet.sonm.com:12240

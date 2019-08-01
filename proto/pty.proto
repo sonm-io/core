@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option go_package = "github.com/sonm-io/core/proto;sonm";
+
+package sonm;
+
+service RemotePTY {
+    rpc Banner(RemotePTYBannerRequest) returns (RemotePTYBannerResponse) {}
+    rpc Exec(RemotePTYExecRequest) returns (stream RemotePTYExecResponseChunk) {}
+}
+
+message RemotePTYBannerRequest {}
+
+message RemotePTYBannerResponse {
+    string banner = 1;
+}
+
+message RemotePTYExecRequest {
+    repeated string args = 1;
+    repeated string envp = 2;
+}
+
+message RemotePTYExecResponseChunk {
+    bytes out = 1;
+    bool done = 2;
+}

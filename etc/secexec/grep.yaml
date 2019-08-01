@@ -1,0 +1,27 @@
+checksum: 1e6173ba6af22cb209e23dee025f7967f777ba22c64f773131885c2768f7f1d48af7a3fcdf1345f3883647786a723be8556a0cf0a902fbfb18c281da71f51c76
+syscalls:
+  mmap: []
+  mprotect: []
+  openat: []
+  fstat: []
+  close: []
+  access: []
+  read: []
+  munmap: []
+  brk: []
+  write:
+    - arg: 0
+      op: eq
+      a: 1
+    - arg: 0
+      op: eq
+      a: 2
+  rt_sigaction: []
+  stat: []
+  rt_sigprocmask: []
+  futex: []
+  set_tid_address: []
+  arch_prctl: []
+  set_robust_list: []
+  prlimit64: []
+  lseek: []

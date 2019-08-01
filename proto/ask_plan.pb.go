@@ -20,6 +20,7 @@ It is generated from these files:
 	net.proto
 	node.proto
 	optimus.proto
+	pty.proto
 	relay.proto
 	rendezvous.proto
 	tc.proto
@@ -161,6 +162,10 @@ It has these top-level messages:
 	NamedMetric
 	PredictSupplierRequest
 	PredictSupplierReply
+	RemotePTYBannerRequest
+	RemotePTYBannerResponse
+	RemotePTYExecRequest
+	RemotePTYExecResponseChunk
 	HandshakeRequest
 	DiscoverResponse
 	HandshakeResponse
