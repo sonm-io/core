@@ -12,6 +12,10 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+var (
+	LeakedInsecureKey = common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd")
+)
+
 // EthAuthInfo implements credentials.AuthInfo
 // It provides access to a wallet of a connected user
 type EthAuthInfo struct {

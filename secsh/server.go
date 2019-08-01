@@ -5,7 +5,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"fmt"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp"
@@ -16,6 +18,14 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+)
+
+var (
+	servicePrefix = "/sonm.RemotePTY/"
+	methods       = []string{
+		servicePrefix + "Banner",
+		servicePrefix + "Exec",
+	}
 )
 
 type execStream struct {
@@ -66,7 +76,8 @@ func (m *RemotePTYServer) Run(ctx context.Context) error {
 
 	defer certRotator.Close()
 
-	server := m.makeServer(tlsConfig)
+	authorization := m.makeAuthorization(ctx)
+	server := m.makeServer(ctx, tlsConfig, authorization)
 	service := &RemotePTYService{
 		execPath:   m.cfg.SecExecPath,
 		policyPath: m.cfg.SeccompPolicyDir,
@@ -91,6 +102,9 @@ func (m *RemotePTYServer) Run(ctx context.Context) error {
 
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
+		return m.runACLUpdateLoop(ctx)
+	})
+	wg.Go(func() error {
 		return server.Serve(listener)
 	})
 
@@ -102,13 +116,51 @@ func (m *RemotePTYServer) Run(ctx context.Context) error {
 	return wg.Wait()
 }
 
-func (m *RemotePTYServer) makeServer(tlsConfig *tls.Config) *grpc.Server {
+func (m *RemotePTYServer) makeAuthorization(ctx context.Context) *auth.AuthRouter {
+	methodAuthorization := auth.NewAnyOfTransportCredentialsAuthorization(ctx)
+	for _, key := range m.cfg.AllowedKeys {
+		addr := common.HexToAddress(key)
+		if addr == auth.LeakedInsecureKey {
+			m.log.Warnf("skipping allowed key %s for being compromised", addr.Hex())
+			continue
+		}
+
+		methodAuthorization.Add(addr, 0)
+	}
+
+	authorization := auth.NewEventAuthorization(ctx,
+		auth.WithLog(m.log.Desugar()),
+		auth.Allow(methods...).With(methodAuthorization),
+		auth.WithFallback(auth.NewDenyAuthorization()),
+	)
+
+	return authorization
+}
+
+func (m *RemotePTYServer) makeServer(ctx context.Context, tlsConfig *tls.Config, authorization *auth.AuthRouter) *grpc.Server {
+	credentials := xgrpc.NewTransportCredentials(tlsConfig)
 	options := []xgrpc.ServerOption{
+		xgrpc.Credentials(credentials),
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.RequestLogInterceptor([]string{}),
+		xgrpc.AuthorizationInterceptor(authorization),
 		xgrpc.VerifyInterceptor(),
-		xgrpc.Credentials(auth.NewWalletAuthenticator(xgrpc.NewTransportCredentials(tlsConfig), crypto.PubkeyToAddress(m.privateKey.PublicKey))),
 	}
 
 	return xgrpc.NewServer(m.log.Desugar(), options...)
+}
+
+func (m *RemotePTYServer) runACLUpdateLoop(ctx context.Context) error {
+	timer := time.NewTicker(5 * time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			m.log.Info("updating ACL")
+			// todo: update whitelist from remote.
+		}
+	}
 }
