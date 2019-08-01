@@ -230,7 +230,7 @@ func (m *wrappedAuthStream) RecvMsg(msg interface{}) error {
 		return err
 	}
 
-	if !m.processed.CAS(false, true) {
+	if m.processed.CAS(false, true) {
 		if err := m.router.Authorize(m.ServerStream.Context(), auth.Event(m.info.FullMethod), msg); err != nil {
 			return err
 		}
