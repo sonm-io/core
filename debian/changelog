@@ -1,3 +1,20 @@
+sonm-core (0.4.30) unstable; urgency=low
+
+  * Added: remote secure shell (#1895).
+    This commit allows exposing a server on a host, which act as a remote secure
+    shell, executing allowed commands within the security policy.
+  * Added: add bid and ask tags to dwh deal (#1896).
+  * Added: Worker now waits until Docker starts (#1894).
+  * Fixed: wrong streaming authorization check (#1897).
+    Previously streaming gRPC authorization always ignored the first
+    chunk for the incoming stream and checked for others. This is wrong for
+    methods which stream only back because the entire authorization
+    mechanism is suppressed at all.
+    This commit fixes such behavior by forcing the auth routing to check for
+    the first incoming message.
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 02 Aug 2019 16:27:54 +0300
+
 sonm-core (0.4.29) unstable; urgency=low
 
   * Added: sys init capability for QoS service (#1891).
