@@ -224,6 +224,13 @@ func (m *CreateFileSystemAction) findDevice(devices []*BlockDevice) (*BlockDevic
 		if dev.Name == m.Device {
 			return dev, nil
 		}
+
+		childDev, err := m.findDevice(dev.Children)
+		if err != nil {
+			continue
+		}
+
+		return childDev, nil
 	}
 
 	return nil, fmt.Errorf("device /dev/%s not found", m.Device)
