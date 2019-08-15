@@ -95,6 +95,10 @@ func run(app cmd.AppContext) error {
 		return listener.Close()
 	})
 	wg.Go(func() error {
+		if cfg.SecShell == nil {
+			return nil
+		}
+
 		server, err := secsh.NewRemotePTYServer(cfg.SecShell, log.Sugar().With(zap.String("scope", "secsh")))
 		if err != nil {
 			return fmt.Errorf("failed to create remote PTY server: %v", err)
