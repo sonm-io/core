@@ -34,7 +34,7 @@ func (m *RemotePTYService) Banner(ctx context.Context, request *sonm.RemotePTYBa
 func (m *RemotePTYService) commandsList() ([]string, error) {
 	fileInfoList, err := ioutil.ReadDir(m.policyPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load policies: %v", err)
 	}
 
 	cmds := make([]string, 0)
