@@ -24,12 +24,9 @@ func (m *RemotePTYService) Banner(ctx context.Context, request *sonm.RemotePTYBa
 		return nil, err
 	}
 
-	banner, err := NewBanner(ctx)
+	banner := NewBanner(ctx, m.log)
 	banner.AddLine("")
 	banner.AddLine(fmt.Sprintf("List of available commands: %s", strings.Join(cmds, ", ")))
-	if err != nil {
-		return nil, err
-	}
 
 	return &sonm.RemotePTYBannerResponse{Banner: banner.String()}, nil
 }
