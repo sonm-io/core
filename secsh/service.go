@@ -92,7 +92,7 @@ func (m *RemotePTYService) prepareArguments(args []string) ([]string, error) {
 		return nil, err
 	}
 
-	return append([]string{m.policyPath, execFullPath}, args[1:]...), nil
+	return append([]string{m.policyPath, "--", execFullPath}, args[1:]...), nil
 }
 
 func (m *RemotePTYService) resolveExecPath(execName string) (string, error) {
