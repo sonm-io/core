@@ -93,7 +93,7 @@ func (m *antiFraud) Run(ctx context.Context) error {
 }
 
 //TODO: async
-func (m *antiFraud) checkDeals(ctx context.Context) error {
+func (m *antiFraud) checkDeals(ctx context.Context) {
 	m.log.Debug("checking deals")
 	defer m.log.Debug("stop checking deals")
 
@@ -162,7 +162,6 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 			watcher.Success()
 		}
 	}
-	return nil
 }
 
 func (m *antiFraud) checkBlacklist(ctx context.Context) {
