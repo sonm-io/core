@@ -1,73 +1,61 @@
 use std::{
     error::Error,
-    ffi::{CStr, CString, NulError},
+    ffi::{CString, NulError},
 };
+
+use clap::{crate_authors, crate_name, crate_version, App, Arg};
 
 use secexec::{Config, Executor};
 
-/// Poor man command-line arguments parser.
-struct Args {
-    /// Path to a directory with seccomp policies.
-    path: String,
-    /// Executable arguments (including executable path, i.e. what to execute).
-    argv: Vec<CString>,
-}
-
-impl Args {
-    /// Loads program arguments and extracts the required.
-    pub fn new() -> Result<Self, Box<dyn Error>> {
-        // Skip our executable name.
-        let mut argv = std::env::args().skip(1);
-
-        let path = match argv.next() {
-            Some(path) => path,
-            None => return Err("missing required policy path argument".into()),
-        };
-
-        let argv: Result<Vec<CString>, NulError> = argv.map(|v| CString::new(v)).collect();
-        let argv = argv?;
-
-        if argv.is_empty() {
-            return Err("missing executable".into());
-        }
-
-        let m = Self { path, argv };
-
-        Ok(m)
-    }
-
-    /// Returns path containing policy rules.
-    #[inline]
-    pub fn policy_path(&self) -> &str {
-        &self.path
-    }
-
-    /// Returns the executable path.
-    #[inline]
-    pub fn exec(&self) -> &CStr {
-        &self.argv[0]
-    }
-
-    /// Returns executable arguments including full program name.
-    #[inline]
-    pub fn argv(&self) -> &[CString] {
-        &self.argv
-    }
-}
-
-/// Usage: `secexec POLICY_PATH EXEC_PATH [ARGS...]`.
-///
 /// For security reasons:
 ///  - `POLICY_PATH` must be read-only.
 fn main() -> Result<(), Box<dyn Error>> {
-    let args = Args::new()?;
-    let exec = args.exec().to_str()?;
-    let cfg = Config::load(args.policy_path(), exec)?;
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .author(crate_authors!())
+        .usage("secexec <POLICY_PATH> --pwd <PATH> -- <EXEC> [<ARGS>...]")
+        .arg(
+            Arg::with_name("POLICY_PATH")
+                .help("Path with seccomp policies")
+                .required(true)
+                .index(1),
+        )
+        .arg(
+            Arg::with_name("ARGS")
+                .help("Executable arguments (including executable path)")
+                .required(true)
+                .multiple(true),
+        )
+        .arg(
+            Arg::with_name("pwd")
+                .long("pwd")
+                .value_name("PATH")
+                .default_value("/")
+                .help("Current working directory")
+                .takes_value(true),
+        )
+        .get_matches();
 
-    // Change CWD to "/" because why not.
-    unsafe { libc::chdir(CString::new("/")?.as_ptr()) };
+    // This is safe, because `POLICY_PATH` argument is required.
+    let policy_path = matches.value_of("POLICY_PATH").unwrap();
+    // This is safe, because these arguments have default value.
+    let pwd = matches.value_of("pwd").unwrap();
 
-    Executor::new(cfg).exec(args.exec(), args.argv(), &[])?;
+    // Convert trailing arguments to a vector of `CString`.
+    let args = matches
+        .values_of("ARGS")
+        .unwrap_or_default()
+        .map(|v| CString::new(v))
+        .collect::<Result<Vec<CString>, NulError>>()?;
+
+    // This is safe, because `ARGS` argument is required and has at least a single value.
+    let exec = args.first().unwrap();
+
+    let cfg = Config::load(policy_path, exec.to_str()?)?;
+
+    unsafe { libc::chdir(CString::new(pwd)?.as_ptr()) };
+
+    Executor::new(cfg).exec(exec, &args, &[])?;
 
     Ok(())
 }
