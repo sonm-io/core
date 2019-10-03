@@ -6,6 +6,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
+clap = "2"
 libc = "0.2"
 caps = "0.3"
 sha2 = "0.8"

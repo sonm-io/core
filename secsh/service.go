@@ -24,12 +24,9 @@ func (m *RemotePTYService) Banner(ctx context.Context, request *sonm.RemotePTYBa
 		return nil, err
 	}
 
-	banner, err := NewBanner(ctx)
+	banner := NewBanner(ctx, m.log)
 	banner.AddLine("")
 	banner.AddLine(fmt.Sprintf("List of available commands: %s", strings.Join(cmds, ", ")))
-	if err != nil {
-		return nil, err
-	}
 
 	return &sonm.RemotePTYBannerResponse{Banner: banner.String()}, nil
 }
@@ -37,7 +34,7 @@ func (m *RemotePTYService) Banner(ctx context.Context, request *sonm.RemotePTYBa
 func (m *RemotePTYService) commandsList() ([]string, error) {
 	fileInfoList, err := ioutil.ReadDir(m.policyPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load policies: %v", err)
 	}
 
 	cmds := make([]string, 0)
@@ -95,7 +92,7 @@ func (m *RemotePTYService) prepareArguments(args []string) ([]string, error) {
 		return nil, err
 	}
 
-	return append([]string{m.policyPath, execFullPath}, args[1:]...), nil
+	return append([]string{m.policyPath, "--", execFullPath}, args[1:]...), nil
 }
 
 func (m *RemotePTYService) resolveExecPath(execName string) (string, error) {

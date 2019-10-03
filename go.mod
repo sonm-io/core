@@ -81,7 +81,7 @@ require (
 	github.com/lucas-clemente/aes12 v0.0.0-20171027163421-cd47fb39b79f // indirect
 	github.com/lucas-clemente/quic-go v0.10.0
 	github.com/lucas-clemente/quic-go-certificates v0.0.0-20160823095156-d2f86524cced // indirect
-	github.com/magiconair/properties v0.0.0-20180217134545-2c9e95027885 // indirect
+	github.com/magiconair/properties v0.0.0-20180217134545-2c9e95027885
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4
 	github.com/mattn/go-runewidth v0.0.0-20170510074858-97311d9f7767 // indirect

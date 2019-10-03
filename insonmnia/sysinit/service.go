@@ -17,6 +17,8 @@ import (
 const (
 	// Path to the "cryptsetup" tool.
 	cryptsetupPath = "/sbin/cryptsetup"
+
+	dockerUnitName = "docker.service"
 )
 
 type Config struct {
@@ -54,6 +56,14 @@ func (m *InitService) Mount(ctx context.Context, request *sonm.InitMountRequest)
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
+	isMounted, err := m.isMounted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if isMounted {
+		return &sonm.InitMountResponse{}, nil
+	}
+
 	err, errs := action.NewActionQueue(m.makeActions()...).Execute(ctx)
 	if err != nil {
 		m.log.Errorw("failed to mount", zap.Error(err))
@@ -66,6 +76,46 @@ func (m *InitService) Mount(ctx context.Context, request *sonm.InitMountRequest)
 	}
 
 	return &sonm.InitMountResponse{}, nil
+}
+
+func (m *InitService) isMounted(ctx context.Context) (bool, error) {
+	return m.isDockerRunning(ctx)
+}
+
+func (m *InitService) isDockerRunning(ctx context.Context) (bool, error) {
+	conn, err := dbus.New()
+	if err != nil {
+		return false, err
+	}
+	defer conn.Close()
+
+	statusList, err := conn.ListUnitsByNames([]string{dockerUnitName})
+	if err != nil {
+		return false, err
+	}
+
+	// No Docker service found.
+	if len(statusList) == 0 {
+		return false, nil
+	}
+
+	isServiceFound := false
+	for _, status := range statusList {
+		if status.Name != dockerUnitName {
+			continue
+		}
+
+		isServiceFound = true
+		if !(status.ActiveState == "active" && status.SubState == "running") {
+			return false, nil
+		}
+	}
+
+	if !isServiceFound {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (m *InitService) makeActions() []action.Action {
@@ -224,6 +274,13 @@ func (m *CreateFileSystemAction) findDevice(devices []*BlockDevice) (*BlockDevic
 		if dev.Name == m.Device {
 			return dev, nil
 		}
+
+		childDev, err := m.findDevice(dev.Children)
+		if err != nil {
+			continue
+		}
+
+		return childDev, nil
 	}
 
 	return nil, fmt.Errorf("device /dev/%s not found", m.Device)
@@ -285,7 +342,7 @@ func (m *StartDockerAction) Execute(ctx context.Context) error {
 	defer conn.Close()
 
 	ch := make(chan string)
-	if _, err := conn.RestartUnit("docker.service", "fail", ch); err != nil {
+	if _, err := conn.RestartUnit(dockerUnitName, "fail", ch); err != nil {
 		return err
 	}
 
@@ -305,7 +362,7 @@ func (m *StartDockerAction) Rollback() error {
 	defer conn.Close()
 
 	ch := make(chan string)
-	if _, err := conn.StopUnit("docker.service", "fail", ch); err != nil {
+	if _, err := conn.StopUnit(dockerUnitName, "fail", ch); err != nil {
 		return err
 	}
 
