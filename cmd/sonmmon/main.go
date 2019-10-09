@@ -479,9 +479,9 @@ func main() {
 		}
 		ctl.window.UpdateSurface()
 
-		black := sdl.Color{0, 0, 0, 255}
-		white := sdl.Color{255, 255, 255, 255}
-		red := sdl.Color{255, 0, 0, 255}
+		black := sdl.Color{R: 0, G: 0, B: 0, A: 255}
+		white := sdl.Color{R: 255, G: 255, B: 255, A: 255}
+		red := sdl.Color{R: 255, G: 0, B: 0, A: 255}
 
 		if worker.Success {
 			ctl.drawText(-1020, 190, worker.Status, white)
