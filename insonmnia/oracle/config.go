@@ -9,7 +9,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
-type oracleConfig struct {
+type OracleConfig struct {
 	IsMaster             bool          `yaml:"is_master" default:"false"`
 	PriceUpdatePeriod    time.Duration `yaml:"price_update_period" default:"15s"`
 	ContractUpdatePeriod time.Duration `yaml:"contract_update_period" default:"15m"`
@@ -18,7 +18,7 @@ type oracleConfig struct {
 }
 
 type Config struct {
-	Oracle     oracleConfig       `yaml:"oracle"`
+	Oracle     OracleConfig       `yaml:"oracle"`
 	Log        logging.Config     `yaml:"log"`
 	Blockchain *blockchain.Config `yaml:"blockchain"`
 	Eth        accounts.EthConfig `yaml:"ethereum" required:"false"`

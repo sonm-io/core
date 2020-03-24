@@ -2,33 +2,19 @@ package oracle
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"math/big"
-	"net/http"
-	"time"
-
+	"github.com/adshao/go-binance"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
+	"math/big"
+	"time"
 )
-
-const (
-	snmPriceTickerURL string = "https://api.coinmarketcap.com/v1/ticker/sonm/"
-)
-
-type tokenData struct {
-	ID       string `json:"id"`
-	Symbol   string `json:"symbol"`
-	Name     string `json:"name"`
-	PriceUsd string `json:"price_usd"`
-}
 
 type PriceData struct {
-	price *big.Int
-	err   error
+	Price *big.Int
+	Err   error
 }
 
 type PriceWatcher struct {
@@ -55,9 +41,9 @@ func (p *PriceWatcher) Start(ctx context.Context) <-chan *PriceData {
 			case <-t.C:
 				price, err := p.loadCurrentPrice(ctx)
 				if err != nil {
-					p.data <- &PriceData{price: nil, err: err}
+					p.data <- &PriceData{Price: nil, Err: err}
 				}
-				p.data <- &PriceData{price: price, err: nil}
+				p.data <- &PriceData{Price: price, Err: nil}
 			}
 		}
 	}()
@@ -66,7 +52,7 @@ func (p *PriceWatcher) Start(ctx context.Context) <-chan *PriceData {
 
 func (p *PriceWatcher) loadCurrentPrice(ctx context.Context) (*big.Int, error) {
 	logger := ctxlog.GetLogger(ctx)
-	usdPrice, err := p.loadSNMPrice(snmPriceTickerURL)
+	usdPrice, err := p.loadSNMPrice()
 	if err != nil {
 		return nil, err
 	}
@@ -81,29 +67,27 @@ func (p *PriceWatcher) divideSNM(price *big.Float) *big.Int {
 	return intPrice
 }
 
-func (p *PriceWatcher) loadSNMPrice(url string) (*big.Float, error) {
-	resp, err := http.Get(url)
+func (p *PriceWatcher) loadSNMPrice() (*big.Float, error) {
+	client := binance.NewClient("", "")
+	// futuresClient := binance.NewFuturesClient(apiKey, secretKey)
+	resSNM, err := client.NewDepthService().Symbol("SNMBTC").Do(context.Background())
 	if err != nil {
-		return nil, err
+		fmt.Println(err)
+		return nil, fmt.Errorf("failed to load SNM price: %v", err)
+	}
+	resBTC, err := client.NewDepthService().Symbol("BTCUSDT").Do(context.Background())
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("failed to load BTC price: %v", err)
 	}
 
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	snmPrice, ok := big.NewFloat(0).SetString(resSNM.Asks[0].Price)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse SNM price: %v", err)
 	}
-	var tickerSnm []*tokenData
-	err = json.Unmarshal(body, &tickerSnm)
-	if err != nil {
-		return nil, err
+	btcPrice, ok := big.NewFloat(0).SetString(resBTC.Asks[0].Price)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse BTC price: %v", err)
 	}
-	if len(tickerSnm) < 1 {
-		return nil, fmt.Errorf("loading ticker is abused")
-	}
-	f, _, err := new(big.Float).Parse(tickerSnm[0].PriceUsd, 10)
-	if err != nil {
-		return nil, err
-	}
-	return f, nil
+	return btcPrice.Mul(btcPrice, snmPrice), nil
 }

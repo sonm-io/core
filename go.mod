@@ -12,6 +12,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.13 // indirect
 	github.com/Sirupsen/logrus v1.1.0 // indirect
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
+	github.com/adshao/go-binance v0.0.0-20200311024123-dfbfd7e703ca
 	github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20180907105523-ff33da284e76 // indirect
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect

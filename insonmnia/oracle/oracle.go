@@ -58,14 +58,14 @@ func (o *Oracle) watchPriceRoutine(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case p := <-dw:
-			if p.err != nil {
-				o.logger.Warn("failed to load price", zap.Error(p.err))
+			if p.Err != nil {
+				o.logger.Warn("failed to load price", zap.Error(p.Err))
 				continue
 			}
 			o.mu.Lock()
-			o.actualPrice = p.price
+			o.actualPrice = p.Price
 			o.mu.Unlock()
-			o.logger.Debug("loaded new price", zap.String("price", p.price.String()))
+			o.logger.Debug("loaded new price", zap.String("price", p.Price.String()))
 		}
 	}
 }
