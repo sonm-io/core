@@ -20,19 +20,21 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	log "github.com/noxiouz/zapctx/ctxlog"
+
 	bch "github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
 )
 
 var (
-	testDWH           *DWH
-	testL1Processor   *L1Processor
-	dbUser            = "dwh_tester"
-	dbUserPassword    = "dwh_tester"
-	globalDBName      = "dwh_test_db"
-	monitorDBName     = "dwh_l1_processor_test_db"
-	postgresPort      = "15432"
-	serviceConnString = fmt.Sprintf("postgresql://localhost:%s/template1?user=postgres&sslmode=disable", postgresPort)
+	testDWH                     *DWH
+	testL1Processor             *L1Processor
+	checkDatabaseReadinessRetry = 10
+	dbUser                      = "dwh_tester"
+	dbUserPassword              = "dwh_tester"
+	globalDBName                = "dwh_test_db"
+	monitorDBName               = "dwh_l1_processor_test_db"
+	postgresPort                = "15432"
+	serviceConnString           = fmt.Sprintf("postgresql://localhost:%s/template1?user=postgres&password=%s&sslmode=disable", postgresPort, dbUserPassword)
 )
 
 func TestAll(t *testing.T) {
@@ -137,6 +139,9 @@ func startPostgresContainer(ctx context.Context) (cli *client.Client, containerI
 	containerCfg := &container.Config{
 		Image:        "postgres",
 		ExposedPorts: nat.PortSet{"5432": struct{}{}},
+		Env: []string{
+			fmt.Sprintf("%s=%s", "POSTGRES_PASSWORD", dbUserPassword),
+		},
 	}
 	hostCfg := &container.HostConfig{
 		PortBindings: map[nat.Port][]nat.PortBinding{
@@ -160,7 +165,7 @@ func startPostgresContainer(ctx context.Context) (cli *client.Client, containerI
 func setupTestDB() error {
 	db, err := sql.Open("postgres", serviceConnString)
 	if err != nil {
-		return fmt.Errorf("failed to connect to template1: %s", err)
+		return fmt.Errorf("failed to open connect to database: %s", err)
 	}
 	defer db.Close()
 
@@ -192,14 +197,14 @@ func setupTestDB() error {
 }
 
 func checkPostgresReadiness(db *sql.DB) error {
-	var err error
-	for numRetries := 10; numRetries > 0; numRetries-- {
+	for numRetries := checkDatabaseReadinessRetry; numRetries > 0; numRetries-- {
 		if _, err := db.Exec("CREATE DATABASE is_ready"); err == nil {
 			return nil
 		}
 		fmt.Printf("postgres container not ready, %d retries left\n", numRetries)
 		time.Sleep(time.Second)
 	}
+	err := fmt.Errorf("postgress not started with %d retries", checkDatabaseReadinessRetry)
 
 	return fmt.Errorf("failed to connect to postgres container: %v", err)
 }
