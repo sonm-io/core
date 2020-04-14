@@ -204,7 +204,7 @@ func checkPostgresReadiness(db *sql.DB) error {
 		fmt.Printf("postgres container not ready, %d retries left\n", numRetries)
 		time.Sleep(time.Second)
 	}
-	err := fmt.Errorf("postgress not started with %d retries", checkDatabaseReadinessRetry)
+	err := fmt.Errorf("postgress not started after %d retries", checkDatabaseReadinessRetry)
 
 	return fmt.Errorf("failed to connect to postgres container: %v", err)
 }
