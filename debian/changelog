@@ -1,3 +1,36 @@
+sonm-core (0.4.31) unstable; urgency=low
+
+  * Added: allow to specify pwd in secexec (#1901).
+    Also the usage of "secexec" has been slightly changed: now the executable and
+    its arguments must be specified after "--".
+    For example: secexec /etc/secexec -- /bin/ls -lith.
+  * Added: watch for keystore in sysinit.
+  * Fixed: more nvidia related .so files for volumes (#1907).
+    Found out that we're skipping a lot of useful nvidia's .so files.
+    This PR adds all of them to the docker volume.
+    Based on the content of NVIDIA-Linux-x86_64-440.82.
+    To keep the list up-to-date in the future:
+    1. download the latest version on drivers;
+    2. unpack them without installing: "./NVIDIA-Linux-x86_64-XXX.YY.run
+    --extract-only";
+    3. list .so and update the list in "insonmnia/worker/gpu/nvidia_tuner.go";
+    Don't forget to remove versions and .0 from file names;
+    4. ???
+    5. Congratulation, you're awesome open-source contributor;.
+  * Fixed: dwh tests (#1908).
+    This PR fixes behavior with dwh test suite:
+    * add required for run "POSTGRES_PASSWORD" environment
+    * returns an error when Postgres not started any times, not null
+    * format touched file imports
+    Co-Authored-By: ALex Nikonov <alex@sshaman.ru>
+    Co-authored-by: ALex Nikonov <alex@sshaman.ru>.
+  * Fixed: check for mount required before mounting.
+  * Fixed: weaken errors while constructing secsh banner.
+  * Fixed: allow to start QOS without secsh.
+  * Fixed: traverse children while looking for a device (#1898).
+
+ -- ALex Nikonov <alex@sshaman.ru>  Fri, 15 May 2020 12:36:50 +0500
+
 sonm-core (0.4.30) unstable; urgency=low
 
   * Added: remote secure shell (#1895).
