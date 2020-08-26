@@ -48,6 +48,8 @@ let urls = {
 let networks = {
     development: {
         network_id: '*',
+        gas: 0xfffffffffff,
+        gasPrice: 1,
     },
     dev_side: {
         network_id: '8525',
