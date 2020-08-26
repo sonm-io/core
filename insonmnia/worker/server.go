@@ -1889,15 +1889,38 @@ func (m *Worker) runBenchmark(bench *sonm.Benchmark) error {
 	case sonm.DeviceType_DEV_NETWORK_OUT:
 		return m.setBenchmark(bench, m.hardware.Network, m.hardware.Network.BenchmarksOut)
 	case sonm.DeviceType_DEV_GPU:
-		//TODO: use context to prevent useless benchmarking in case of error
-		group := errgroup.Group{}
-		for _, dev := range m.hardware.GPU {
-			g := dev
-			group.Go(func() error {
-				return m.setBenchmark(bench, g.Device, g.Benchmarks)
+		devChan := make(chan struct {
+			bench *sonm.Benchmark
+			dev   *sonm.GPUDevice
+			all   map[uint64]*sonm.Benchmark
+		}, 3)
+
+		ctx, cancel := context.WithCancel(m.ctx)
+		defer cancel()
+
+		wg, ctx := errgroup.WithContext(ctx)
+		for i := 0; i < 3; i++ {
+			wg.Go(func() error {
+				for dev := range devChan {
+					if err := m.setBenchmark(dev.bench, dev.dev, dev.all); err != nil {
+						return err
+					}
+				}
+				return nil
 			})
 		}
-		if err := group.Wait(); err != nil {
+
+		for _, dev := range m.hardware.GPU {
+			devChan <- struct {
+				bench *sonm.Benchmark
+				dev   *sonm.GPUDevice
+				all   map[uint64]*sonm.Benchmark
+			}{bench: bench, dev: dev.GetDevice(), all: dev.GetBenchmarks()}
+		}
+
+		close(devChan)
+
+		if err := wg.Wait(); err != nil {
 			return err
 		}
 	default:
