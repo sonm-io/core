@@ -156,7 +156,7 @@ func (b bitSize) EiBytes() float64 { return b.dimensionCount(EiB) }
 
 func (b bitSize) HumanReadableString(flags uint8) string {
 	if b == 0 {
-		return fmt.Sprint("0B")
+		return "0B"
 	}
 	for _, dimension := range dimensions {
 		if dimension.flags&flags == flags && b > dimension.size {
@@ -168,7 +168,7 @@ func (b bitSize) HumanReadableString(flags uint8) string {
 
 func (b bitSize) PreciseString(flags uint8) string {
 	if b == 0 {
-		return fmt.Sprint("0B")
+		return "0B"
 	}
 	for _, dimension := range dimensions {
 		if dimension.flags&flags == flags && b%dimension.size == 0 {
