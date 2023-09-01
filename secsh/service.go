@@ -110,7 +110,7 @@ func (m *RemotePTYService) returnHelp(stream *execStream) error {
 		return err
 	}
 
-	out := fmt.Sprintf("List of available commands:\n\r")
+	out := "List of available commands:\n\r"
 	for _, file := range files {
 		if file.IsDir() {
 			continue
